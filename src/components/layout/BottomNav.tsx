@@ -1,7 +1,7 @@
-import { Hash, Users, Sparkles, User, Search } from "lucide-react";
+import { Hash, MessageCircle, Sparkles, User, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-type TabType = "channels" | "search" | "ai" | "profile";
+type TabType = "channels" | "messages" | "search" | "ai" | "profile";
 
 interface BottomNavProps {
   activeTab: TabType;
@@ -10,8 +10,9 @@ interface BottomNavProps {
 
 const tabs = [
   { id: "channels" as const, label: "Каналы", icon: Hash },
+  { id: "messages" as const, label: "Чаты", icon: MessageCircle },
   { id: "search" as const, label: "Поиск", icon: Search },
-  { id: "ai" as const, label: "FLAME AI", icon: Sparkles },
+  { id: "ai" as const, label: "AI", icon: Sparkles },
   { id: "profile" as const, label: "Профиль", icon: User },
 ];
 
