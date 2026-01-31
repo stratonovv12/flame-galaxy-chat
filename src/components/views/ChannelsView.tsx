@@ -4,7 +4,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { FlameButton } from "@/components/ui/FlameButton";
 import { FlameInput } from "@/components/ui/FlameInput";
-import { Hash, Plus, Send, Users, X } from "lucide-react";
+import { UserAvatar } from "@/components/ui/UserAvatar";
+import { Hash, Plus, Send, X } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
 import { ru } from "date-fns/locale";
@@ -22,7 +23,7 @@ interface Post {
   content: string;
   author_id: string;
   created_at: string;
-  profiles?: { username: string | null } | null;
+  profiles?: { username: string | null; avatar_url: string | null } | null;
 }
 
 export function ChannelsView() {
@@ -81,16 +82,39 @@ export function ChannelsView() {
   };
 
   const fetchPosts = async (channelId: string) => {
-    const { data, error } = await supabase
+    // First fetch posts
+    const { data: postsData, error: postsError } = await supabase
       .from("posts")
       .select("*")
       .eq("channel_id", channelId)
       .order("created_at", { ascending: true });
 
-    if (error) {
-      console.error("Error fetching posts:", error);
+    if (postsError) {
+      console.error("Error fetching posts:", postsError);
+      return;
+    }
+
+    // Then fetch profiles for all authors
+    const authorIds = [...new Set(postsData?.map(p => p.author_id) || [])];
+    
+    if (authorIds.length > 0) {
+      const { data: profilesData } = await supabase
+        .from("profiles")
+        .select("user_id, username, avatar_url")
+        .in("user_id", authorIds);
+
+      const profilesMap = new Map(
+        profilesData?.map(p => [p.user_id, { username: p.username, avatar_url: p.avatar_url }]) || []
+      );
+
+      const postsWithProfiles = postsData?.map(post => ({
+        ...post,
+        profiles: profilesMap.get(post.author_id) || null,
+      })) || [];
+
+      setPosts(postsWithProfiles);
     } else {
-      setPosts(data || []);
+      setPosts(postsData || []);
     }
   };
 
@@ -178,13 +202,15 @@ export function ChannelsView() {
             posts.map((post) => (
               <GlassCard key={post.id} className="p-3">
                 <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-full bg-primary/30 flex items-center justify-center shrink-0">
-                    <Users className="w-4 h-4 text-primary" />
-                  </div>
+                  <UserAvatar
+                    username={post.profiles?.username}
+                    avatarUrl={post.profiles?.avatar_url}
+                    size="sm"
+                  />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="font-medium text-sm">
-                        {post.author_id === user?.id ? "Вы" : "Пользователь"}
+                        {post.profiles?.username || (post.author_id === user?.id ? "Вы" : "Пользователь")}
                       </span>
                       <span className="text-xs text-muted-foreground">
                         {formatDistanceToNow(new Date(post.created_at), {

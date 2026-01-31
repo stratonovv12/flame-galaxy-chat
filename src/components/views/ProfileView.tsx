@@ -4,12 +4,14 @@ import { useAuth } from "@/contexts/AuthContext";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { FlameButton } from "@/components/ui/FlameButton";
 import { FlameInput } from "@/components/ui/FlameInput";
-import { User, LogOut, Save, Settings, Mail } from "lucide-react";
+import { UserAvatar } from "@/components/ui/UserAvatar";
+import { LogOut, Save, Settings, Mail, Link } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 export function ProfileView() {
   const { user, signOut } = useAuth();
   const [username, setUsername] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -25,12 +27,13 @@ export function ProfileView() {
 
     const { data, error } = await supabase
       .from("profiles")
-      .select("username")
+      .select("username, avatar_url")
       .eq("user_id", user.id)
       .maybeSingle();
 
     if (data) {
       setUsername(data.username || "");
+      setAvatarUrl(data.avatar_url || "");
     } else if (!error) {
       // Create profile if doesn't exist
       await supabase.from("profiles").insert({
@@ -50,6 +53,7 @@ export function ProfileView() {
       .upsert({
         user_id: user.id,
         username: username.trim(),
+        avatar_url: avatarUrl.trim() || null,
       }, {
         onConflict: "user_id",
       });
@@ -80,8 +84,13 @@ export function ProfileView() {
       {/* Profile Card */}
       <GlassCard className="p-6" glow>
         <div className="flex flex-col items-center mb-6">
-          <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center neon-glow mb-4">
-            <User className="w-10 h-10 text-primary-foreground" />
+          <div className="mb-4">
+            <UserAvatar
+              username={username}
+              avatarUrl={avatarUrl}
+              size="xl"
+              className="neon-glow"
+            />
           </div>
           {username && (
             <h3 className="text-lg font-semibold">{username}</h3>
@@ -100,6 +109,21 @@ export function ProfileView() {
             onChange={(e) => setUsername(e.target.value)}
             disabled={loading}
           />
+          <div className="space-y-2">
+            <label className="text-sm font-medium flex items-center gap-2">
+              <Link className="w-4 h-4" />
+              URL аватара (опционально)
+            </label>
+            <FlameInput
+              placeholder="https://example.com/avatar.jpg"
+              value={avatarUrl}
+              onChange={(e) => setAvatarUrl(e.target.value)}
+              disabled={loading}
+            />
+            <p className="text-xs text-muted-foreground">
+              Вставьте ссылку на изображение из интернета
+            </p>
+          </div>
           <FlameButton
             onClick={saveProfile}
             className="w-full"
