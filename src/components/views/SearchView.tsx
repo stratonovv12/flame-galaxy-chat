@@ -1,8 +1,11 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { FlameInput } from "@/components/ui/FlameInput";
-import { Search, Hash, User } from "lucide-react";
+import { FlameButton } from "@/components/ui/FlameButton";
+import { UserAvatar } from "@/components/ui/UserAvatar";
+import { Search, Hash, MessageCircle, User } from "lucide-react";
 
 interface Channel {
   id: string;
@@ -14,14 +17,17 @@ interface Profile {
   id: string;
   username: string | null;
   user_id: string;
+  avatar_url: string | null;
 }
 
 interface SearchViewProps {
   searchQuery: string;
   onSearchChange: (query: string) => void;
+  onStartChat?: (userId: string) => void;
 }
 
-export function SearchView({ searchQuery, onSearchChange }: SearchViewProps) {
+export function SearchView({ searchQuery, onSearchChange, onStartChat }: SearchViewProps) {
+  const { user } = useAuth();
   const [channels, setChannels] = useState<Channel[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(false);
@@ -46,7 +52,7 @@ export function SearchView({ searchQuery, onSearchChange }: SearchViewProps) {
         .limit(10),
       supabase
         .from("profiles")
-        .select("id, username, user_id")
+        .select("id, username, user_id, avatar_url")
         .ilike("username", `%${query}%`)
         .limit(10),
     ]);
@@ -125,20 +131,31 @@ export function SearchView({ searchQuery, onSearchChange }: SearchViewProps) {
                 Люди
               </h3>
               <div className="space-y-2">
-                {profiles.map((profile) => (
+                {profiles.filter(p => p.user_id !== user?.id).map((profile) => (
                   <GlassCard
                     key={profile.id}
-                    className="p-4 cursor-pointer hover:border-primary/50 transition-colors"
+                    className="p-4"
                   >
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-accent/20 flex items-center justify-center">
-                        <User className="w-5 h-5 text-accent" />
-                      </div>
-                      <div>
+                      <UserAvatar
+                        username={profile.username}
+                        avatarUrl={profile.avatar_url}
+                        size="md"
+                      />
+                      <div className="flex-1">
                         <h4 className="font-medium">
                           {profile.username || "Без имени"}
                         </h4>
                       </div>
+                      {onStartChat && (
+                        <FlameButton
+                          size="sm"
+                          onClick={() => onStartChat(profile.user_id)}
+                        >
+                          <MessageCircle className="w-4 h-4 mr-2" />
+                          Написать
+                        </FlameButton>
+                      )}
                     </div>
                   </GlassCard>
                 ))}

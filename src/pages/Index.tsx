@@ -4,16 +4,18 @@ import { useAuth } from "@/contexts/AuthContext";
 import { TopBar } from "@/components/layout/TopBar";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { ChannelsView } from "@/components/views/ChannelsView";
+import { DirectMessagesView } from "@/components/views/DirectMessagesView";
 import { SearchView } from "@/components/views/SearchView";
 import { AIView } from "@/components/views/AIView";
 import { ProfileView } from "@/components/views/ProfileView";
 
-type TabType = "channels" | "search" | "ai" | "profile";
+type TabType = "channels" | "messages" | "search" | "ai" | "profile";
 
 const Index = () => {
   const { user, loading } = useAuth();
   const [activeTab, setActiveTab] = useState<TabType>("channels");
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedChatUserId, setSelectedChatUserId] = useState<string | null>(null);
 
   if (loading) {
     return (
@@ -30,12 +32,31 @@ const Index = () => {
     return <Navigate to="/auth" replace />;
   }
 
+  const handleStartChat = (userId: string) => {
+    setSelectedChatUserId(userId);
+    setActiveTab("messages");
+    setSearchQuery("");
+  };
+
   const renderView = () => {
     switch (activeTab) {
       case "channels":
         return <ChannelsView />;
+      case "messages":
+        return (
+          <DirectMessagesView 
+            selectedUserId={selectedChatUserId}
+            onClearSelectedUser={() => setSelectedChatUserId(null)}
+          />
+        );
       case "search":
-        return <SearchView searchQuery={searchQuery} onSearchChange={setSearchQuery} />;
+        return (
+          <SearchView 
+            searchQuery={searchQuery} 
+            onSearchChange={setSearchQuery}
+            onStartChat={handleStartChat}
+          />
+        );
       case "ai":
         return <AIView />;
       case "profile":

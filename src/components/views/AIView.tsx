@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { FlameButton } from "@/components/ui/FlameButton";
 import { FlameInput } from "@/components/ui/FlameInput";
-import { Sparkles, Send, Bot, User } from "lucide-react";
+import { Sparkles, Send, Bot, User, Trash2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import ReactMarkdown from "react-markdown";
 
@@ -14,9 +15,11 @@ interface Message {
 }
 
 export function AIView() {
+  const { user } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -27,26 +30,109 @@ export function AIView() {
     scrollToBottom();
   }, [messages]);
 
+  // Load conversation history on mount
+  useEffect(() => {
+    if (user) {
+      loadHistory();
+    }
+  }, [user]);
+
+  const loadHistory = async () => {
+    if (!user) return;
+    setIsLoadingHistory(true);
+
+    const { data, error } = await supabase
+      .from("ai_conversations")
+      .select("id, role, content")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: true });
+
+    if (error) {
+      console.error("Error loading AI history:", error);
+    } else if (data) {
+      setMessages(data.map(m => ({
+        id: m.id,
+        role: m.role as "user" | "assistant",
+        content: m.content,
+      })));
+    }
+    setIsLoadingHistory(false);
+  };
+
+  const saveMessage = async (role: "user" | "assistant", content: string) => {
+    if (!user) return;
+
+    const { data, error } = await supabase
+      .from("ai_conversations")
+      .insert({
+        user_id: user.id,
+        role,
+        content,
+      })
+      .select("id")
+      .single();
+
+    if (error) {
+      console.error("Error saving message:", error);
+      return null;
+    }
+    return data?.id;
+  };
+
+  const clearHistory = async () => {
+    if (!user) return;
+
+    const { error } = await supabase
+      .from("ai_conversations")
+      .delete()
+      .eq("user_id", user.id);
+
+    if (error) {
+      toast({
+        title: "Ошибка",
+        description: "Не удалось очистить историю",
+        variant: "destructive",
+      });
+    } else {
+      setMessages([]);
+      toast({
+        title: "Готово",
+        description: "История очищена",
+      });
+    }
+  };
+
   const sendMessage = async () => {
     if (!input.trim() || isLoading) return;
 
+    const userContent = input.trim();
+    const tempUserId = Date.now().toString();
+    
     const userMessage: Message = {
-      id: Date.now().toString(),
+      id: tempUserId,
       role: "user",
-      content: input.trim(),
+      content: userContent,
     };
 
     setMessages((prev) => [...prev, userMessage]);
     setInput("");
     setIsLoading(true);
 
+    // Save user message to DB
+    const savedUserId = await saveMessage("user", userContent);
+    if (savedUserId) {
+      setMessages((prev) =>
+        prev.map((m) => (m.id === tempUserId ? { ...m, id: savedUserId } : m))
+      );
+    }
+
     let assistantContent = "";
-    const assistantId = (Date.now() + 1).toString();
+    const tempAssistantId = (Date.now() + 1).toString();
 
     // Add empty assistant message that we'll update
     setMessages((prev) => [
       ...prev,
-      { id: assistantId, role: "assistant", content: "" },
+      { id: tempAssistantId, role: "assistant", content: "" },
     ]);
 
     try {
@@ -109,7 +195,7 @@ export function AIView() {
               assistantContent += content;
               setMessages((prev) =>
                 prev.map((m) =>
-                  m.id === assistantId ? { ...m, content: assistantContent } : m
+                  m.id === tempAssistantId ? { ...m, content: assistantContent } : m
                 )
               );
             }
@@ -117,6 +203,18 @@ export function AIView() {
             textBuffer = line + "\n" + textBuffer;
             break;
           }
+        }
+      }
+
+      // Save assistant message to DB
+      if (assistantContent) {
+        const savedAssistantId = await saveMessage("assistant", assistantContent);
+        if (savedAssistantId) {
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === tempAssistantId ? { ...m, id: savedAssistantId } : m
+            )
+          );
         }
       }
     } catch (error) {
@@ -128,7 +226,7 @@ export function AIView() {
         variant: "destructive",
       });
       // Remove the empty assistant message on error
-      setMessages((prev) => prev.filter((m) => m.id !== assistantId));
+      setMessages((prev) => prev.filter((m) => m.id !== tempAssistantId));
     } finally {
       setIsLoading(false);
     }
@@ -142,18 +240,33 @@ export function AIView() {
           <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center neon-glow-sm">
             <Sparkles className="w-6 h-6 text-primary-foreground" />
           </div>
-          <div>
+          <div className="flex-1">
             <h2 className="font-bold text-lg">FLAME AI</h2>
             <p className="text-sm text-muted-foreground">
               Ваш умный помощник
             </p>
           </div>
+          {messages.length > 0 && (
+            <FlameButton
+              variant="ghost"
+              size="sm"
+              onClick={clearHistory}
+              className="text-muted-foreground hover:text-destructive"
+            >
+              <Trash2 className="w-4 h-4" />
+            </FlameButton>
+          )}
         </div>
       </GlassCard>
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
-        {messages.length === 0 ? (
+        {isLoadingHistory ? (
+          <div className="text-center py-12">
+            <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
+            <p className="text-muted-foreground mt-4">Загрузка истории...</p>
+          </div>
+        ) : messages.length === 0 ? (
           <div className="text-center py-12">
             <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center neon-glow animate-float">
               <Sparkles className="w-10 h-10 text-primary-foreground" />
