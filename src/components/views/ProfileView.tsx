@@ -5,7 +5,8 @@ import { GlassCard } from "@/components/ui/GlassCard";
 import { FlameButton } from "@/components/ui/FlameButton";
 import { FlameInput } from "@/components/ui/FlameInput";
 import { UserAvatar } from "@/components/ui/UserAvatar";
-import { LogOut, Save, Settings, Mail, Link } from "lucide-react";
+import { CloudinaryUpload } from "@/components/ui/CloudinaryUpload";
+import { LogOut, Save, Settings, Mail } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 export function ProfileView() {
@@ -84,16 +85,12 @@ export function ProfileView() {
       {/* Profile Card */}
       <GlassCard className="p-6" glow>
         <div className="flex flex-col items-center mb-6">
-          <div className="mb-4">
-            <UserAvatar
-              username={username}
-              avatarUrl={avatarUrl}
-              size="xl"
-              className="neon-glow"
-            />
-          </div>
+          <CloudinaryUpload
+            currentUrl={avatarUrl}
+            onUpload={(url) => setAvatarUrl(url)}
+          />
           {username && (
-            <h3 className="text-lg font-semibold">{username}</h3>
+            <h3 className="text-lg font-semibold mt-4">{username}</h3>
           )}
           <p className="text-sm text-muted-foreground flex items-center gap-2 mt-1">
             <Mail className="w-4 h-4" />
@@ -109,21 +106,6 @@ export function ProfileView() {
             onChange={(e) => setUsername(e.target.value)}
             disabled={loading}
           />
-          <div className="space-y-2">
-            <label className="text-sm font-medium flex items-center gap-2">
-              <Link className="w-4 h-4" />
-              URL аватара (опционально)
-            </label>
-            <FlameInput
-              placeholder="https://example.com/avatar.jpg"
-              value={avatarUrl}
-              onChange={(e) => setAvatarUrl(e.target.value)}
-              disabled={loading}
-            />
-            <p className="text-xs text-muted-foreground">
-              Вставьте ссылку на изображение из интернета
-            </p>
-          </div>
           <FlameButton
             onClick={saveProfile}
             className="w-full"

@@ -5,7 +5,7 @@ import { GlassCard } from "@/components/ui/GlassCard";
 import { FlameInput } from "@/components/ui/FlameInput";
 import { FlameButton } from "@/components/ui/FlameButton";
 import { UserAvatar } from "@/components/ui/UserAvatar";
-import { Search, Hash, MessageCircle, User } from "lucide-react";
+import { Search, Hash, MessageCircle, User, ChevronRight } from "lucide-react";
 
 interface Channel {
   id: string;
@@ -24,9 +24,10 @@ interface SearchViewProps {
   searchQuery: string;
   onSearchChange: (query: string) => void;
   onStartChat?: (userId: string) => void;
+  onViewProfile?: (userId: string) => void;
 }
 
-export function SearchView({ searchQuery, onSearchChange, onStartChat }: SearchViewProps) {
+export function SearchView({ searchQuery, onSearchChange, onStartChat, onViewProfile }: SearchViewProps) {
   const { user } = useAuth();
   const [channels, setChannels] = useState<Channel[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
@@ -134,7 +135,8 @@ export function SearchView({ searchQuery, onSearchChange, onStartChat }: SearchV
                 {profiles.filter(p => p.user_id !== user?.id).map((profile) => (
                   <GlassCard
                     key={profile.id}
-                    className="p-4"
+                    className="p-4 cursor-pointer hover:border-primary/50 transition-colors"
+                    onClick={() => onViewProfile?.(profile.user_id)}
                   >
                     <div className="flex items-center gap-3">
                       <UserAvatar
@@ -146,16 +148,24 @@ export function SearchView({ searchQuery, onSearchChange, onStartChat }: SearchV
                         <h4 className="font-medium">
                           {profile.username || "Без имени"}
                         </h4>
+                        <p className="text-xs text-muted-foreground">
+                          Нажмите для просмотра профиля
+                        </p>
                       </div>
-                      {onStartChat && (
-                        <FlameButton
-                          size="sm"
-                          onClick={() => onStartChat(profile.user_id)}
-                        >
-                          <MessageCircle className="w-4 h-4 mr-2" />
-                          Написать
-                        </FlameButton>
-                      )}
+                      <div className="flex items-center gap-2">
+                        {onStartChat && (
+                          <FlameButton
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onStartChat(profile.user_id);
+                            }}
+                          >
+                            <MessageCircle className="w-4 h-4" />
+                          </FlameButton>
+                        )}
+                        <ChevronRight className="w-5 h-5 text-muted-foreground" />
+                      </div>
                     </div>
                   </GlassCard>
                 ))}

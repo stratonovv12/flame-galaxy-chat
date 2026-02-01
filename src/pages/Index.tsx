@@ -8,6 +8,7 @@ import { DirectMessagesView } from "@/components/views/DirectMessagesView";
 import { SearchView } from "@/components/views/SearchView";
 import { AIView } from "@/components/views/AIView";
 import { ProfileView } from "@/components/views/ProfileView";
+import { UserProfileView } from "@/components/views/UserProfileView";
 
 type TabType = "channels" | "messages" | "search" | "ai" | "profile";
 
@@ -16,6 +17,7 @@ const Index = () => {
   const [activeTab, setActiveTab] = useState<TabType>("channels");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedChatUserId, setSelectedChatUserId] = useState<string | null>(null);
+  const [viewingProfileUserId, setViewingProfileUserId] = useState<string | null>(null);
 
   if (loading) {
     return (
@@ -32,6 +34,19 @@ const Index = () => {
     return <Navigate to="/auth" replace />;
   }
 
+  const handleViewProfile = (userId: string) => {
+    setViewingProfileUserId(userId);
+  };
+
+  const handleBackFromProfile = () => {
+    setViewingProfileUserId(null);
+  };
+
+  const handleStartChatFromProfile = (userId: string) => {
+    setViewingProfileUserId(null);
+    handleStartChat(userId);
+  };
+
   const handleStartChat = (userId: string) => {
     setSelectedChatUserId(userId);
     setActiveTab("messages");
@@ -39,6 +54,17 @@ const Index = () => {
   };
 
   const renderView = () => {
+    // If viewing someone's profile, show that instead
+    if (viewingProfileUserId) {
+      return (
+        <UserProfileView
+          userId={viewingProfileUserId}
+          onBack={handleBackFromProfile}
+          onStartChat={handleStartChatFromProfile}
+        />
+      );
+    }
+
     switch (activeTab) {
       case "channels":
         return <ChannelsView />;
@@ -55,6 +81,7 @@ const Index = () => {
             searchQuery={searchQuery} 
             onSearchChange={setSearchQuery}
             onStartChat={handleStartChat}
+            onViewProfile={handleViewProfile}
           />
         );
       case "ai":
