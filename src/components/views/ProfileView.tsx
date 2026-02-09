@@ -5,7 +5,7 @@ import { GlassCard } from "@/components/ui/GlassCard";
 import { FlameButton } from "@/components/ui/FlameButton";
 import { FlameInput } from "@/components/ui/FlameInput";
 import { UserAvatar } from "@/components/ui/UserAvatar";
-import { CloudinaryUpload } from "@/components/ui/CloudinaryUpload";
+import { AvatarUpload } from "@/components/ui/AvatarUpload";
 import { LogOut, Save, Settings, Mail } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
@@ -85,7 +85,7 @@ export function ProfileView() {
       {/* Profile Card */}
       <GlassCard className="p-6" glow>
         <div className="flex flex-col items-center mb-6">
-          <CloudinaryUpload
+          <AvatarUpload
             currentUrl={avatarUrl}
             onUpload={(url) => setAvatarUrl(url)}
           />
