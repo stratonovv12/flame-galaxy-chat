@@ -40,6 +40,7 @@ export type Database = {
       }
       channels: {
         Row: {
+          avatar_url: string | null
           created_at: string
           creator_id: string
           description: string | null
@@ -47,6 +48,7 @@ export type Database = {
           name: string
         }
         Insert: {
+          avatar_url?: string | null
           created_at?: string
           creator_id: string
           description?: string | null
@@ -54,6 +56,7 @@ export type Database = {
           name: string
         }
         Update: {
+          avatar_url?: string | null
           created_at?: string
           creator_id?: string
           description?: string | null
@@ -88,6 +91,38 @@ export type Database = {
           sender_id?: string
         }
         Relationships: []
+      }
+      message_reactions: {
+        Row: {
+          created_at: string
+          emoji: string
+          id: string
+          post_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          emoji: string
+          id?: string
+          post_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          emoji?: string
+          id?: string
+          post_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "message_reactions_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       posts: {
         Row: {

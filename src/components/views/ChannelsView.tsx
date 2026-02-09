@@ -5,6 +5,8 @@ import { GlassCard } from "@/components/ui/GlassCard";
 import { FlameButton } from "@/components/ui/FlameButton";
 import { FlameInput } from "@/components/ui/FlameInput";
 import { UserAvatar } from "@/components/ui/UserAvatar";
+import { AvatarUpload } from "@/components/ui/AvatarUpload";
+import { MessageReactions } from "@/components/ui/MessageReactions";
 import { Hash, Plus, Send, X } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
@@ -14,6 +16,7 @@ interface Channel {
   id: string;
   name: string;
   description: string | null;
+  avatar_url: string | null;
   creator_id: string;
   created_at: string;
 }
@@ -35,6 +38,7 @@ export function ChannelsView() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newChannelName, setNewChannelName] = useState("");
   const [newChannelDesc, setNewChannelDesc] = useState("");
+  const [newChannelAvatar, setNewChannelAvatar] = useState("");
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -82,7 +86,6 @@ export function ChannelsView() {
   };
 
   const fetchPosts = async (channelId: string) => {
-    // First fetch posts
     const { data: postsData, error: postsError } = await supabase
       .from("posts")
       .select("*")
@@ -94,7 +97,6 @@ export function ChannelsView() {
       return;
     }
 
-    // Then fetch profiles for all authors
     const authorIds = [...new Set(postsData?.map(p => p.author_id) || [])];
     
     if (authorIds.length > 0) {
@@ -125,6 +127,7 @@ export function ChannelsView() {
     const { error } = await supabase.from("channels").insert({
       name: newChannelName.trim(),
       description: newChannelDesc.trim() || null,
+      avatar_url: newChannelAvatar.trim() || null,
       creator_id: user.id,
     });
 
@@ -138,6 +141,7 @@ export function ChannelsView() {
       toast({ title: "Канал создан!" });
       setNewChannelName("");
       setNewChannelDesc("");
+      setNewChannelAvatar("");
       setShowCreateModal(false);
       fetchChannels();
     }
@@ -164,10 +168,27 @@ export function ChannelsView() {
     }
   };
 
+  const ChannelIcon = ({ channel, size = "md" }: { channel: Channel; size?: "sm" | "md" | "lg" }) => {
+    const sizeClasses = { sm: "w-10 h-10", md: "w-10 h-10", lg: "w-12 h-12" };
+    if (channel.avatar_url) {
+      return (
+        <img
+          src={channel.avatar_url}
+          alt={channel.name}
+          className={`${sizeClasses[size]} rounded-xl object-cover`}
+        />
+      );
+    }
+    return (
+      <div className={`${sizeClasses[size]} rounded-xl bg-primary/20 flex items-center justify-center`}>
+        <Hash className="w-5 h-5 text-primary" />
+      </div>
+    );
+  };
+
   if (selectedChannel) {
     return (
       <div className="flex flex-col h-full">
-        {/* Channel Header */}
         <GlassCard className="rounded-none border-x-0 border-t-0 p-4">
           <div className="flex items-center gap-3">
             <button
@@ -176,9 +197,7 @@ export function ChannelsView() {
             >
               <X className="w-5 h-5" />
             </button>
-            <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center">
-              <Hash className="w-5 h-5 text-primary" />
-            </div>
+            <ChannelIcon channel={selectedChannel} />
             <div>
               <h2 className="font-semibold">{selectedChannel.name}</h2>
               {selectedChannel.description && (
@@ -190,7 +209,6 @@ export function ChannelsView() {
           </div>
         </GlassCard>
 
-        {/* Posts */}
         <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
           {posts.length === 0 ? (
             <div className="text-center text-muted-foreground py-12">
@@ -220,6 +238,7 @@ export function ChannelsView() {
                       </span>
                     </div>
                     <p className="mt-1 text-sm break-words">{post.content}</p>
+                    <MessageReactions postId={post.id} className="mt-2" />
                   </div>
                 </div>
               </GlassCard>
@@ -227,7 +246,6 @@ export function ChannelsView() {
           )}
         </div>
 
-        {/* Input */}
         <div className="p-4 glass-card rounded-none border-x-0 border-b-0 ipad-input">
           <div className="flex gap-2">
             <FlameInput
@@ -277,9 +295,7 @@ export function ChannelsView() {
               onClick={() => setSelectedChannel(channel)}
             >
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center">
-                  <Hash className="w-6 h-6 text-primary" />
-                </div>
+                <ChannelIcon channel={channel} size="lg" />
                 <div className="flex-1 min-w-0">
                   <h3 className="font-semibold">{channel.name}</h3>
                   {channel.description && (
@@ -294,7 +310,6 @@ export function ChannelsView() {
         </div>
       )}
 
-      {/* Create Modal */}
       {showCreateModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
           <GlassCard className="w-full max-w-md p-6" glow>
@@ -308,6 +323,13 @@ export function ChannelsView() {
               </button>
             </div>
             <div className="space-y-4">
+              <div className="flex justify-center">
+                <AvatarUpload
+                  currentUrl={newChannelAvatar}
+                  onUpload={(url) => setNewChannelAvatar(url)}
+                  folder="channels"
+                />
+              </div>
               <FlameInput
                 label="Название канала"
                 placeholder="Например: Общение"
