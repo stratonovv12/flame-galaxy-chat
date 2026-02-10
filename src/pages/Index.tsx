@@ -4,13 +4,14 @@ import { useAuth } from "@/contexts/AuthContext";
 import { TopBar } from "@/components/layout/TopBar";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { ChannelsView } from "@/components/views/ChannelsView";
+import { GroupsView } from "@/components/views/GroupsView";
 import { DirectMessagesView } from "@/components/views/DirectMessagesView";
 import { SearchView } from "@/components/views/SearchView";
 import { AIView } from "@/components/views/AIView";
 import { ProfileView } from "@/components/views/ProfileView";
 import { UserProfileView } from "@/components/views/UserProfileView";
 
-type TabType = "channels" | "messages" | "search" | "ai" | "profile";
+type TabType = "channels" | "groups" | "messages" | "search" | "ai" | "profile";
 
 const Index = () => {
   const { user, loading } = useAuth();
@@ -30,9 +31,7 @@ const Index = () => {
     );
   }
 
-  if (!user) {
-    return <Navigate to="/auth" replace />;
-  }
+  if (!user) return <Navigate to="/auth" replace />;
 
   const handleViewProfile = (userId: string) => {
     setViewingProfileUserId(userId);
@@ -44,7 +43,9 @@ const Index = () => {
 
   const handleStartChatFromProfile = (userId: string) => {
     setViewingProfileUserId(null);
-    handleStartChat(userId);
+    setSelectedChatUserId(userId);
+    setActiveTab("messages");
+    setSearchQuery("");
   };
 
   const handleStartChat = (userId: string) => {
@@ -54,7 +55,6 @@ const Index = () => {
   };
 
   const renderView = () => {
-    // If viewing someone's profile, show that instead
     if (viewingProfileUserId) {
       return (
         <UserProfileView
@@ -67,18 +67,21 @@ const Index = () => {
 
     switch (activeTab) {
       case "channels":
-        return <ChannelsView />;
+        return <ChannelsView onViewProfile={handleViewProfile} />;
+      case "groups":
+        return <GroupsView onViewProfile={handleViewProfile} />;
       case "messages":
         return (
-          <DirectMessagesView 
+          <DirectMessagesView
             selectedUserId={selectedChatUserId}
             onClearSelectedUser={() => setSelectedChatUserId(null)}
+            onViewProfile={handleViewProfile}
           />
         );
       case "search":
         return (
-          <SearchView 
-            searchQuery={searchQuery} 
+          <SearchView
+            searchQuery={searchQuery}
             onSearchChange={setSearchQuery}
             onStartChat={handleStartChat}
             onViewProfile={handleViewProfile}
@@ -89,7 +92,7 @@ const Index = () => {
       case "profile":
         return <ProfileView />;
       default:
-        return <ChannelsView />;
+        return <ChannelsView onViewProfile={handleViewProfile} />;
     }
   };
 

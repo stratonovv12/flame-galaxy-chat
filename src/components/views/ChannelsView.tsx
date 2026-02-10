@@ -5,8 +5,10 @@ import { GlassCard } from "@/components/ui/GlassCard";
 import { FlameButton } from "@/components/ui/FlameButton";
 import { FlameInput } from "@/components/ui/FlameInput";
 import { UserAvatar } from "@/components/ui/UserAvatar";
+import { UserBadge } from "@/components/ui/UserBadge";
 import { AvatarUpload } from "@/components/ui/AvatarUpload";
 import { MessageReactions } from "@/components/ui/MessageReactions";
+import { MediaUpload } from "@/components/ui/MediaUpload";
 import { Hash, Plus, Send, X } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
@@ -24,105 +26,92 @@ interface Channel {
 interface Post {
   id: string;
   content: string;
+  media_url: string | null;
   author_id: string;
   created_at: string;
   profiles?: { username: string | null; avatar_url: string | null } | null;
 }
 
-export function ChannelsView() {
+interface ChannelsViewProps {
+  onViewProfile?: (userId: string) => void;
+}
+
+export function ChannelsView({ onViewProfile }: ChannelsViewProps) {
   const { user } = useAuth();
   const [channels, setChannels] = useState<Channel[]>([]);
+  const [subscriberCounts, setSubscriberCounts] = useState<Record<string, number>>({});
   const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
   const [newPost, setNewPost] = useState("");
+  const [mediaUrl, setMediaUrl] = useState("");
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newChannelName, setNewChannelName] = useState("");
   const [newChannelDesc, setNewChannelDesc] = useState("");
   const [newChannelAvatar, setNewChannelAvatar] = useState("");
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    fetchChannels();
-  }, []);
+  useEffect(() => { fetchChannels(); }, []);
 
   useEffect(() => {
     if (selectedChannel) {
       fetchPosts(selectedChannel.id);
-      
+      subscribeToChannel(selectedChannel.id);
+
       const channel = supabase
-        .channel('posts-realtime')
-        .on(
-          'postgres_changes',
-          {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'posts',
-            filter: `channel_id=eq.${selectedChannel.id}`,
-          },
-          (payload) => {
-            const newPost = payload.new as Post;
-            setPosts((prev) => [...prev, newPost]);
-          }
-        )
+        .channel("posts-realtime")
+        .on("postgres_changes", {
+          event: "INSERT", schema: "public", table: "posts",
+          filter: `channel_id=eq.${selectedChannel.id}`,
+        }, () => fetchPosts(selectedChannel.id))
         .subscribe();
 
-      return () => {
-        supabase.removeChannel(channel);
-      };
+      return () => { supabase.removeChannel(channel); };
     }
   }, [selectedChannel]);
 
-  const fetchChannels = async () => {
-    const { data, error } = await supabase
-      .from("channels")
-      .select("*")
-      .order("created_at", { ascending: false });
+  const subscribeToChannel = async (channelId: string) => {
+    if (!user) return;
+    await supabase.from("channel_subscribers").upsert(
+      { channel_id: channelId, user_id: user.id },
+      { onConflict: "channel_id,user_id" }
+    );
+  };
 
-    if (error) {
-      console.error("Error fetching channels:", error);
-    } else {
-      setChannels(data || []);
+  const fetchChannels = async () => {
+    const { data } = await supabase.from("channels").select("*").order("created_at", { ascending: false });
+    setChannels(data || []);
+
+    if (data && data.length > 0) {
+      const counts: Record<string, number> = {};
+      for (const c of data) {
+        const { count } = await supabase.from("channel_subscribers").select("*", { count: "exact", head: true }).eq("channel_id", c.id);
+        counts[c.id] = count || 0;
+      }
+      setSubscriberCounts(counts);
     }
   };
 
   const fetchPosts = async (channelId: string) => {
-    const { data: postsData, error: postsError } = await supabase
+    const { data: postsData } = await supabase
       .from("posts")
       .select("*")
       .eq("channel_id", channelId)
       .order("created_at", { ascending: true });
 
-    if (postsError) {
-      console.error("Error fetching posts:", postsError);
-      return;
-    }
+    if (!postsData) return;
 
-    const authorIds = [...new Set(postsData?.map(p => p.author_id) || [])];
-    
+    const authorIds = [...new Set(postsData.map((p) => p.author_id))];
     if (authorIds.length > 0) {
-      const { data: profilesData } = await supabase
-        .from("profiles")
-        .select("user_id, username, avatar_url")
-        .in("user_id", authorIds);
-
-      const profilesMap = new Map(
-        profilesData?.map(p => [p.user_id, { username: p.username, avatar_url: p.avatar_url }]) || []
-      );
-
-      const postsWithProfiles = postsData?.map(post => ({
-        ...post,
-        profiles: profilesMap.get(post.author_id) || null,
-      })) || [];
-
-      setPosts(postsWithProfiles);
+      const { data: profilesData } = await supabase.from("profiles").select("user_id, username, avatar_url").in("user_id", authorIds);
+      const profilesMap = new Map(profilesData?.map((p) => [p.user_id, { username: p.username, avatar_url: p.avatar_url }]) || []);
+      setPosts(postsData.map((p) => ({ ...p, profiles: profilesMap.get(p.author_id) || null })));
     } else {
-      setPosts(postsData || []);
+      setPosts(postsData);
     }
   };
 
   const createChannel = async () => {
     if (!newChannelName.trim() || !user) return;
-
     setLoading(true);
     const { error } = await supabase.from("channels").insert({
       name: newChannelName.trim(),
@@ -130,54 +119,42 @@ export function ChannelsView() {
       avatar_url: newChannelAvatar.trim() || null,
       creator_id: user.id,
     });
-
     if (error) {
-      toast({
-        title: "Ошибка",
-        description: "Не удалось создать канал",
-        variant: "destructive",
-      });
+      toast({ title: "Ошибка", description: "Не удалось создать канал", variant: "destructive" });
     } else {
       toast({ title: "Канал создан!" });
-      setNewChannelName("");
-      setNewChannelDesc("");
-      setNewChannelAvatar("");
-      setShowCreateModal(false);
+      setNewChannelName(""); setNewChannelDesc(""); setNewChannelAvatar(""); setShowCreateModal(false);
       fetchChannels();
     }
     setLoading(false);
   };
 
   const sendPost = async () => {
-    if (!newPost.trim() || !selectedChannel || !user) return;
-
+    if ((!newPost.trim() && !mediaUrl) || !selectedChannel || !user) return;
+    // Only creator can post in channels
+    if (selectedChannel.creator_id !== user.id) {
+      toast({ title: "Ограничение", description: "Только создатель канала может публиковать", variant: "destructive" });
+      return;
+    }
     const { error } = await supabase.from("posts").insert({
-      content: newPost.trim(),
+      content: newPost.trim() || (mediaUrl ? "📎 Медиа" : ""),
+      media_url: mediaUrl || null,
       channel_id: selectedChannel.id,
       author_id: user.id,
     });
-
     if (error) {
-      toast({
-        title: "Ошибка",
-        description: "Не удалось отправить сообщение",
-        variant: "destructive",
-      });
+      toast({ title: "Ошибка", description: "Не удалось отправить", variant: "destructive" });
     } else {
-      setNewPost("");
+      setNewPost(""); setMediaUrl("");
     }
   };
+
+  const isCreator = selectedChannel && user && selectedChannel.creator_id === user.id;
 
   const ChannelIcon = ({ channel, size = "md" }: { channel: Channel; size?: "sm" | "md" | "lg" }) => {
     const sizeClasses = { sm: "w-10 h-10", md: "w-10 h-10", lg: "w-12 h-12" };
     if (channel.avatar_url) {
-      return (
-        <img
-          src={channel.avatar_url}
-          alt={channel.name}
-          className={`${sizeClasses[size]} rounded-xl object-cover`}
-        />
-      );
+      return <img src={channel.avatar_url} alt={channel.name} className={`${sizeClasses[size]} rounded-xl object-cover`} />;
     }
     return (
       <div className={`${sizeClasses[size]} rounded-xl bg-primary/20 flex items-center justify-center`}>
@@ -191,20 +168,13 @@ export function ChannelsView() {
       <div className="flex flex-col h-full">
         <GlassCard className="rounded-none border-x-0 border-t-0 p-4">
           <div className="flex items-center gap-3">
-            <button
-              onClick={() => setSelectedChannel(null)}
-              className="p-2 hover:bg-muted/50 rounded-lg transition-colors touch-target"
-            >
+            <button onClick={() => setSelectedChannel(null)} className="p-2 hover:bg-muted/50 rounded-lg transition-colors touch-target">
               <X className="w-5 h-5" />
             </button>
             <ChannelIcon channel={selectedChannel} />
             <div>
               <h2 className="font-semibold">{selectedChannel.name}</h2>
-              {selectedChannel.description && (
-                <p className="text-sm text-muted-foreground truncate">
-                  {selectedChannel.description}
-                </p>
-              )}
+              <p className="text-xs text-muted-foreground">{subscriberCounts[selectedChannel.id] || 0} подписчиков</p>
             </div>
           </div>
         </GlassCard>
@@ -213,31 +183,31 @@ export function ChannelsView() {
           {posts.length === 0 ? (
             <div className="text-center text-muted-foreground py-12">
               <Hash className="w-12 h-12 mx-auto mb-3 opacity-50" />
-              <p>Сообщений пока нет</p>
-              <p className="text-sm">Будьте первым!</p>
+              <p>Публикаций пока нет</p>
             </div>
           ) : (
             posts.map((post) => (
               <GlassCard key={post.id} className="p-3">
                 <div className="flex items-start gap-3">
-                  <UserAvatar
-                    username={post.profiles?.username}
-                    avatarUrl={post.profiles?.avatar_url}
-                    size="sm"
-                  />
+                  <button onClick={() => onViewProfile?.(post.author_id)} className="shrink-0">
+                    <UserAvatar username={post.profiles?.username} avatarUrl={post.profiles?.avatar_url} size="sm" />
+                  </button>
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-sm">
-                        {post.profiles?.username || (post.author_id === user?.id ? "Вы" : "Пользователь")}
-                      </span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-medium text-sm">{post.profiles?.username || "Пользователь"}</span>
+                      <UserBadge userId={post.author_id} />
                       <span className="text-xs text-muted-foreground">
-                        {formatDistanceToNow(new Date(post.created_at), {
-                          addSuffix: true,
-                          locale: ru,
-                        })}
+                        {formatDistanceToNow(new Date(post.created_at), { addSuffix: true, locale: ru })}
                       </span>
                     </div>
-                    <p className="mt-1 text-sm break-words">{post.content}</p>
+                    {post.media_url && (
+                      post.media_url.match(/\.(mp4|webm|mov)/) ? (
+                        <video src={post.media_url} controls className="mt-2 max-h-64 rounded-lg" />
+                      ) : (
+                        <img src={post.media_url} alt="" className="mt-2 max-h-64 rounded-lg object-cover cursor-pointer" onClick={() => window.open(post.media_url!, "_blank")} />
+                      )
+                    )}
+                    {post.content && post.content !== "📎 Медиа" && <p className="mt-1 text-sm break-words">{post.content}</p>}
                     <MessageReactions postId={post.id} className="mt-2" />
                   </div>
                 </div>
@@ -246,20 +216,23 @@ export function ChannelsView() {
           )}
         </div>
 
-        <div className="p-4 glass-card rounded-none border-x-0 border-b-0 ipad-input">
-          <div className="flex gap-2">
-            <FlameInput
-              placeholder="Написать сообщение..."
-              value={newPost}
-              onChange={(e) => setNewPost(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && sendPost()}
-              className="flex-1"
-            />
-            <FlameButton onClick={sendPost} size="md">
-              <Send className="w-5 h-5" />
-            </FlameButton>
+        {isCreator && (
+          <div className="p-4 glass-card rounded-none border-x-0 border-b-0 ipad-input">
+            <div className="flex items-end gap-2">
+              <MediaUpload onUpload={setMediaUrl} />
+              <FlameInput
+                placeholder="Написать публикацию..."
+                value={newPost}
+                onChange={(e) => setNewPost(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && sendPost()}
+                className="flex-1"
+              />
+              <FlameButton onClick={sendPost} size="md">
+                <Send className="w-5 h-5" />
+              </FlameButton>
+            </div>
           </div>
-        </div>
+        )}
       </div>
     );
   }
@@ -278,9 +251,7 @@ export function ChannelsView() {
         <GlassCard className="text-center py-12">
           <Hash className="w-16 h-16 mx-auto mb-4 text-primary/50" />
           <h3 className="text-lg font-semibold mb-2">Каналов пока нет</h3>
-          <p className="text-muted-foreground mb-4">
-            Создайте первый канал для общения!
-          </p>
+          <p className="text-muted-foreground mb-4">Создайте первый канал!</p>
           <FlameButton onClick={() => setShowCreateModal(true)}>
             <Plus className="w-4 h-4 mr-2" />
             Создать канал
@@ -289,20 +260,13 @@ export function ChannelsView() {
       ) : (
         <div className="space-y-3">
           {channels.map((channel) => (
-            <GlassCard
-              key={channel.id}
-              className="p-4 cursor-pointer hover:border-primary/50 transition-colors"
-              onClick={() => setSelectedChannel(channel)}
-            >
+            <GlassCard key={channel.id} className="p-4 cursor-pointer hover:border-primary/50 transition-colors" onClick={() => setSelectedChannel(channel)}>
               <div className="flex items-center gap-3">
                 <ChannelIcon channel={channel} size="lg" />
                 <div className="flex-1 min-w-0">
                   <h3 className="font-semibold">{channel.name}</h3>
-                  {channel.description && (
-                    <p className="text-sm text-muted-foreground truncate">
-                      {channel.description}
-                    </p>
-                  )}
+                  <p className="text-xs text-muted-foreground">{subscriberCounts[channel.id] || 0} подписчиков</p>
+                  {channel.description && <p className="text-sm text-muted-foreground truncate">{channel.description}</p>}
                 </div>
               </div>
             </GlassCard>
@@ -315,38 +279,15 @@ export function ChannelsView() {
           <GlassCard className="w-full max-w-md p-6" glow>
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-lg font-semibold">Создать канал</h3>
-              <button
-                onClick={() => setShowCreateModal(false)}
-                className="p-2 hover:bg-muted/50 rounded-lg transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
+              <button onClick={() => setShowCreateModal(false)} className="p-2 hover:bg-muted/50 rounded-lg"><X className="w-5 h-5" /></button>
             </div>
             <div className="space-y-4">
               <div className="flex justify-center">
-                <AvatarUpload
-                  currentUrl={newChannelAvatar}
-                  onUpload={(url) => setNewChannelAvatar(url)}
-                  folder="channels"
-                />
+                <AvatarUpload currentUrl={newChannelAvatar} onUpload={setNewChannelAvatar} folder="channels" />
               </div>
-              <FlameInput
-                label="Название канала"
-                placeholder="Например: Общение"
-                value={newChannelName}
-                onChange={(e) => setNewChannelName(e.target.value)}
-              />
-              <FlameInput
-                label="Описание (опционально)"
-                placeholder="О чём этот канал?"
-                value={newChannelDesc}
-                onChange={(e) => setNewChannelDesc(e.target.value)}
-              />
-              <FlameButton
-                onClick={createChannel}
-                className="w-full"
-                disabled={!newChannelName.trim() || loading}
-              >
+              <FlameInput label="Название" placeholder="Например: Общение" value={newChannelName} onChange={(e) => setNewChannelName(e.target.value)} />
+              <FlameInput label="Описание" placeholder="О чём этот канал?" value={newChannelDesc} onChange={(e) => setNewChannelDesc(e.target.value)} />
+              <FlameButton onClick={createChannel} className="w-full" disabled={!newChannelName.trim() || loading}>
                 {loading ? "Создание..." : "Создать канал"}
               </FlameButton>
             </div>
