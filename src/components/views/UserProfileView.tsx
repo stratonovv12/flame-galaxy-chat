@@ -4,7 +4,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { FlameButton } from "@/components/ui/FlameButton";
 import { UserAvatar } from "@/components/ui/UserAvatar";
-import { ArrowLeft, MessageCircle, Calendar, Hash } from "lucide-react";
+import { UserBadge } from "@/components/ui/UserBadge";
+import { ArrowLeft, MessageCircle, Calendar, Hash, AtSign } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ru } from "date-fns/locale";
 
@@ -12,6 +13,7 @@ interface Profile {
   id: string;
   username: string | null;
   avatar_url: string | null;
+  bio: string | null;
   user_id: string;
   created_at: string;
 }
@@ -42,50 +44,29 @@ export function UserProfileView({ userId, onBack, onStartChat }: UserProfileView
 
   const fetchUserData = async () => {
     setLoading(true);
-
-    // Fetch profile
-    const { data: profileData, error: profileError } = await supabase
+    const { data: profileData } = await supabase
       .from("profiles")
       .select("*")
       .eq("user_id", userId)
       .maybeSingle();
 
-    if (profileError) {
-      console.error("Error fetching profile:", profileError);
-      setLoading(false);
-      return;
-    }
-
     setProfile(profileData);
 
-    // Fetch user's posts
-    const { data: postsData, error: postsError } = await supabase
+    const { data: postsData } = await supabase
       .from("posts")
       .select("id, content, created_at, channel_id")
       .eq("author_id", userId)
       .order("created_at", { ascending: false })
       .limit(20);
 
-    if (postsError) {
-      console.error("Error fetching posts:", postsError);
-    } else if (postsData && postsData.length > 0) {
-      // Fetch channel names
-      const channelIds = [...new Set(postsData.map(p => p.channel_id))];
-      const { data: channelsData } = await supabase
-        .from("channels")
-        .select("id, name")
-        .in("id", channelIds);
-
-      const channelMap = new Map(channelsData?.map(c => [c.id, c.name]) || []);
-      
-      const postsWithChannels = postsData.map(post => ({
-        ...post,
-        channel_name: channelMap.get(post.channel_id) || "Удалённый канал",
-      }));
-      
-      setPosts(postsWithChannels);
+    if (postsData && postsData.length > 0) {
+      const channelIds = [...new Set(postsData.map((p) => p.channel_id))];
+      const { data: channelsData } = await supabase.from("channels").select("id, name").in("id", channelIds);
+      const channelMap = new Map(channelsData?.map((c) => [c.id, c.name]) || []);
+      setPosts(postsData.map((p) => ({ ...p, channel_name: channelMap.get(p.channel_id) || "Удалённый канал" })));
+    } else {
+      setPosts([]);
     }
-
     setLoading(false);
   };
 
@@ -114,43 +95,44 @@ export function UserProfileView({ userId, onBack, onStartChat }: UserProfileView
   const isOwnProfile = user?.id === userId;
 
   return (
-    <div className="p-4 space-y-4">
-      {/* Header */}
+    <div className="p-4 space-y-4 max-w-2xl mx-auto">
       <button onClick={onBack} className="flex items-center gap-2 text-muted-foreground">
         <ArrowLeft className="w-5 h-5" />
         Назад
       </button>
 
-      {/* Profile Card */}
-      <GlassCard className="p-6 text-center" glow>
+      <GlassCard className="p-8 text-center" glow>
         <UserAvatar
           username={profile.username}
           avatarUrl={profile.avatar_url}
           size="xl"
           className="mx-auto mb-4 neon-glow"
         />
-        <h2 className="text-xl font-bold mb-2">
-          {profile.username || "Без имени"}
-        </h2>
+        <div className="flex items-center justify-center gap-1.5 mb-1">
+          <h2 className="text-xl font-bold">{profile.username || "Без имени"}</h2>
+          <UserBadge userId={userId} />
+        </div>
+        {profile.username && (
+          <p className="text-sm text-primary/80 mb-2">@{profile.username.replace(/^@/, "")}</p>
+        )}
+        {profile.bio && (
+          <p className="text-sm text-muted-foreground mb-4 max-w-md mx-auto">{profile.bio}</p>
+        )}
         <p className="text-sm text-muted-foreground flex items-center justify-center gap-2 mb-4">
           <Calendar className="w-4 h-4" />
           В FLAME с {new Date(profile.created_at).toLocaleDateString("ru-RU")}
         </p>
 
         {!isOwnProfile && (
-          <FlameButton onClick={() => onStartChat(userId)} className="w-full">
+          <FlameButton onClick={() => onStartChat(userId)} className="w-full max-w-xs mx-auto">
             <MessageCircle className="w-4 h-4 mr-2" />
             Написать сообщение
           </FlameButton>
         )}
       </GlassCard>
 
-      {/* Posts */}
       <div>
-        <h3 className="text-lg font-semibold mb-3">
-          Публикации ({posts.length})
-        </h3>
-
+        <h3 className="text-lg font-semibold mb-3">Публикации ({posts.length})</h3>
         {posts.length === 0 ? (
           <GlassCard className="text-center py-8">
             <p className="text-muted-foreground">Нет публикаций</p>
@@ -163,12 +145,7 @@ export function UserProfileView({ userId, onBack, onStartChat }: UserProfileView
                   <Hash className="w-3 h-3" />
                   <span>{post.channel_name}</span>
                   <span>•</span>
-                  <span>
-                    {formatDistanceToNow(new Date(post.created_at), {
-                      addSuffix: true,
-                      locale: ru,
-                    })}
-                  </span>
+                  <span>{formatDistanceToNow(new Date(post.created_at), { addSuffix: true, locale: ru })}</span>
                 </div>
                 <p className="text-sm">{post.content}</p>
               </GlassCard>
