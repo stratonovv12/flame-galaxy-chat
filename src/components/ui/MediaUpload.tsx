@@ -19,10 +19,12 @@ export function MediaUpload({ onUpload, className }: MediaUploadProps) {
     const file = e.target.files?.[0];
     if (!file || !user) return;
 
-    const isImage = file.type.startsWith("image/");
-    const isVideo = file.type.startsWith("video/");
+    const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp"];
+    const ALLOWED_VIDEO_TYPES = ["video/mp4", "video/webm", "video/quicktime"];
+    const isImage = ALLOWED_IMAGE_TYPES.includes(file.type);
+    const isVideo = ALLOWED_VIDEO_TYPES.includes(file.type);
     if (!isImage && !isVideo) {
-      toast({ title: "Ошибка", description: "Поддерживаются только фото и видео", variant: "destructive" });
+      toast({ title: "Ошибка", description: "Поддерживаются: JPEG, PNG, GIF, WebP, MP4, WebM", variant: "destructive" });
       return;
     }
 
