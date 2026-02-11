@@ -38,6 +38,27 @@ export type Database = {
         }
         Relationships: []
       }
+      blocked_users: {
+        Row: {
+          blocked_id: string
+          blocker_id: string
+          created_at: string
+          id: string
+        }
+        Insert: {
+          blocked_id: string
+          blocker_id: string
+          created_at?: string
+          id?: string
+        }
+        Update: {
+          blocked_id?: string
+          blocker_id?: string
+          created_at?: string
+          id?: string
+        }
+        Relationships: []
+      }
       channel_subscribers: {
         Row: {
           channel_id: string
@@ -73,6 +94,7 @@ export type Database = {
           created_at: string
           creator_id: string
           description: string | null
+          handle: string | null
           id: string
           name: string
         }
@@ -81,6 +103,7 @@ export type Database = {
           created_at?: string
           creator_id: string
           description?: string | null
+          handle?: string | null
           id?: string
           name: string
         }
@@ -89,6 +112,7 @@ export type Database = {
           created_at?: string
           creator_id?: string
           description?: string | null
+          handle?: string | null
           id?: string
           name?: string
         }
@@ -194,6 +218,7 @@ export type Database = {
           created_at: string
           creator_id: string
           description: string | null
+          handle: string | null
           id: string
           name: string
         }
@@ -202,6 +227,7 @@ export type Database = {
           created_at?: string
           creator_id: string
           description?: string | null
+          handle?: string | null
           id?: string
           name: string
         }
@@ -210,8 +236,33 @@ export type Database = {
           created_at?: string
           creator_id?: string
           description?: string | null
+          handle?: string | null
           id?: string
           name?: string
+        }
+        Relationships: []
+      }
+      hidden_messages: {
+        Row: {
+          created_at: string
+          id: string
+          message_id: string
+          message_type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message_id: string
+          message_type: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message_id?: string
+          message_type?: string
+          user_id?: string
         }
         Relationships: []
       }

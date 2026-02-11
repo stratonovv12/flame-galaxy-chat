@@ -9,7 +9,8 @@ import { UserBadge } from "@/components/ui/UserBadge";
 import { AvatarUpload } from "@/components/ui/AvatarUpload";
 import { MessageReactions } from "@/components/ui/MessageReactions";
 import { MediaUpload } from "@/components/ui/MediaUpload";
-import { Hash, Plus, Send, X } from "lucide-react";
+import { MessageContextMenu } from "@/components/ui/MessageContextMenu";
+import { Hash, Plus, Send, X, LogOut } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
 import { ru } from "date-fns/locale";
@@ -19,6 +20,7 @@ interface Channel {
   name: string;
   description: string | null;
   avatar_url: string | null;
+  handle: string | null;
   creator_id: string;
   created_at: string;
 }
@@ -42,43 +44,55 @@ export function ChannelsView({ onViewProfile }: ChannelsViewProps) {
   const [subscriberCounts, setSubscriberCounts] = useState<Record<string, number>>({});
   const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
+  const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
   const [newPost, setNewPost] = useState("");
   const [mediaUrl, setMediaUrl] = useState("");
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newChannelName, setNewChannelName] = useState("");
   const [newChannelDesc, setNewChannelDesc] = useState("");
+  const [newChannelHandle, setNewChannelHandle] = useState("");
   const [newChannelAvatar, setNewChannelAvatar] = useState("");
   const [loading, setLoading] = useState(false);
+  const [myChannelIds, setMyChannelIds] = useState<Set<string>>(new Set());
 
-  useEffect(() => { fetchChannels(); }, []);
+  useEffect(() => { fetchMyChannels(); }, [user]);
 
   useEffect(() => {
     if (selectedChannel) {
       fetchPosts(selectedChannel.id);
       subscribeToChannel(selectedChannel.id);
+      fetchHiddenMessages();
 
       const channel = supabase
         .channel("posts-realtime")
         .on("postgres_changes", {
-          event: "INSERT", schema: "public", table: "posts",
+          event: "*", schema: "public", table: "posts",
           filter: `channel_id=eq.${selectedChannel.id}`,
-        }, () => fetchPosts(selectedChannel.id))
+        }, (payload) => {
+          if (payload.eventType === "DELETE") {
+            setPosts((prev) => prev.filter((p) => p.id !== (payload.old as any).id));
+          } else {
+            fetchPosts(selectedChannel.id);
+          }
+        })
         .subscribe();
 
       return () => { supabase.removeChannel(channel); };
     }
   }, [selectedChannel]);
 
-  const subscribeToChannel = async (channelId: string) => {
+  const fetchMyChannels = async () => {
     if (!user) return;
-    await supabase.from("channel_subscribers").upsert(
-      { channel_id: channelId, user_id: user.id },
-      { onConflict: "channel_id,user_id" }
-    );
-  };
+    const { data: subs } = await supabase.from("channel_subscribers").select("channel_id").eq("user_id", user.id);
+    const ids = new Set(subs?.map((s) => s.channel_id) || []);
+    setMyChannelIds(ids);
 
-  const fetchChannels = async () => {
-    const { data } = await supabase.from("channels").select("*").order("created_at", { ascending: false });
+    // Also include channels the user created
+    const { data: created } = await supabase.from("channels").select("id").eq("creator_id", user.id);
+    created?.forEach((c) => ids.add(c.id));
+
+    if (ids.size === 0) { setChannels([]); return; }
+    const { data } = await supabase.from("channels").select("*").in("id", Array.from(ids)).order("created_at", { ascending: false });
     setChannels(data || []);
 
     if (data && data.length > 0) {
@@ -91,13 +105,30 @@ export function ChannelsView({ onViewProfile }: ChannelsViewProps) {
     }
   };
 
-  const fetchPosts = async (channelId: string) => {
-    const { data: postsData } = await supabase
-      .from("posts")
-      .select("*")
-      .eq("channel_id", channelId)
-      .order("created_at", { ascending: true });
+  const fetchHiddenMessages = async () => {
+    if (!user) return;
+    const { data } = await supabase.from("hidden_messages").select("message_id").eq("user_id", user.id).eq("message_type", "channel");
+    setHiddenIds(new Set(data?.map((h) => h.message_id) || []));
+  };
 
+  const subscribeToChannel = async (channelId: string) => {
+    if (!user) return;
+    await supabase.from("channel_subscribers").upsert(
+      { channel_id: channelId, user_id: user.id },
+      { onConflict: "channel_id,user_id" }
+    );
+  };
+
+  const leaveChannel = async () => {
+    if (!user || !selectedChannel) return;
+    await supabase.from("channel_subscribers").delete().eq("channel_id", selectedChannel.id).eq("user_id", user.id);
+    toast({ title: "Вы отписались от канала" });
+    setSelectedChannel(null);
+    fetchMyChannels();
+  };
+
+  const fetchPosts = async (channelId: string) => {
+    const { data: postsData } = await supabase.from("posts").select("*").eq("channel_id", channelId).order("created_at", { ascending: true });
     if (!postsData) return;
 
     const authorIds = [...new Set(postsData.map((p) => p.author_id))];
@@ -117,21 +148,21 @@ export function ChannelsView({ onViewProfile }: ChannelsViewProps) {
       name: newChannelName.trim(),
       description: newChannelDesc.trim() || null,
       avatar_url: newChannelAvatar.trim() || null,
+      handle: newChannelHandle.trim().replace(/^@/, "") || null,
       creator_id: user.id,
     });
     if (error) {
-      toast({ title: "Ошибка", description: "Не удалось создать канал", variant: "destructive" });
+      toast({ title: "Ошибка", description: error.message?.includes("handle") ? "Этот хендл уже занят" : "Не удалось создать", variant: "destructive" });
     } else {
       toast({ title: "Канал создан!" });
-      setNewChannelName(""); setNewChannelDesc(""); setNewChannelAvatar(""); setShowCreateModal(false);
-      fetchChannels();
+      setNewChannelName(""); setNewChannelDesc(""); setNewChannelAvatar(""); setNewChannelHandle(""); setShowCreateModal(false);
+      fetchMyChannels();
     }
     setLoading(false);
   };
 
   const sendPost = async () => {
     if ((!newPost.trim() && !mediaUrl) || !selectedChannel || !user) return;
-    // Only creator can post in channels
     if (selectedChannel.creator_id !== user.id) {
       toast({ title: "Ограничение", description: "Только создатель канала может публиковать", variant: "destructive" });
       return;
@@ -164,6 +195,8 @@ export function ChannelsView({ onViewProfile }: ChannelsViewProps) {
   };
 
   if (selectedChannel) {
+    const visiblePosts = posts.filter((p) => !hiddenIds.has(p.id));
+
     return (
       <div className="flex flex-col h-full">
         <GlassCard className="rounded-none border-x-0 border-t-0 p-4">
@@ -172,22 +205,30 @@ export function ChannelsView({ onViewProfile }: ChannelsViewProps) {
               <X className="w-5 h-5" />
             </button>
             <ChannelIcon channel={selectedChannel} />
-            <div>
+            <div className="flex-1">
               <h2 className="font-semibold">{selectedChannel.name}</h2>
-              <p className="text-xs text-muted-foreground">{subscriberCounts[selectedChannel.id] || 0} подписчиков</p>
+              <p className="text-xs text-muted-foreground">
+                {selectedChannel.handle && <span className="text-primary/70">@{selectedChannel.handle} · </span>}
+                {subscriberCounts[selectedChannel.id] || 0} подписчиков
+              </p>
             </div>
+            {!isCreator && (
+              <button onClick={leaveChannel} className="p-2 hover:bg-destructive/10 rounded-lg transition-colors touch-target" title="Отписаться">
+                <LogOut className="w-5 h-5 text-destructive" />
+              </button>
+            )}
           </div>
         </GlassCard>
 
         <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
-          {posts.length === 0 ? (
+          {visiblePosts.length === 0 ? (
             <div className="text-center text-muted-foreground py-12">
               <Hash className="w-12 h-12 mx-auto mb-3 opacity-50" />
               <p>Публикаций пока нет</p>
             </div>
           ) : (
-            posts.map((post) => (
-              <GlassCard key={post.id} className="p-3">
+            visiblePosts.map((post) => (
+              <GlassCard key={post.id} className="p-3 group">
                 <div className="flex items-start gap-3">
                   <button onClick={() => onViewProfile?.(post.author_id)} className="shrink-0">
                     <UserAvatar username={post.profiles?.username} avatarUrl={post.profiles?.avatar_url} size="sm" />
@@ -210,6 +251,13 @@ export function ChannelsView({ onViewProfile }: ChannelsViewProps) {
                     {post.content && post.content !== "📎 Медиа" && <p className="mt-1 text-sm break-words">{post.content}</p>}
                     <MessageReactions postId={post.id} className="mt-2" />
                   </div>
+                  {isCreator && (
+                    <MessageContextMenu
+                      messageId={post.id} messageType="channel" isSender={true}
+                      onDeleted={() => setPosts((prev) => prev.filter((p) => p.id !== post.id))}
+                      onHidden={() => setHiddenIds((prev) => new Set([...prev, post.id]))}
+                    />
+                  )}
                 </div>
               </GlassCard>
             ))
@@ -220,16 +268,10 @@ export function ChannelsView({ onViewProfile }: ChannelsViewProps) {
           <div className="p-4 glass-card rounded-none border-x-0 border-b-0 ipad-input">
             <div className="flex items-end gap-2">
               <MediaUpload onUpload={setMediaUrl} />
-              <FlameInput
-                placeholder="Написать публикацию..."
-                value={newPost}
+              <FlameInput placeholder="Написать публикацию..." value={newPost}
                 onChange={(e) => setNewPost(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && sendPost()}
-                className="flex-1"
-              />
-              <FlameButton onClick={sendPost} size="md">
-                <Send className="w-5 h-5" />
-              </FlameButton>
+                onKeyDown={(e) => e.key === "Enter" && sendPost()} className="flex-1" />
+              <FlameButton onClick={sendPost} size="md"><Send className="w-5 h-5" /></FlameButton>
             </div>
           </div>
         )}
@@ -242,20 +284,16 @@ export function ChannelsView({ onViewProfile }: ChannelsViewProps) {
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-bold">Каналы</h2>
         <FlameButton onClick={() => setShowCreateModal(true)} size="sm">
-          <Plus className="w-4 h-4 mr-2" />
-          Создать
+          <Plus className="w-4 h-4 mr-2" /> Создать
         </FlameButton>
       </div>
 
       {channels.length === 0 ? (
         <GlassCard className="text-center py-12">
           <Hash className="w-16 h-16 mx-auto mb-4 text-primary/50" />
-          <h3 className="text-lg font-semibold mb-2">Каналов пока нет</h3>
-          <p className="text-muted-foreground mb-4">Создайте первый канал!</p>
-          <FlameButton onClick={() => setShowCreateModal(true)}>
-            <Plus className="w-4 h-4 mr-2" />
-            Создать канал
-          </FlameButton>
+          <h3 className="text-lg font-semibold mb-2">Нет подписок</h3>
+          <p className="text-muted-foreground mb-4">Найдите каналы через поиск или создайте!</p>
+          <FlameButton onClick={() => setShowCreateModal(true)}><Plus className="w-4 h-4 mr-2" /> Создать канал</FlameButton>
         </GlassCard>
       ) : (
         <div className="space-y-3">
@@ -265,7 +303,10 @@ export function ChannelsView({ onViewProfile }: ChannelsViewProps) {
                 <ChannelIcon channel={channel} size="lg" />
                 <div className="flex-1 min-w-0">
                   <h3 className="font-semibold">{channel.name}</h3>
-                  <p className="text-xs text-muted-foreground">{subscriberCounts[channel.id] || 0} подписчиков</p>
+                  <p className="text-xs text-muted-foreground">
+                    {channel.handle && <span className="text-primary/70">@{channel.handle} · </span>}
+                    {subscriberCounts[channel.id] || 0} подписчиков
+                  </p>
                   {channel.description && <p className="text-sm text-muted-foreground truncate">{channel.description}</p>}
                 </div>
               </div>
@@ -286,6 +327,7 @@ export function ChannelsView({ onViewProfile }: ChannelsViewProps) {
                 <AvatarUpload currentUrl={newChannelAvatar} onUpload={setNewChannelAvatar} folder="channels" />
               </div>
               <FlameInput label="Название" placeholder="Например: Общение" value={newChannelName} onChange={(e) => setNewChannelName(e.target.value)} />
+              <FlameInput label="@Хендл" placeholder="unique_handle" value={newChannelHandle} onChange={(e) => setNewChannelHandle(e.target.value)} />
               <FlameInput label="Описание" placeholder="О чём этот канал?" value={newChannelDesc} onChange={(e) => setNewChannelDesc(e.target.value)} />
               <FlameButton onClick={createChannel} className="w-full" disabled={!newChannelName.trim() || loading}>
                 {loading ? "Создание..." : "Создать канал"}

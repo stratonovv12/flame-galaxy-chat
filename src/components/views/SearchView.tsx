@@ -6,12 +6,20 @@ import { FlameInput } from "@/components/ui/FlameInput";
 import { FlameButton } from "@/components/ui/FlameButton";
 import { UserAvatar } from "@/components/ui/UserAvatar";
 import { UserBadge } from "@/components/ui/UserBadge";
-import { Search, Hash, MessageCircle, User, ChevronRight } from "lucide-react";
+import { Search, Hash, MessageCircle, User, Users, ChevronRight } from "lucide-react";
 
 interface Channel {
   id: string;
   name: string;
   description: string | null;
+  handle: string | null;
+}
+
+interface Group {
+  id: string;
+  name: string;
+  description: string | null;
+  handle: string | null;
 }
 
 interface Profile {
@@ -26,11 +34,14 @@ interface SearchViewProps {
   onSearchChange: (query: string) => void;
   onStartChat?: (userId: string) => void;
   onViewProfile?: (userId: string) => void;
+  onJoinGroup?: (groupId: string) => void;
+  onSubscribeChannel?: (channelId: string) => void;
 }
 
-export function SearchView({ searchQuery, onSearchChange, onStartChat, onViewProfile }: SearchViewProps) {
+export function SearchView({ searchQuery, onSearchChange, onStartChat, onViewProfile, onJoinGroup, onSubscribeChannel }: SearchViewProps) {
   const { user } = useAuth();
   const [channels, setChannels] = useState<Channel[]>([]);
+  const [groups, setGroups] = useState<Group[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -38,33 +49,39 @@ export function SearchView({ searchQuery, onSearchChange, onStartChat, onViewPro
     if (searchQuery.trim()) {
       performSearch(searchQuery);
     } else {
-      setChannels([]);
-      setProfiles([]);
+      setChannels([]); setGroups([]); setProfiles([]);
     }
   }, [searchQuery]);
 
   const performSearch = async (query: string) => {
     setLoading(true);
-    
-    // Strip @ for username search
     const cleanQuery = query.replace(/^@/, "");
 
-    const [channelsResult, profilesResult] = await Promise.all([
-      supabase
-        .from("channels")
-        .select("id, name, description")
-        .ilike("name", `%${cleanQuery}%`)
-        .limit(10),
-      supabase
-        .from("profiles")
-        .select("id, username, user_id, avatar_url")
-        .ilike("username", `%${cleanQuery}%`)
-        .limit(10),
+    const [channelsResult, groupsResult, profilesResult] = await Promise.all([
+      supabase.from("channels").select("id, name, description, handle")
+        .or(`name.ilike.%${cleanQuery}%,handle.ilike.%${cleanQuery}%`).limit(10),
+      supabase.from("groups").select("id, name, description, handle")
+        .or(`name.ilike.%${cleanQuery}%,handle.ilike.%${cleanQuery}%`).limit(10),
+      supabase.from("profiles").select("id, username, user_id, avatar_url")
+        .ilike("username", `%${cleanQuery}%`).limit(10),
     ]);
 
     setChannels(channelsResult.data || []);
+    setGroups(groupsResult.data || []);
     setProfiles(profilesResult.data || []);
     setLoading(false);
+  };
+
+  const handleJoinGroup = async (groupId: string) => {
+    if (!user) return;
+    await supabase.from("group_members").upsert({ group_id: groupId, user_id: user.id }, { onConflict: "group_id,user_id" });
+    onJoinGroup?.(groupId);
+  };
+
+  const handleSubscribeChannel = async (channelId: string) => {
+    if (!user) return;
+    await supabase.from("channel_subscribers").upsert({ channel_id: channelId, user_id: user.id }, { onConflict: "channel_id,user_id" });
+    onSubscribeChannel?.(channelId);
   };
 
   return (
@@ -72,7 +89,7 @@ export function SearchView({ searchQuery, onSearchChange, onStartChat, onViewPro
       <div className="relative">
         <FlameInput
           type="text"
-          placeholder="Поиск по @имени, каналам..."
+          placeholder="Поиск по @имени, каналам, группам..."
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
           className="pl-12"
@@ -84,7 +101,7 @@ export function SearchView({ searchQuery, onSearchChange, onStartChat, onViewPro
         <GlassCard className="text-center py-12">
           <Search className="w-16 h-16 mx-auto mb-4 text-primary/50" />
           <h3 className="text-lg font-semibold mb-2">Поиск</h3>
-          <p className="text-muted-foreground">Введите @имя для поиска людей или название канала</p>
+          <p className="text-muted-foreground">Введите @имя, название канала или группы</p>
         </GlassCard>
       ) : loading ? (
         <div className="text-center py-12">
@@ -95,20 +112,48 @@ export function SearchView({ searchQuery, onSearchChange, onStartChat, onViewPro
           {channels.length > 0 && (
             <div>
               <h3 className="text-sm font-semibold text-muted-foreground mb-3 flex items-center gap-2">
-                <Hash className="w-4 h-4" />
-                Каналы
+                <Hash className="w-4 h-4" /> Каналы
               </h3>
               <div className="space-y-2">
                 {channels.map((channel) => (
-                  <GlassCard key={channel.id} className="p-4 cursor-pointer hover:border-primary/50 transition-colors">
+                  <GlassCard key={channel.id} className="p-4 cursor-pointer hover:border-primary/50 transition-colors"
+                    onClick={() => handleSubscribeChannel(channel.id)}>
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center">
                         <Hash className="w-5 h-5 text-primary" />
                       </div>
-                      <div>
+                      <div className="flex-1">
                         <h4 className="font-medium">{channel.name}</h4>
+                        {channel.handle && <p className="text-xs text-primary/70">@{channel.handle}</p>}
                         {channel.description && <p className="text-sm text-muted-foreground truncate">{channel.description}</p>}
                       </div>
+                      <ChevronRight className="w-5 h-5 text-muted-foreground" />
+                    </div>
+                  </GlassCard>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {groups.length > 0 && (
+            <div>
+              <h3 className="text-sm font-semibold text-muted-foreground mb-3 flex items-center gap-2">
+                <Users className="w-4 h-4" /> Группы
+              </h3>
+              <div className="space-y-2">
+                {groups.map((group) => (
+                  <GlassCard key={group.id} className="p-4 cursor-pointer hover:border-primary/50 transition-colors"
+                    onClick={() => handleJoinGroup(group.id)}>
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-accent/20 flex items-center justify-center">
+                        <Users className="w-5 h-5 text-accent" />
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="font-medium">{group.name}</h4>
+                        {group.handle && <p className="text-xs text-primary/70">@{group.handle}</p>}
+                        {group.description && <p className="text-sm text-muted-foreground truncate">{group.description}</p>}
+                      </div>
+                      <ChevronRight className="w-5 h-5 text-muted-foreground" />
                     </div>
                   </GlassCard>
                 ))}
@@ -119,16 +164,12 @@ export function SearchView({ searchQuery, onSearchChange, onStartChat, onViewPro
           {profiles.length > 0 && (
             <div>
               <h3 className="text-sm font-semibold text-muted-foreground mb-3 flex items-center gap-2">
-                <User className="w-4 h-4" />
-                Люди
+                <User className="w-4 h-4" /> Люди
               </h3>
               <div className="space-y-2">
                 {profiles.filter((p) => p.user_id !== user?.id).map((profile) => (
-                  <GlassCard
-                    key={profile.id}
-                    className="p-4 cursor-pointer hover:border-primary/50 transition-colors"
-                    onClick={() => onViewProfile?.(profile.user_id)}
-                  >
+                  <GlassCard key={profile.id} className="p-4 cursor-pointer hover:border-primary/50 transition-colors"
+                    onClick={() => onViewProfile?.(profile.user_id)}>
                     <div className="flex items-center gap-3">
                       <UserAvatar username={profile.username} avatarUrl={profile.avatar_url} size="md" />
                       <div className="flex-1">
@@ -136,16 +177,11 @@ export function SearchView({ searchQuery, onSearchChange, onStartChat, onViewPro
                           <h4 className="font-medium">{profile.username || "Без имени"}</h4>
                           <UserBadge userId={profile.user_id} />
                         </div>
-                        {profile.username && (
-                          <p className="text-xs text-primary/70">@{profile.username.replace(/^@/, "")}</p>
-                        )}
+                        {profile.username && <p className="text-xs text-primary/70">@{profile.username.replace(/^@/, "")}</p>}
                       </div>
                       <div className="flex items-center gap-2">
                         {onStartChat && (
-                          <FlameButton
-                            size="sm"
-                            onClick={(e) => { e.stopPropagation(); onStartChat(profile.user_id); }}
-                          >
+                          <FlameButton size="sm" onClick={(e) => { e.stopPropagation(); onStartChat(profile.user_id); }}>
                             <MessageCircle className="w-4 h-4" />
                           </FlameButton>
                         )}
@@ -158,7 +194,7 @@ export function SearchView({ searchQuery, onSearchChange, onStartChat, onViewPro
             </div>
           )}
 
-          {channels.length === 0 && profiles.length === 0 && (
+          {channels.length === 0 && groups.length === 0 && profiles.length === 0 && (
             <GlassCard className="text-center py-12">
               <Search className="w-12 h-12 mx-auto mb-4 text-muted-foreground/50" />
               <h3 className="text-lg font-semibold mb-2">Ничего не найдено</h3>
