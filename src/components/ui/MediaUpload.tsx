@@ -53,8 +53,10 @@ export function MediaUpload({ onUpload, className }: MediaUploadProps) {
 
       if (uploadError) throw uploadError;
 
-      const { data } = supabase.storage.from("media").getPublicUrl(filePath);
-      onUpload(data.publicUrl);
+      const { data: urlData } = await supabase.storage.from("media").createSignedUrl(filePath, 60 * 60 * 24 * 365);
+      if (urlData?.signedUrl) {
+        onUpload(urlData.signedUrl);
+      }
     } catch (error: any) {
       console.error("Upload error:", error);
       toast({ title: "Ошибка загрузки", description: error.message, variant: "destructive" });

@@ -7,7 +7,11 @@ import { FlameInput } from "@/components/ui/FlameInput";
 import { UserAvatar } from "@/components/ui/UserAvatar";
 import { UserBadge } from "@/components/ui/UserBadge";
 import { MediaUpload } from "@/components/ui/MediaUpload";
-import { MessageCircle, Send, ArrowLeft } from "lucide-react";
+import { VoiceRecorder } from "@/components/ui/VoiceRecorder";
+import { VideoCircleRecorder } from "@/components/ui/VideoCircleRecorder";
+import { MessageContextMenu } from "@/components/ui/MessageContextMenu";
+import { CallUI } from "@/components/ui/CallUI";
+import { MessageCircle, Send, ArrowLeft, Phone, ShieldBan, ShieldCheck } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ru } from "date-fns/locale";
 import { toast } from "@/hooks/use-toast";
@@ -41,9 +45,13 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeChat, setActiveChat] = useState<{ id: string; username: string | null; avatarUrl: string | null } | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
   const [newMessage, setNewMessage] = useState("");
   const [mediaUrl, setMediaUrl] = useState("");
   const [loading, setLoading] = useState(false);
+  const [calling, setCalling] = useState(false);
+  const [isBlocked, setIsBlocked] = useState(false);
+  const [blockedByThem, setBlockedByThem] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { if (user) fetchConversations(); }, [user]);
@@ -53,7 +61,12 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
     if (!user) return;
     const channel = supabase
       .channel("dm-realtime")
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "direct_messages" }, (payload) => {
+      .on("postgres_changes", { event: "*", schema: "public", table: "direct_messages" }, (payload) => {
+        if (payload.eventType === "DELETE") {
+          setMessages((prev) => prev.filter((m) => m.id !== (payload.old as any).id));
+          fetchConversations();
+          return;
+        }
         const newMsg = payload.new as Message;
         if (newMsg.sender_id === user.id || newMsg.receiver_id === user.id) {
           if (activeChat && (newMsg.sender_id === activeChat.id || newMsg.receiver_id === activeChat.id)) {
@@ -67,6 +80,41 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
   }, [user, activeChat]);
 
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
+
+  useEffect(() => {
+    if (activeChat && user) {
+      checkBlockStatus(activeChat.id);
+      fetchHiddenMessages();
+    }
+  }, [activeChat, user]);
+
+  const checkBlockStatus = async (partnerId: string) => {
+    if (!user) return;
+    const [{ data: blocked }, { data: blockedBy }] = await Promise.all([
+      supabase.from("blocked_users").select("id").eq("blocker_id", user.id).eq("blocked_id", partnerId).maybeSingle(),
+      supabase.from("blocked_users").select("id").eq("blocker_id", partnerId).eq("blocked_id", user.id).maybeSingle(),
+    ]);
+    setIsBlocked(!!blocked);
+    setBlockedByThem(!!blockedBy);
+  };
+
+  const fetchHiddenMessages = async () => {
+    if (!user) return;
+    const { data } = await supabase.from("hidden_messages").select("message_id").eq("user_id", user.id).eq("message_type", "dm");
+    setHiddenIds(new Set(data?.map((h) => h.message_id) || []));
+  };
+
+  const toggleBlock = async () => {
+    if (!user || !activeChat) return;
+    if (isBlocked) {
+      await supabase.from("blocked_users").delete().eq("blocker_id", user.id).eq("blocked_id", activeChat.id);
+      toast({ title: "Пользователь разблокирован" });
+    } else {
+      await supabase.from("blocked_users").insert({ blocker_id: user.id, blocked_id: activeChat.id });
+      toast({ title: "Пользователь заблокирован" });
+    }
+    setIsBlocked(!isBlocked);
+  };
 
   const fetchConversations = async () => {
     if (!user) return;
@@ -123,6 +171,10 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
 
   const sendMessage = async () => {
     if ((!newMessage.trim() && !mediaUrl) || !activeChat || !user) return;
+    if (blockedByThem) {
+      toast({ title: "Ошибка", description: "Вы заблокированы этим пользователем", variant: "destructive" });
+      return;
+    }
     const { error } = await supabase.from("direct_messages").insert({
       sender_id: user.id,
       receiver_id: activeChat.id,
@@ -130,17 +182,68 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
       media_url: mediaUrl || null,
     });
     if (error) {
-      toast({ title: "Ошибка", description: "Не удалось отправить", variant: "destructive" });
+      toast({ title: "Ошибка", description: error.message?.includes("blocked") ? "Вы заблокированы" : "Не удалось отправить", variant: "destructive" });
     } else {
       setNewMessage(""); setMediaUrl("");
     }
   };
 
-  const closeChat = () => {
-    setActiveChat(null); setMessages([]); onClearSelectedUser?.();
+  const handleMediaUpload = (url: string) => {
+    setMediaUrl(url);
   };
 
+  const handleVoiceRecorded = (url: string) => {
+    if (!activeChat || !user) return;
+    supabase.from("direct_messages").insert({
+      sender_id: user.id,
+      receiver_id: activeChat.id,
+      content: "🎤 Голосовое сообщение",
+      media_url: url,
+    }).then(({ error }) => {
+      if (error) toast({ title: "Ошибка", description: "Не удалось отправить", variant: "destructive" });
+    });
+  };
+
+  const handleVideoRecorded = (url: string) => {
+    if (!activeChat || !user) return;
+    supabase.from("direct_messages").insert({
+      sender_id: user.id,
+      receiver_id: activeChat.id,
+      content: "🎥 Видео-кружок",
+      media_url: url,
+    }).then(({ error }) => {
+      if (error) toast({ title: "Ошибка", description: "Не удалось отправить", variant: "destructive" });
+    });
+  };
+
+  const closeChat = () => {
+    setActiveChat(null); setMessages([]); setHiddenIds(new Set()); onClearSelectedUser?.();
+  };
+
+  const renderMedia = (url: string) => {
+    if (url.match(/\.(webm)$/) && url.includes("_circle")) {
+      return (
+        <video src={url} controls className="w-48 h-48 rounded-full object-cover mb-2 border-2 border-primary" />
+      );
+    }
+    if (url.match(/\.webm$/) && !url.includes("_circle")) {
+      return <audio src={url} controls className="mb-2 max-w-full" />;
+    }
+    if (url.match(/\.(mp4|mov)$/)) {
+      return <video src={url} controls className="max-h-48 rounded-lg mb-2" />;
+    }
+    return (
+      <img src={url} alt="" className="max-h-48 rounded-lg object-cover mb-2 cursor-pointer" onClick={() => window.open(url, "_blank")} />
+    );
+  };
+
+  if (calling && activeChat) {
+    return <CallUI partnerUsername={activeChat.username} partnerAvatarUrl={activeChat.avatarUrl} onEnd={() => setCalling(false)} />;
+  }
+
   if (activeChat) {
+    const visibleMessages = messages.filter((m) => !hiddenIds.has(m.id));
+
     return (
       <div className="flex flex-col h-full">
         <GlassCard className="rounded-none border-x-0 border-t-0 p-4">
@@ -151,12 +254,20 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
             <button onClick={() => onViewProfile?.(activeChat.id)} className="shrink-0">
               <UserAvatar username={activeChat.username} avatarUrl={activeChat.avatarUrl} size="md" />
             </button>
-            <div>
+            <div className="flex-1">
               <div className="flex items-center gap-1.5">
                 <h2 className="font-semibold">{activeChat.username || "Пользователь"}</h2>
                 <UserBadge userId={activeChat.id} />
               </div>
               {activeChat.username && <p className="text-xs text-primary/70">@{activeChat.username.replace(/^@/, "")}</p>}
+            </div>
+            <div className="flex items-center gap-1">
+              <button onClick={() => setCalling(true)} className="p-2 hover:bg-muted/50 rounded-lg transition-colors touch-target">
+                <Phone className="w-5 h-5 text-primary" />
+              </button>
+              <button onClick={toggleBlock} className="p-2 hover:bg-muted/50 rounded-lg transition-colors touch-target" title={isBlocked ? "Разблокировать" : "Заблокировать"}>
+                {isBlocked ? <ShieldCheck className="w-5 h-5 text-destructive" /> : <ShieldBan className="w-5 h-5 text-muted-foreground" />}
+              </button>
             </div>
           </div>
         </GlassCard>
@@ -166,27 +277,32 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
             <div className="text-center py-12">
               <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
             </div>
-          ) : messages.length === 0 ? (
+          ) : visibleMessages.length === 0 ? (
             <div className="text-center text-muted-foreground py-12">
               <MessageCircle className="w-12 h-12 mx-auto mb-3 opacity-50" />
               <p>Начните разговор!</p>
             </div>
           ) : (
-            messages.map((msg) => (
-              <div key={msg.id} className={`flex ${msg.sender_id === user?.id ? "justify-end" : "justify-start"}`}>
-                <GlassCard className={`max-w-[80%] p-3 ${msg.sender_id === user?.id ? "bg-primary/20 border-primary/30" : ""}`}>
-                  {msg.media_url && (
-                    msg.media_url.match(/\.(mp4|webm|mov)/) ? (
-                      <video src={msg.media_url} controls className="max-h-48 rounded-lg mb-2" />
-                    ) : (
-                      <img src={msg.media_url} alt="" className="max-h-48 rounded-lg object-cover mb-2 cursor-pointer" onClick={() => window.open(msg.media_url!, "_blank")} />
-                    )
-                  )}
-                  {msg.content && msg.content !== "📎 Медиа" && <p className="text-sm break-words">{msg.content}</p>}
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {formatDistanceToNow(new Date(msg.created_at), { addSuffix: true, locale: ru })}
-                  </p>
-                </GlassCard>
+            visibleMessages.map((msg) => (
+              <div key={msg.id} className={`flex group ${msg.sender_id === user?.id ? "justify-end" : "justify-start"}`}>
+                <div className="flex items-start gap-1 max-w-[80%]">
+                  <GlassCard className={`p-3 ${msg.sender_id === user?.id ? "bg-primary/20 border-primary/30" : ""}`}>
+                    {msg.media_url && renderMedia(msg.media_url)}
+                    {msg.content && msg.content !== "📎 Медиа" && msg.content !== "🎤 Голосовое сообщение" && msg.content !== "🎥 Видео-кружок" && (
+                      <p className="text-sm break-words">{msg.content}</p>
+                    )}
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {formatDistanceToNow(new Date(msg.created_at), { addSuffix: true, locale: ru })}
+                    </p>
+                  </GlassCard>
+                  <MessageContextMenu
+                    messageId={msg.id}
+                    messageType="dm"
+                    isSender={msg.sender_id === user?.id}
+                    onDeleted={() => setMessages((prev) => prev.filter((m) => m.id !== msg.id))}
+                    onHidden={() => setHiddenIds((prev) => new Set([...prev, msg.id]))}
+                  />
+                </div>
               </div>
             ))
           )}
@@ -195,7 +311,9 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
 
         <div className="p-4 glass-card rounded-none border-x-0 border-b-0 ipad-input">
           <div className="flex items-end gap-2">
-            <MediaUpload onUpload={setMediaUrl} />
+            <MediaUpload onUpload={handleMediaUpload} />
+            <VoiceRecorder onRecorded={handleVoiceRecorded} />
+            <VideoCircleRecorder onRecorded={handleVideoRecorded} />
             <FlameInput
               placeholder="Написать сообщение..."
               value={newMessage}
