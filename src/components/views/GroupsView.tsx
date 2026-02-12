@@ -12,6 +12,8 @@ import { MediaUpload } from "@/components/ui/MediaUpload";
 import { VoiceRecorder } from "@/components/ui/VoiceRecorder";
 import { VideoCircleRecorder } from "@/components/ui/VideoCircleRecorder";
 import { MessageContextMenu } from "@/components/ui/MessageContextMenu";
+import { UploadingBubble } from "@/components/ui/UploadingBubble";
+import { useMediaUpload } from "@/hooks/useMediaUpload";
 import { Users, Plus, Send, X, ArrowLeft, LogOut, Reply } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
@@ -60,6 +62,7 @@ export function GroupsView({ onViewProfile }: GroupsViewProps) {
   const [loading, setLoading] = useState(false);
   const [myGroupIds, setMyGroupIds] = useState<Set<string>>(new Set());
   const [replyTo, setReplyTo] = useState<GroupMessage | null>(null);
+  const { pendingUploads, startUpload, cancelUpload } = useMediaUpload();
 
   useEffect(() => { fetchMyGroups(); }, [user]);
 
@@ -176,19 +179,23 @@ export function GroupsView({ onViewProfile }: GroupsViewProps) {
     }
   };
 
-  const handleVoiceRecorded = (url: string) => {
+  const handleVoiceRecorded = (blob: Blob, _durationSec: number) => {
     if (!selectedGroup || !user) return;
-    supabase.from("group_messages").insert({
-      content: "🎤 Голосовое сообщение", media_url: url,
-      group_id: selectedGroup.id, author_id: user.id,
+    startUpload(blob, "voice", (url) => {
+      supabase.from("group_messages").insert({
+        content: "🎤 Голосовое сообщение", media_url: url,
+        group_id: selectedGroup.id, author_id: user.id,
+      });
     });
   };
 
-  const handleVideoRecorded = (url: string) => {
+  const handleVideoRecorded = (blob: Blob, _durationSec: number, _thumbnail: string) => {
     if (!selectedGroup || !user) return;
-    supabase.from("group_messages").insert({
-      content: "🎥 Видео-кружок", media_url: url,
-      group_id: selectedGroup.id, author_id: user.id,
+    startUpload(blob, "circle", (url) => {
+      supabase.from("group_messages").insert({
+        content: "🎥 Видео-кружок", media_url: url,
+        group_id: selectedGroup.id, author_id: user.id,
+      });
     });
   };
 
@@ -286,6 +293,10 @@ export function GroupsView({ onViewProfile }: GroupsViewProps) {
               </GlassCard>
             ))
           )}
+          {/* Uploading bubbles */}
+          {pendingUploads.map(upload => (
+            <UploadingBubble key={upload.id} upload={upload} onCancel={cancelUpload} />
+          ))}
         </div>
 
         {replyTo && (
