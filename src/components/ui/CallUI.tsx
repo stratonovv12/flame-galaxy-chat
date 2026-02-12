@@ -6,18 +6,23 @@ interface CallUIProps {
   partnerUsername: string | null;
   partnerAvatarUrl: string | null;
   onEnd: () => void;
+  isActive?: boolean;
 }
 
-export function CallUI({ partnerUsername, partnerAvatarUrl, onEnd }: CallUIProps) {
+export function CallUI({ partnerUsername, partnerAvatarUrl, onEnd, isActive = false }: CallUIProps) {
   const [muted, setMuted] = useState(false);
   const [cameraOn, setCameraOn] = useState(true);
-  const [connected, setConnected] = useState(false);
+  const [connected, setConnected] = useState(isActive);
   const [elapsed, setElapsed] = useState(0);
 
   useEffect(() => {
-    const timer = setTimeout(() => setConnected(true), 2500);
-    return () => clearTimeout(timer);
-  }, []);
+    if (isActive) {
+      setConnected(true);
+    } else {
+      const timer = setTimeout(() => setConnected(true), 2500);
+      return () => clearTimeout(timer);
+    }
+  }, [isActive]);
 
   useEffect(() => {
     if (!connected) return;

@@ -34,14 +34,25 @@ export function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
     return () => { supabase.removeChannel(channel); };
   }, [user]);
 
+  // Reset unread when switching to messages tab
+  useEffect(() => {
+    if (activeTab === "messages" && user) {
+      // Small delay to let the view mark messages as read
+      const t = setTimeout(fetchUnread, 1000);
+      return () => clearTimeout(t);
+    }
+  }, [activeTab, user]);
+
   const fetchUnread = async () => {
     if (!user) return;
-    const { count } = await supabase
+    // Count unique conversations with unread messages
+    const { data } = await supabase
       .from("direct_messages")
-      .select("*", { count: "exact", head: true })
+      .select("sender_id")
       .eq("receiver_id", user.id)
       .is("read_at", null);
-    setUnreadCount(count || 0);
+    const uniqueSenders = new Set(data?.map(m => m.sender_id) || []);
+    setUnreadCount(uniqueSenders.size);
   };
 
   return (

@@ -14,7 +14,7 @@ import { VideoCircleRecorder } from "@/components/ui/VideoCircleRecorder";
 import { MessageContextMenu } from "@/components/ui/MessageContextMenu";
 import { UploadingBubble } from "@/components/ui/UploadingBubble";
 import { useMediaUpload } from "@/hooks/useMediaUpload";
-import { Users, Plus, Send, X, ArrowLeft, LogOut, Reply } from "lucide-react";
+import { Users, Plus, Send, X, ArrowLeft, LogOut, Reply, Settings, Trash2, Crown, ShieldCheck } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
 import { ru } from "date-fns/locale";
@@ -41,6 +41,12 @@ interface GroupMessage {
   profiles?: { username: string | null; avatar_url: string | null } | null;
 }
 
+interface GroupMember {
+  user_id: string;
+  username: string | null;
+  avatar_url: string | null;
+}
+
 interface GroupsViewProps {
   onViewProfile?: (userId: string) => void;
 }
@@ -63,6 +69,12 @@ export function GroupsView({ onViewProfile }: GroupsViewProps) {
   const [myGroupIds, setMyGroupIds] = useState<Set<string>>(new Set());
   const [replyTo, setReplyTo] = useState<GroupMessage | null>(null);
   const { pendingUploads, startUpload, cancelUpload } = useMediaUpload();
+
+  // Settings state
+  const [showSettings, setShowSettings] = useState(false);
+  const [members, setMembers] = useState<GroupMember[]>([]);
+  const [groupAdmins, setGroupAdmins] = useState<Set<string>>(new Set());
+  const [transferTarget, setTransferTarget] = useState<string | null>(null);
 
   useEffect(() => { fetchMyGroups(); }, [user]);
 
@@ -120,6 +132,55 @@ export function GroupsView({ onViewProfile }: GroupsViewProps) {
     setHiddenIds(new Set(data?.map(h => h.message_id) || []));
   };
 
+  const fetchMembers = async (groupId: string) => {
+    const { data: memberData } = await supabase.from("group_members").select("user_id").eq("group_id", groupId);
+    if (!memberData) return;
+    const userIds = memberData.map(m => m.user_id);
+    const { data: profiles } = await supabase.from("profiles").select("user_id, username, avatar_url").in("user_id", userIds);
+    setMembers(profiles?.map(p => ({ user_id: p.user_id, username: p.username, avatar_url: p.avatar_url })) || []);
+    
+    const { data: admins } = await supabase.from("group_admins").select("user_id").eq("group_id", groupId);
+    setGroupAdmins(new Set(admins?.map(a => a.user_id) || []));
+  };
+
+  const openSettings = () => {
+    if (!selectedGroup) return;
+    fetchMembers(selectedGroup.id);
+    setShowSettings(true);
+  };
+
+  const toggleAdmin = async (userId: string) => {
+    if (!selectedGroup || !user) return;
+    if (groupAdmins.has(userId)) {
+      await supabase.from("group_admins").delete().eq("group_id", selectedGroup.id).eq("user_id", userId);
+      setGroupAdmins(prev => { const n = new Set(prev); n.delete(userId); return n; });
+      toast({ title: "Права администратора сняты" });
+    } else {
+      await supabase.from("group_admins").insert({ group_id: selectedGroup.id, user_id: userId, appointed_by: user.id });
+      setGroupAdmins(prev => new Set([...prev, userId]));
+      toast({ title: "Назначен администратором" });
+    }
+  };
+
+  const transferOwnership = async () => {
+    if (!selectedGroup || !transferTarget || !user) return;
+    if (!confirm("Вы уверены? Вы потеряете права создателя.")) return;
+    await supabase.from("groups").update({ creator_id: transferTarget }).eq("id", selectedGroup.id);
+    setSelectedGroup({ ...selectedGroup, creator_id: transferTarget });
+    setTransferTarget(null);
+    toast({ title: "Владение передано" });
+  };
+
+  const deleteGroup = async () => {
+    if (!selectedGroup) return;
+    if (!confirm("Удалить группу навсегда? Это действие необратимо.")) return;
+    await supabase.from("groups").delete().eq("id", selectedGroup.id);
+    toast({ title: "Группа удалена" });
+    setSelectedGroup(null);
+    setShowSettings(false);
+    fetchMyGroups();
+  };
+
   const leaveGroup = async () => {
     if (!user || !selectedGroup) return;
     await supabase.from("group_members").delete().eq("group_id", selectedGroup.id).eq("user_id", user.id);
@@ -143,16 +204,13 @@ export function GroupsView({ onViewProfile }: GroupsViewProps) {
     if (!newName.trim() || !user) return;
     setLoading(true);
     const { data: newGroup, error } = await supabase.from("groups").insert({
-      name: newName.trim(),
-      description: newDesc.trim() || null,
-      avatar_url: newAvatar.trim() || null,
-      handle: newHandle.trim().replace(/^@/, "") || null,
+      name: newName.trim(), description: newDesc.trim() || null,
+      avatar_url: newAvatar.trim() || null, handle: newHandle.trim().replace(/^@/, "") || null,
       creator_id: user.id,
     }).select().single();
     if (error) {
       toast({ title: "Ошибка", description: error.message?.includes("handle") ? "Этот хендл уже занят" : "Не удалось создать", variant: "destructive" });
     } else {
-      // Auto-join as member
       if (newGroup) {
         await supabase.from("group_members").upsert({ group_id: newGroup.id, user_id: user.id }, { onConflict: "group_id,user_id" });
       }
@@ -167,10 +225,8 @@ export function GroupsView({ onViewProfile }: GroupsViewProps) {
     if ((!newMessage.trim() && !mediaUrl) || !selectedGroup || !user) return;
     const { error } = await supabase.from("group_messages").insert({
       content: newMessage.trim() || (mediaUrl ? "📎 Медиа" : ""),
-      media_url: mediaUrl || null,
-      group_id: selectedGroup.id,
-      author_id: user.id,
-      reply_to_id: replyTo?.id || null,
+      media_url: mediaUrl || null, group_id: selectedGroup.id,
+      author_id: user.id, reply_to_id: replyTo?.id || null,
     });
     if (error) {
       toast({ title: "Ошибка", description: "Не удалось отправить", variant: "destructive" });
@@ -181,8 +237,8 @@ export function GroupsView({ onViewProfile }: GroupsViewProps) {
 
   const handleVoiceRecorded = (blob: Blob, _durationSec: number) => {
     if (!selectedGroup || !user) return;
-    startUpload(blob, "voice", (url) => {
-      supabase.from("group_messages").insert({
+    startUpload(blob, "voice", async (url) => {
+      await supabase.from("group_messages").insert({
         content: "🎤 Голосовое сообщение", media_url: url,
         group_id: selectedGroup.id, author_id: user.id,
       });
@@ -191,8 +247,8 @@ export function GroupsView({ onViewProfile }: GroupsViewProps) {
 
   const handleVideoRecorded = (blob: Blob, _durationSec: number, _thumbnail: string) => {
     if (!selectedGroup || !user) return;
-    startUpload(blob, "circle", (url) => {
-      supabase.from("group_messages").insert({
+    startUpload(blob, "circle", async (url) => {
+      await supabase.from("group_messages").insert({
         content: "🎥 Видео-кружок", media_url: url,
         group_id: selectedGroup.id, author_id: user.id,
       });
@@ -216,6 +272,77 @@ export function GroupsView({ onViewProfile }: GroupsViewProps) {
     }
     return <img src={url} alt="" className="mt-2 max-h-64 rounded-lg object-cover cursor-pointer" onClick={() => window.open(url, "_blank")} />;
   };
+
+  const isCreator = selectedGroup && user && selectedGroup.creator_id === user.id;
+
+  // Settings panel
+  if (showSettings && selectedGroup) {
+    return (
+      <div className="flex flex-col h-full">
+        <GlassCard className="rounded-none border-x-0 border-t-0 p-4">
+          <div className="flex items-center gap-3">
+            <button onClick={() => setShowSettings(false)} className="p-2 hover:bg-muted/50 rounded-lg touch-target">
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+            <h2 className="font-semibold">Настройки группы</h2>
+          </div>
+        </GlassCard>
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          <GlassCard className="p-4">
+            <h3 className="font-semibold mb-2">{selectedGroup.name}</h3>
+            {selectedGroup.handle && <p className="text-sm text-primary/70 mb-3">@{selectedGroup.handle}</p>}
+          </GlassCard>
+
+          {isCreator && (
+            <>
+              <GlassCard className="p-4">
+                <h3 className="font-semibold mb-3 flex items-center gap-2"><Crown className="w-5 h-5 text-yellow-500" />Передача владения</h3>
+                <p className="text-sm text-muted-foreground mb-3">Выберите участника для передачи прав создателя</p>
+                <div className="space-y-2">
+                  {members.filter(m => m.user_id !== user?.id).map(m => (
+                    <div key={m.user_id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/30">
+                      <UserAvatar username={m.username} avatarUrl={m.avatar_url} size="sm" />
+                      <span className="flex-1 text-sm font-medium">{m.username || "Пользователь"}</span>
+                      <FlameButton size="sm" variant={transferTarget === m.user_id ? "primary" : "outline"}
+                        onClick={() => setTransferTarget(transferTarget === m.user_id ? null : m.user_id)}>
+                        Передать
+                      </FlameButton>
+                    </div>
+                  ))}
+                </div>
+                {transferTarget && (
+                  <FlameButton onClick={transferOwnership} className="w-full mt-3">
+                    Подтвердить передачу
+                  </FlameButton>
+                )}
+              </GlassCard>
+
+              <GlassCard className="p-4">
+                <h3 className="font-semibold mb-3 flex items-center gap-2"><ShieldCheck className="w-5 h-5 text-primary" />Администраторы</h3>
+                <p className="text-sm text-muted-foreground mb-3">Администраторы могут удалять сообщения</p>
+                <div className="space-y-2">
+                  {members.filter(m => m.user_id !== user?.id).map(m => (
+                    <div key={m.user_id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/30">
+                      <UserAvatar username={m.username} avatarUrl={m.avatar_url} size="sm" />
+                      <span className="flex-1 text-sm font-medium">{m.username || "Пользователь"}</span>
+                      <button onClick={() => toggleAdmin(m.user_id)}
+                        className={`p-2 rounded-lg transition-colors ${groupAdmins.has(m.user_id) ? "bg-primary/20 text-primary" : "hover:bg-muted/50 text-muted-foreground"}`}>
+                        <ShieldCheck className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </GlassCard>
+
+              <FlameButton onClick={deleteGroup} variant="outline" className="w-full border-destructive/50 text-destructive hover:bg-destructive/10">
+                <Trash2 className="w-4 h-4 mr-2" /> Удалить группу
+              </FlameButton>
+            </>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   if (selectedGroup) {
     const visibleMessages = messages.filter(m => !hiddenIds.has(m.id));
@@ -241,9 +368,16 @@ export function GroupsView({ onViewProfile }: GroupsViewProps) {
                 {memberCounts[selectedGroup.id] || 0} участников
               </p>
             </div>
-            <button onClick={leaveGroup} className="p-2 hover:bg-destructive/10 rounded-lg transition-colors touch-target" title="Покинуть группу">
-              <LogOut className="w-5 h-5 text-destructive" />
-            </button>
+            <div className="flex items-center gap-1">
+              {isCreator && (
+                <button onClick={openSettings} className="p-2 hover:bg-muted/50 rounded-lg transition-colors touch-target" title="Настройки">
+                  <Settings className="w-5 h-5 text-muted-foreground" />
+                </button>
+              )}
+              <button onClick={leaveGroup} className="p-2 hover:bg-destructive/10 rounded-lg transition-colors touch-target" title="Покинуть группу">
+                <LogOut className="w-5 h-5 text-destructive" />
+              </button>
+            </div>
           </div>
         </GlassCard>
 
@@ -293,7 +427,6 @@ export function GroupsView({ onViewProfile }: GroupsViewProps) {
               </GlassCard>
             ))
           )}
-          {/* Uploading bubbles */}
           {pendingUploads.map(upload => (
             <UploadingBubble key={upload.id} upload={upload} onCancel={cancelUpload} />
           ))}

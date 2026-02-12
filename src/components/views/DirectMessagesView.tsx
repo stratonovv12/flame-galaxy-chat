@@ -12,7 +12,10 @@ import { VideoCircleRecorder } from "@/components/ui/VideoCircleRecorder";
 import { MessageContextMenu } from "@/components/ui/MessageContextMenu";
 import { UploadingBubble } from "@/components/ui/UploadingBubble";
 import { CallUI } from "@/components/ui/CallUI";
+import { IncomingCallUI } from "@/components/ui/IncomingCallUI";
+import { OnlineIndicator } from "@/components/ui/OnlineIndicator";
 import { useMediaUpload } from "@/hooks/useMediaUpload";
+import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { MessageCircle, Send, ArrowLeft, Phone, ShieldBan, ShieldCheck, X, Forward } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ru } from "date-fns/locale";
@@ -25,7 +28,7 @@ interface Conversation {
   partnerAvatarUrl: string | null;
   lastMessage: string;
   lastMessageAt: string;
-  unread: boolean;
+  unreadCount: number;
 }
 
 interface Message {
@@ -54,7 +57,6 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
   const [newMessage, setNewMessage] = useState("");
   const [mediaUrl, setMediaUrl] = useState("");
   const [loading, setLoading] = useState(false);
-  const [calling, setCalling] = useState(false);
   const [isBlocked, setIsBlocked] = useState(false);
   const [blockedByThem, setBlockedByThem] = useState(false);
   const [replyTo, setReplyTo] = useState<Message | null>(null);
@@ -63,10 +65,50 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { pendingUploads, startUpload, cancelUpload } = useMediaUpload();
 
+  // Call state
+  const [activeCallId, setActiveCallId] = useState<string | null>(null);
+  const [callActive, setCallActive] = useState(false);
+  const [incomingCall, setIncomingCall] = useState<{ id: string; callerId: string; callerUsername: string | null; callerAvatarUrl: string | null } | null>(null);
+
+  const partnerPresence = useOnlineStatus(activeChat?.id);
+
   useEffect(() => {
     if (user) { fetchConversations(); requestNotificationPermission(); }
   }, [user]);
   useEffect(() => { if (selectedUserId && user) openChatWithUser(selectedUserId); }, [selectedUserId, user]);
+
+  // Listen for incoming calls
+  useEffect(() => {
+    if (!user) return;
+    const channel = supabase
+      .channel("calls-incoming")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "calls", filter: `receiver_id=eq.${user.id}` }, async (payload) => {
+        const call = payload.new as any;
+        if (call.status !== "ringing") return;
+        const { data: profile } = await supabase.from("profiles").select("username, avatar_url").eq("user_id", call.caller_id).maybeSingle();
+        setIncomingCall({
+          id: call.id,
+          callerId: call.caller_id,
+          callerUsername: profile?.username || null,
+          callerAvatarUrl: profile?.avatar_url || null,
+        });
+      })
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "calls" }, (payload) => {
+        const call = payload.new as any;
+        if (call.status === "ended" || call.status === "missed" || call.status === "rejected") {
+          if (incomingCall?.id === call.id) setIncomingCall(null);
+          if (activeCallId === call.id) {
+            setActiveCallId(null);
+            setCallActive(false);
+          }
+        }
+        if (call.status === "active" && activeCallId === call.id) {
+          setCallActive(true);
+        }
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [user, incomingCall, activeCallId]);
 
   useEffect(() => {
     if (!user) return;
@@ -85,8 +127,11 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
               if (prev.some(m => m.id === newMsg.id)) return prev;
               return [...prev, newMsg];
             });
+            // Mark as read if it's incoming and chat is open
+            if (newMsg.sender_id !== user.id) {
+              supabase.from("direct_messages").update({ read_at: new Date().toISOString() }).eq("id", newMsg.id).then();
+            }
           }
-          // Notification for incoming messages
           if (newMsg.sender_id !== user.id) {
             playNotificationSound();
             showBrowserNotification("Новое сообщение", newMsg.content);
@@ -103,6 +148,67 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
   useEffect(() => {
     if (activeChat && user) { checkBlockStatus(activeChat.id); fetchHiddenMessages(); }
   }, [activeChat, user]);
+
+  const startCall = async () => {
+    if (!user || !activeChat) return;
+    const { data, error } = await supabase.from("calls").insert({
+      caller_id: user.id,
+      receiver_id: activeChat.id,
+      status: "ringing",
+    }).select().single();
+    if (error) {
+      toast({ title: "Ошибка", description: "Не удалось начать вызов", variant: "destructive" });
+      return;
+    }
+    setActiveCallId(data.id);
+    // Auto-miss after 30s
+    setTimeout(async () => {
+      const { data: callData } = await supabase.from("calls").select("status").eq("id", data.id).maybeSingle();
+      if (callData?.status === "ringing") {
+        await supabase.from("calls").update({ status: "missed", ended_at: new Date().toISOString() }).eq("id", data.id);
+        setActiveCallId(null);
+        // Insert missed call message
+        await supabase.from("direct_messages").insert({
+          sender_id: user.id, receiver_id: activeChat.id,
+          content: "📞 Пропущенный вызов",
+        });
+      }
+    }, 30000);
+  };
+
+  const acceptCall = async () => {
+    if (!incomingCall) return;
+    await supabase.from("calls").update({
+      status: "active", started_at: new Date().toISOString()
+    }).eq("id", incomingCall.id);
+    setActiveCallId(incomingCall.id);
+    setCallActive(true);
+    // Set activeChat to caller
+    setActiveChat({
+      id: incomingCall.callerId,
+      username: incomingCall.callerUsername,
+      avatarUrl: incomingCall.callerAvatarUrl,
+    });
+    setIncomingCall(null);
+  };
+
+  const rejectCall = async () => {
+    if (!incomingCall) return;
+    await supabase.from("calls").update({
+      status: "rejected", ended_at: new Date().toISOString()
+    }).eq("id", incomingCall.id);
+    setIncomingCall(null);
+  };
+
+  const endCall = async () => {
+    if (activeCallId) {
+      await supabase.from("calls").update({
+        status: "ended", ended_at: new Date().toISOString()
+      }).eq("id", activeCallId);
+    }
+    setActiveCallId(null);
+    setCallActive(false);
+  };
 
   const checkBlockStatus = async (partnerId: string) => {
     if (!user) return;
@@ -139,11 +245,16 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
       .or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`)
       .order("created_at", { ascending: false });
 
-    const conversationsMap = new Map<string, { lastMessage: any; unread: boolean }>();
+    const conversationsMap = new Map<string, { lastMessage: any; unreadCount: number }>();
     for (const msg of messagesData || []) {
       const partnerId = msg.sender_id === user.id ? msg.receiver_id : msg.sender_id;
       if (!conversationsMap.has(partnerId)) {
-        conversationsMap.set(partnerId, { lastMessage: msg, unread: msg.receiver_id === user.id && !msg.read_at });
+        conversationsMap.set(partnerId, { lastMessage: msg, unreadCount: 0 });
+      }
+      // Count unread from this partner
+      if (msg.receiver_id === user.id && !msg.read_at) {
+        const entry = conversationsMap.get(partnerId)!;
+        entry.unreadCount++;
       }
     }
 
@@ -161,7 +272,7 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
         partnerAvatarUrl: profile?.avatar_url || null,
         lastMessage: data.lastMessage.content,
         lastMessageAt: data.lastMessage.created_at,
-        unread: data.unread,
+        unreadCount: data.unreadCount,
       };
     }));
   };
@@ -170,10 +281,11 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
     const { data: profile } = await supabase.from("profiles").select("user_id, username, avatar_url").eq("user_id", partnerId).maybeSingle();
     setActiveChat({ id: partnerId, username: profile?.username || null, avatarUrl: profile?.avatar_url || null });
     fetchMessages(partnerId);
-    // Mark as read
+    // Mark all as read
     if (user) {
       await supabase.from("direct_messages").update({ read_at: new Date().toISOString() })
         .eq("receiver_id", user.id).eq("sender_id", partnerId).is("read_at", null);
+      fetchConversations();
     }
   };
 
@@ -210,8 +322,8 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
 
   const handleVoiceRecorded = (blob: Blob, _durationSec: number) => {
     if (!activeChat || !user) return;
-    startUpload(blob, "voice", (url) => {
-      supabase.from("direct_messages").insert({
+    startUpload(blob, "voice", async (url) => {
+      await supabase.from("direct_messages").insert({
         sender_id: user.id, receiver_id: activeChat.id,
         content: "🎤 Голосовое сообщение", media_url: url,
       });
@@ -220,8 +332,8 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
 
   const handleVideoRecorded = (blob: Blob, _durationSec: number, _thumbnail: string) => {
     if (!activeChat || !user) return;
-    startUpload(blob, "circle", (url) => {
-      supabase.from("direct_messages").insert({
+    startUpload(blob, "circle", async (url) => {
+      await supabase.from("direct_messages").insert({
         sender_id: user.id, receiver_id: activeChat.id,
         content: "🎥 Видео-кружок", media_url: url,
       });
@@ -263,8 +375,24 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
     return <img src={url} alt="" className="max-h-48 rounded-lg object-cover mb-2 cursor-pointer" onClick={() => window.open(url, "_blank")} />;
   };
 
-  if (calling && activeChat) {
-    return <CallUI partnerUsername={activeChat.username} partnerAvatarUrl={activeChat.avatarUrl} onEnd={() => setCalling(false)} />;
+  // Incoming call overlay
+  if (incomingCall) {
+    return <IncomingCallUI
+      callerUsername={incomingCall.callerUsername}
+      callerAvatarUrl={incomingCall.callerAvatarUrl}
+      onAccept={acceptCall}
+      onReject={rejectCall}
+    />;
+  }
+
+  // Active call (outgoing ringing or connected)
+  if (activeCallId && activeChat) {
+    return <CallUI
+      partnerUsername={activeChat.username}
+      partnerAvatarUrl={activeChat.avatarUrl}
+      onEnd={endCall}
+      isActive={callActive}
+    />;
   }
 
   // Forward dialog
@@ -312,17 +440,17 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
               <ArrowLeft className="w-5 h-5" />
             </button>
             <button onClick={() => onViewProfile?.(activeChat.id)} className="shrink-0">
-              <UserAvatar username={activeChat.username} avatarUrl={activeChat.avatarUrl} size="md" />
+              <UserAvatar username={activeChat.username} avatarUrl={activeChat.avatarUrl} size="md" showOnline isOnline={partnerPresence.is_online} />
             </button>
             <div className="flex-1">
               <div className="flex items-center gap-1.5">
                 <h2 className="font-semibold">{activeChat.username || "Пользователь"}</h2>
                 <UserBadge userId={activeChat.id} />
               </div>
-              {activeChat.username && <p className="text-xs text-primary/70">@{activeChat.username.replace(/^@/, "")}</p>}
+              <OnlineIndicator userId={activeChat.id} showText />
             </div>
             <div className="flex items-center gap-1">
-              <button onClick={() => setCalling(true)} className="p-2 hover:bg-muted/50 rounded-lg transition-colors touch-target">
+              <button onClick={startCall} className="p-2 hover:bg-muted/50 rounded-lg transition-colors touch-target">
                 <Phone className="w-5 h-5 text-primary" />
               </button>
               <button onClick={toggleBlock} className="p-2 hover:bg-muted/50 rounded-lg transition-colors touch-target">
@@ -377,14 +505,12 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
               </div>
             ))
           )}
-          {/* Uploading bubbles */}
           {pendingUploads.map(upload => (
             <UploadingBubble key={upload.id} upload={upload} onCancel={cancelUpload} />
           ))}
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Reply preview */}
         {replyTo && (
           <div className="px-4 py-2 border-t border-border bg-muted/30 flex items-center gap-2">
             <div className="flex-1 pl-2 border-l-2 border-primary">
@@ -429,7 +555,7 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
         <div className="space-y-3">
           {conversations.map(conv => (
             <GlassCard key={conv.partnerId}
-              className={`p-4 cursor-pointer hover:border-primary/50 transition-colors ${conv.unread ? "border-primary/50" : ""}`}
+              className={`p-4 cursor-pointer hover:border-primary/50 transition-colors ${conv.unreadCount > 0 ? "border-primary/50" : ""}`}
               onClick={() => openChatWithUser(conv.partnerId)}>
               <div className="flex items-center gap-3">
                 <button onClick={e => { e.stopPropagation(); onViewProfile?.(conv.partnerId); }} className="shrink-0">
@@ -448,7 +574,11 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
                   {conv.partnerUsername && <p className="text-xs text-primary/70">@{conv.partnerUsername.replace(/^@/, "")}</p>}
                   <p className="text-sm text-muted-foreground truncate">{conv.lastMessage}</p>
                 </div>
-                {conv.unread && <div className="w-3 h-3 rounded-full bg-primary" />}
+                {conv.unreadCount > 0 && (
+                  <span className="min-w-[22px] h-[22px] flex items-center justify-center rounded-full bg-primary text-primary-foreground text-[11px] font-bold px-1.5">
+                    {conv.unreadCount > 99 ? "99+" : conv.unreadCount}
+                  </span>
+                )}
               </div>
             </GlassCard>
           ))}
