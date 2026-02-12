@@ -38,6 +38,30 @@ export type Database = {
         }
         Relationships: []
       }
+      banned_users: {
+        Row: {
+          banned_by: string
+          created_at: string
+          id: string
+          reason: string | null
+          user_id: string
+        }
+        Insert: {
+          banned_by: string
+          created_at?: string
+          id?: string
+          reason?: string | null
+          user_id: string
+        }
+        Update: {
+          banned_by?: string
+          created_at?: string
+          id?: string
+          reason?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       blocked_users: {
         Row: {
           blocked_id: string
@@ -378,6 +402,27 @@ export type Database = {
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
+        }
+        Relationships: []
+      }
+      verified_users: {
+        Row: {
+          created_at: string
+          id: string
+          user_id: string
+          verified_by: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          user_id: string
+          verified_by: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          user_id?: string
+          verified_by?: string
         }
         Relationships: []
       }

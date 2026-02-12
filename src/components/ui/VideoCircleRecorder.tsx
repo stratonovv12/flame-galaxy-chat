@@ -33,7 +33,13 @@ export function VideoCircleRecorder({ onRecorded, className }: VideoCircleRecord
         videoRef.current.play();
       }
 
-      const mediaRecorder = new MediaRecorder(stream, { mimeType: "video/webm" });
+      const mimeType = MediaRecorder.isTypeSupported("video/webm;codecs=vp9,opus")
+        ? "video/webm;codecs=vp9,opus"
+        : MediaRecorder.isTypeSupported("video/webm")
+        ? "video/webm"
+        : "";
+
+      const mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
       mediaRecorderRef.current = mediaRecorder;
       chunksRef.current = [];
 
@@ -42,17 +48,17 @@ export function VideoCircleRecorder({ onRecorded, className }: VideoCircleRecord
       };
 
       mediaRecorder.onstop = async () => {
-        stream.getTracks().forEach((t) => t.stop());
-        const blob = new Blob(chunksRef.current, { type: "video/webm" });
+        stream.getTracks().forEach(t => t.stop());
+        const blob = new Blob(chunksRef.current, { type: mediaRecorder.mimeType || "video/webm" });
         if (blob.size < 1000) { setPreview(false); return; }
 
         setUploading(true);
         try {
           const filePath = `${user.id}/${Date.now()}_circle.webm`;
-          const { error } = await supabase.storage.from("media").upload(filePath, blob, { cacheControl: "3600", upsert: true });
+          const { error } = await supabase.storage.from("media").upload(filePath, blob, { cacheControl: "3600", upsert: true, contentType: "video/webm" });
           if (error) throw error;
-          const { data } = await supabase.storage.from("media").createSignedUrl(filePath, 60 * 60 * 24 * 365);
-          if (data?.signedUrl) onRecorded(data.signedUrl);
+          const { data } = supabase.storage.from("media").getPublicUrl(filePath);
+          if (data?.publicUrl) onRecorded(data.publicUrl);
         } catch (err: any) {
           toast({ title: "Ошибка", description: err.message, variant: "destructive" });
         } finally {
@@ -61,15 +67,12 @@ export function VideoCircleRecorder({ onRecorded, className }: VideoCircleRecord
         }
       };
 
-      mediaRecorder.start();
+      mediaRecorder.start(100);
       setRecording(true);
       setPreview(true);
 
-      // Auto-stop after 30s
       setTimeout(() => {
-        if (mediaRecorderRef.current?.state === "recording") {
-          stopRecording();
-        }
+        if (mediaRecorderRef.current?.state === "recording") stopRecording();
       }, 30000);
     } catch {
       toast({ title: "Ошибка", description: "Нет доступа к камере", variant: "destructive" });
@@ -88,39 +91,19 @@ export function VideoCircleRecorder({ onRecorded, className }: VideoCircleRecord
       <button
         onClick={recording ? stopRecording : startRecording}
         disabled={uploading}
-        className={`p-2 rounded-lg transition-colors touch-target ${
-          recording
-            ? "bg-destructive/20 text-destructive animate-pulse"
-            : "hover:bg-muted/50 text-muted-foreground hover:text-foreground"
-        } ${className || ""}`}
+        className={`p-2 rounded-lg transition-colors touch-target ${recording ? "bg-destructive/20 text-destructive animate-pulse" : "hover:bg-muted/50 text-muted-foreground hover:text-foreground"} ${className || ""}`}
         title="Записать видео-кружок"
       >
-        {uploading ? (
-          <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
-        ) : (
-          <Video className="w-5 h-5" />
-        )}
+        {uploading ? <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" /> : <Video className="w-5 h-5" />}
       </button>
 
       {preview && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/90 backdrop-blur-sm">
           <div className="flex flex-col items-center gap-4">
-            <video
-              ref={videoRef}
-              muted
-              playsInline
-              className="w-64 h-64 rounded-full object-cover border-4 border-primary neon-glow"
-            />
-            <p className="text-sm text-muted-foreground">
-              {recording ? "Запись... Нажмите чтобы остановить" : "Загрузка..."}
-            </p>
+            <video ref={videoRef} muted playsInline className="w-64 h-64 rounded-full object-cover border-4 border-primary neon-glow" />
+            <p className="text-sm text-muted-foreground">{recording ? "Запись... Нажмите чтобы остановить" : "Загрузка..."}</p>
             {recording && (
-              <button
-                onClick={stopRecording}
-                className="px-6 py-2 rounded-lg bg-destructive text-destructive-foreground font-medium"
-              >
-                Остановить
-              </button>
+              <button onClick={stopRecording} className="px-6 py-2 rounded-lg bg-destructive text-destructive-foreground font-medium">Остановить</button>
             )}
           </div>
         </div>

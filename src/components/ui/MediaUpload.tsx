@@ -34,6 +34,7 @@ export function MediaUpload({ onUpload, className }: MediaUploadProps) {
       return;
     }
 
+    // Show preview immediately
     if (isImage) {
       const reader = new FileReader();
       reader.onload = (ev) => setPreview(ev.target?.result as string);
@@ -53,9 +54,10 @@ export function MediaUpload({ onUpload, className }: MediaUploadProps) {
 
       if (uploadError) throw uploadError;
 
-      const { data: urlData } = await supabase.storage.from("media").createSignedUrl(filePath, 60 * 60 * 24 * 365);
-      if (urlData?.signedUrl) {
-        onUpload(urlData.signedUrl);
+      const { data: urlData } = supabase.storage.from("media").getPublicUrl(filePath);
+      if (urlData?.publicUrl) {
+        onUpload(urlData.publicUrl);
+        toast({ title: "Файл загружен" });
       }
     } catch (error: any) {
       console.error("Upload error:", error);
@@ -73,21 +75,11 @@ export function MediaUpload({ onUpload, className }: MediaUploadProps) {
 
   return (
     <div className={className}>
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*,video/*"
-        onChange={handleFileSelect}
-        className="hidden"
-        disabled={uploading}
-      />
+      <input ref={fileInputRef} type="file" accept="image/*,video/*" onChange={handleFileSelect} className="hidden" disabled={uploading} />
       {preview && preview !== "video" && (
         <div className="relative mb-2 inline-block">
           <img src={preview} alt="Preview" className="max-h-32 rounded-lg object-cover" />
-          <button
-            onClick={clearPreview}
-            className="absolute -top-1 -right-1 w-5 h-5 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center"
-          >
+          <button onClick={clearPreview} className="absolute -top-1 -right-1 w-5 h-5 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center">
             <X className="w-3 h-3" />
           </button>
         </div>
@@ -95,24 +87,11 @@ export function MediaUpload({ onUpload, className }: MediaUploadProps) {
       {preview === "video" && (
         <div className="relative mb-2 inline-block px-3 py-2 bg-muted/50 rounded-lg text-sm text-muted-foreground">
           🎥 Видео выбрано
-          <button
-            onClick={clearPreview}
-            className="ml-2 text-destructive"
-          >
-            <X className="w-3 h-3 inline" />
-          </button>
+          <button onClick={clearPreview} className="ml-2 text-destructive"><X className="w-3 h-3 inline" /></button>
         </div>
       )}
-      <button
-        onClick={() => fileInputRef.current?.click()}
-        disabled={uploading}
-        className="p-2 hover:bg-muted/50 rounded-lg transition-colors text-muted-foreground hover:text-foreground touch-target"
-      >
-        {uploading ? (
-          <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
-        ) : (
-          <Image className="w-5 h-5" />
-        )}
+      <button onClick={() => fileInputRef.current?.click()} disabled={uploading} className="p-2 hover:bg-muted/50 rounded-lg transition-colors text-muted-foreground hover:text-foreground touch-target">
+        {uploading ? <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" /> : <Image className="w-5 h-5" />}
       </button>
     </div>
   );
