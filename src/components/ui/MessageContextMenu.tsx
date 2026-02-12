@@ -1,18 +1,21 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Trash2, EyeOff, MoreVertical } from "lucide-react";
+import { Trash2, EyeOff, MoreVertical, Reply, Forward } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 interface MessageContextMenuProps {
   messageId: string;
   messageType: "dm" | "group" | "channel";
   isSender: boolean;
+  messageContent?: string;
   onDeleted?: () => void;
   onHidden?: () => void;
+  onReply?: () => void;
+  onForward?: () => void;
 }
 
-export function MessageContextMenu({ messageId, messageType, isSender, onDeleted, onHidden }: MessageContextMenuProps) {
+export function MessageContextMenu({ messageId, messageType, isSender, messageContent, onDeleted, onHidden, onReply, onForward }: MessageContextMenuProps) {
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
 
@@ -57,21 +60,35 @@ export function MessageContextMenu({ messageId, messageType, isSender, onDeleted
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-6 z-50 w-48 rounded-lg border border-border bg-popover p-1 shadow-lg">
+          <div className="absolute right-0 top-6 z-50 w-52 rounded-lg border border-border bg-popover p-1 shadow-lg">
+            {onReply && (
+              <button
+                onClick={() => { onReply(); setOpen(false); }}
+                className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-muted/50 transition-colors"
+              >
+                <Reply className="w-4 h-4" /> Ответить
+              </button>
+            )}
+            {onForward && (
+              <button
+                onClick={() => { onForward(); setOpen(false); }}
+                className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-muted/50 transition-colors"
+              >
+                <Forward className="w-4 h-4" /> Переслать
+              </button>
+            )}
             <button
               onClick={deleteForMe}
               className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-muted/50 transition-colors"
             >
-              <EyeOff className="w-4 h-4" />
-              Удалить для меня
+              <EyeOff className="w-4 h-4" /> Удалить для меня
             </button>
             {isSender && (
               <button
                 onClick={deleteForEveryone}
                 className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-destructive hover:bg-destructive/10 transition-colors"
               >
-                <Trash2 className="w-4 h-4" />
-                Удалить для всех
+                <Trash2 className="w-4 h-4" /> Удалить для всех
               </button>
             )}
           </div>

@@ -1,5 +1,4 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -13,72 +12,97 @@ serve(async (req) => {
   }
 
   try {
-    // Authenticate user
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
-      return new Response(
-        JSON.stringify({ error: "Unauthorized" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
+    const { messages, images, mode } = await req.json();
 
-    const token = authHeader.replace("Bearer ", "");
-    const { data, error: claimsError } = await supabase.auth.getClaims(token);
-    if (claimsError || !data?.claims) {
-      return new Response(
-        JSON.stringify({ error: "Unauthorized" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const { messages } = await req.json();
-
-    // Validate messages array
     if (!Array.isArray(messages) || messages.length === 0) {
-      return new Response(
-        JSON.stringify({ error: "Messages must be a non-empty array" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return new Response(JSON.stringify({ error: "Messages must be a non-empty array" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
-
     if (messages.length > 50) {
-      return new Response(
-        JSON.stringify({ error: "Too many messages (max 50)" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    for (const msg of messages) {
-      if (!msg || typeof msg !== "object") {
-        return new Response(
-          JSON.stringify({ error: "Invalid message format" }),
-          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      if (!["user", "assistant"].includes(msg.role)) {
-        return new Response(
-          JSON.stringify({ error: "Invalid message role" }),
-          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      if (typeof msg.content !== "string" || msg.content.length > 10000) {
-        return new Response(
-          JSON.stringify({ error: "Message content invalid or too long (max 10000 chars)" }),
-          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
+      return new Response(JSON.stringify({ error: "Too many messages (max 50)" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY is not configured");
+    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+
+    // Image generation mode
+    if (mode === "image_gen") {
+      const lastUserMsg = messages[messages.length - 1];
+      const prompt = typeof lastUserMsg === "object" ? lastUserMsg.content : lastUserMsg;
+
+      const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash-image",
+          messages: [{ role: "user", content: prompt }],
+          modalities: ["image", "text"],
+        }),
+      });
+
+      if (!response.ok) {
+        const status = response.status;
+        if (status === 429) return new Response(JSON.stringify({ error: "Rate limited" }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        if (status === 402) return new Response(JSON.stringify({ error: "Payment required" }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        return new Response(JSON.stringify({ error: "AI gateway error" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+
+      const data = await response.json();
+      const imageUrl = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+      const text = data.choices?.[0]?.message?.content || "";
+
+      return new Response(JSON.stringify({ text, imageUrl }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Build messages array with potential image content for vision
+    const systemMessage = {
+      role: "system",
+      content: `Ты — FLAME AI, дружелюбный и умный ИИ-помощник космической социальной сети FLAME.
+
+Твои характеристики:
+- Отвечай на русском языке
+- Будь полезным, точным и приятным в общении
+- Используй эмодзи умеренно для выразительности
+- Если не знаешь ответа, честно скажи об этом
+- Помогай с любыми вопросами: от программирования до повседневных советов
+- Отвечай кратко, но информативно
+- Если пользователь отправляет изображение, проанализируй его содержимое
+
+Формат ответов:
+- Используй Markdown для форматирования
+- Применяй списки для перечислений
+- Выделяй важное жирным или курсивом`,
+    };
+
+    // Build the final messages, handling image attachments on the last user message
+    const finalMessages: any[] = [systemMessage];
+
+    for (const msg of messages) {
+      if (msg.role === "user" && images && images.length > 0 && msg === messages[messages.length - 1]) {
+        // Multimodal message with images
+        const content: any[] = [{ type: "text", text: msg.content }];
+        for (const img of images) {
+          content.push({ type: "image_url", image_url: { url: img } });
+        }
+        finalMessages.push({ role: "user", content });
+      } else {
+        finalMessages.push({ role: msg.role, content: msg.content });
+      }
     }
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -89,58 +113,17 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         model: "google/gemini-3-flash-preview",
-        messages: [
-          {
-            role: "system",
-            content: `Ты — FLAME AI, дружелюбный и умный ИИ-помощник космической социальной сети FLAME.
-            
-Твои характеристики:
-- Отвечай на русском языке
-- Будь полезным, точным и приятным в общении
-- Используй эмодзи умеренно для выразительности
-- Если не знаешь ответа, честно скажи об этом
-- Помогай с любыми вопросами: от программирования до повседневных советов
-- Отвечай кратко, но информативно
-
-Формат ответов:
-- Используй Markdown для форматирования
-- Применяй списки для перечислений
-- Выделяй важное жирным или курсивом`,
-          },
-          ...messages,
-        ],
+        messages: finalMessages,
         stream: true,
       }),
     });
 
     if (!response.ok) {
-      if (response.status === 429) {
-        return new Response(
-          JSON.stringify({ error: "Rate limits exceeded, please try again later." }),
-          {
-            status: 429,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          }
-        );
-      }
-      if (response.status === 402) {
-        return new Response(
-          JSON.stringify({ error: "Payment required, please add funds to your workspace." }),
-          {
-            status: 402,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          }
-        );
-      }
+      if (response.status === 429) return new Response(JSON.stringify({ error: "Rate limits exceeded" }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      if (response.status === 402) return new Response(JSON.stringify({ error: "Payment required" }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       const errorText = await response.text();
       console.error("AI gateway error:", response.status, errorText);
-      return new Response(
-        JSON.stringify({ error: "AI gateway error" }),
-        {
-          status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
+      return new Response(JSON.stringify({ error: "AI gateway error" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     return new Response(response.body, {
@@ -148,12 +131,8 @@ serve(async (req) => {
     });
   } catch (error) {
     console.error("FLAME AI error:", error);
-    return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
-    );
+    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }), {
+      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 });
