@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Navigate } from "react-router-dom";
+import { usePresence } from "@/hooks/usePresence";
 import { useAuth } from "@/contexts/AuthContext";
 import { TopBar } from "@/components/layout/TopBar";
 import { BottomNav } from "@/components/layout/BottomNav";
@@ -15,6 +16,7 @@ type TabType = "channels" | "groups" | "messages" | "search" | "ai" | "profile";
 
 const Index = () => {
   const { user, loading } = useAuth();
+  usePresence();
   const [activeTab, setActiveTab] = useState<TabType>("channels");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedChatUserId, setSelectedChatUserId] = useState<string | null>(null);

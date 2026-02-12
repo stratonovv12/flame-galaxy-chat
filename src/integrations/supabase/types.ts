@@ -118,6 +118,68 @@ export type Database = {
         }
         Relationships: []
       }
+      calls: {
+        Row: {
+          caller_id: string
+          created_at: string
+          ended_at: string | null
+          id: string
+          receiver_id: string
+          started_at: string | null
+          status: string
+        }
+        Insert: {
+          caller_id: string
+          created_at?: string
+          ended_at?: string | null
+          id?: string
+          receiver_id: string
+          started_at?: string | null
+          status?: string
+        }
+        Update: {
+          caller_id?: string
+          created_at?: string
+          ended_at?: string | null
+          id?: string
+          receiver_id?: string
+          started_at?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
+      channel_admins: {
+        Row: {
+          appointed_by: string
+          channel_id: string
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          appointed_by: string
+          channel_id: string
+          created_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          appointed_by?: string
+          channel_id?: string
+          created_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "channel_admins_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       channel_subscribers: {
         Row: {
           channel_id: string
@@ -217,6 +279,38 @@ export type Database = {
             columns: ["reply_to_id"]
             isOneToOne: false
             referencedRelation: "direct_messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      group_admins: {
+        Row: {
+          appointed_by: string
+          created_at: string
+          group_id: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          appointed_by: string
+          created_at?: string
+          group_id: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          appointed_by?: string
+          created_at?: string
+          group_id?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "group_admins_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
             referencedColumns: ["id"]
           },
         ]
@@ -449,6 +543,24 @@ export type Database = {
         }
         Relationships: []
       }
+      user_presence: {
+        Row: {
+          is_online: boolean
+          last_seen: string
+          user_id: string
+        }
+        Insert: {
+          is_online?: boolean
+          last_seen?: string
+          user_id: string
+        }
+        Update: {
+          is_online?: boolean
+          last_seen?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           id: string
@@ -466,6 +578,64 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      verified_channels: {
+        Row: {
+          channel_id: string
+          created_at: string
+          id: string
+          verified_by: string
+        }
+        Insert: {
+          channel_id: string
+          created_at?: string
+          id?: string
+          verified_by: string
+        }
+        Update: {
+          channel_id?: string
+          created_at?: string
+          id?: string
+          verified_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "verified_channels_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: true
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      verified_groups: {
+        Row: {
+          created_at: string
+          group_id: string
+          id: string
+          verified_by: string
+        }
+        Insert: {
+          created_at?: string
+          group_id: string
+          id?: string
+          verified_by: string
+        }
+        Update: {
+          created_at?: string
+          group_id?: string
+          id?: string
+          verified_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "verified_groups_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: true
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       verified_users: {
         Row: {

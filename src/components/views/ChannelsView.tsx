@@ -10,7 +10,7 @@ import { AvatarUpload } from "@/components/ui/AvatarUpload";
 import { MessageReactions } from "@/components/ui/MessageReactions";
 import { MediaUpload } from "@/components/ui/MediaUpload";
 import { MessageContextMenu } from "@/components/ui/MessageContextMenu";
-import { Hash, Plus, Send, X, LogOut } from "lucide-react";
+import { Hash, Plus, Send, X, LogOut, ArrowLeft, Settings, Trash2, Crown, ShieldCheck } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
 import { ru } from "date-fns/locale";
@@ -34,6 +34,12 @@ interface Post {
   profiles?: { username: string | null; avatar_url: string | null } | null;
 }
 
+interface ChannelMember {
+  user_id: string;
+  username: string | null;
+  avatar_url: string | null;
+}
+
 interface ChannelsViewProps {
   onViewProfile?: (userId: string) => void;
 }
@@ -54,6 +60,12 @@ export function ChannelsView({ onViewProfile }: ChannelsViewProps) {
   const [newChannelAvatar, setNewChannelAvatar] = useState("");
   const [loading, setLoading] = useState(false);
   const [myChannelIds, setMyChannelIds] = useState<Set<string>>(new Set());
+
+  // Settings state
+  const [showSettings, setShowSettings] = useState(false);
+  const [subscribers, setSubscribers] = useState<ChannelMember[]>([]);
+  const [channelAdmins, setChannelAdmins] = useState<Set<string>>(new Set());
+  const [transferTarget, setTransferTarget] = useState<string | null>(null);
 
   useEffect(() => { fetchMyChannels(); }, [user]);
 
@@ -86,15 +98,11 @@ export function ChannelsView({ onViewProfile }: ChannelsViewProps) {
     const { data: subs } = await supabase.from("channel_subscribers").select("channel_id").eq("user_id", user.id);
     const ids = new Set(subs?.map((s) => s.channel_id) || []);
     setMyChannelIds(ids);
-
-    // Also include channels the user created
     const { data: created } = await supabase.from("channels").select("id").eq("creator_id", user.id);
     created?.forEach((c) => ids.add(c.id));
-
     if (ids.size === 0) { setChannels([]); return; }
     const { data } = await supabase.from("channels").select("*").in("id", Array.from(ids)).order("created_at", { ascending: false });
     setChannels(data || []);
-
     if (data && data.length > 0) {
       const counts: Record<string, number> = {};
       for (const c of data) {
@@ -113,10 +121,7 @@ export function ChannelsView({ onViewProfile }: ChannelsViewProps) {
 
   const subscribeToChannel = async (channelId: string) => {
     if (!user) return;
-    await supabase.from("channel_subscribers").upsert(
-      { channel_id: channelId, user_id: user.id },
-      { onConflict: "channel_id,user_id" }
-    );
+    await supabase.from("channel_subscribers").upsert({ channel_id: channelId, user_id: user.id }, { onConflict: "channel_id,user_id" });
   };
 
   const leaveChannel = async () => {
@@ -130,7 +135,6 @@ export function ChannelsView({ onViewProfile }: ChannelsViewProps) {
   const fetchPosts = async (channelId: string) => {
     const { data: postsData } = await supabase.from("posts").select("*").eq("channel_id", channelId).order("created_at", { ascending: true });
     if (!postsData) return;
-
     const authorIds = [...new Set(postsData.map((p) => p.author_id))];
     if (authorIds.length > 0) {
       const { data: profilesData } = await supabase.from("profiles").select("user_id, username, avatar_url").in("user_id", authorIds);
@@ -145,10 +149,8 @@ export function ChannelsView({ onViewProfile }: ChannelsViewProps) {
     if (!newChannelName.trim() || !user) return;
     setLoading(true);
     const { error } = await supabase.from("channels").insert({
-      name: newChannelName.trim(),
-      description: newChannelDesc.trim() || null,
-      avatar_url: newChannelAvatar.trim() || null,
-      handle: newChannelHandle.trim().replace(/^@/, "") || null,
+      name: newChannelName.trim(), description: newChannelDesc.trim() || null,
+      avatar_url: newChannelAvatar.trim() || null, handle: newChannelHandle.trim().replace(/^@/, "") || null,
       creator_id: user.id,
     });
     if (error) {
@@ -169,15 +171,62 @@ export function ChannelsView({ onViewProfile }: ChannelsViewProps) {
     }
     const { error } = await supabase.from("posts").insert({
       content: newPost.trim() || (mediaUrl ? "📎 Медиа" : ""),
-      media_url: mediaUrl || null,
-      channel_id: selectedChannel.id,
-      author_id: user.id,
+      media_url: mediaUrl || null, channel_id: selectedChannel.id, author_id: user.id,
     });
     if (error) {
       toast({ title: "Ошибка", description: "Не удалось отправить", variant: "destructive" });
     } else {
       setNewPost(""); setMediaUrl("");
     }
+  };
+
+  const fetchSubscribers = async (channelId: string) => {
+    const { data: subData } = await supabase.from("channel_subscribers").select("user_id").eq("channel_id", channelId);
+    if (!subData) return;
+    const userIds = subData.map(s => s.user_id);
+    const { data: profiles } = await supabase.from("profiles").select("user_id, username, avatar_url").in("user_id", userIds);
+    setSubscribers(profiles?.map(p => ({ user_id: p.user_id, username: p.username, avatar_url: p.avatar_url })) || []);
+    
+    const { data: admins } = await supabase.from("channel_admins").select("user_id").eq("channel_id", channelId);
+    setChannelAdmins(new Set(admins?.map(a => a.user_id) || []));
+  };
+
+  const openSettings = () => {
+    if (!selectedChannel) return;
+    fetchSubscribers(selectedChannel.id);
+    setShowSettings(true);
+  };
+
+  const toggleAdmin = async (userId: string) => {
+    if (!selectedChannel || !user) return;
+    if (channelAdmins.has(userId)) {
+      await supabase.from("channel_admins").delete().eq("channel_id", selectedChannel.id).eq("user_id", userId);
+      setChannelAdmins(prev => { const n = new Set(prev); n.delete(userId); return n; });
+      toast({ title: "Права администратора сняты" });
+    } else {
+      await supabase.from("channel_admins").insert({ channel_id: selectedChannel.id, user_id: userId, appointed_by: user.id });
+      setChannelAdmins(prev => new Set([...prev, userId]));
+      toast({ title: "Назначен администратором" });
+    }
+  };
+
+  const transferOwnership = async () => {
+    if (!selectedChannel || !transferTarget || !user) return;
+    if (!confirm("Вы уверены? Вы потеряете права создателя.")) return;
+    await supabase.from("channels").update({ creator_id: transferTarget }).eq("id", selectedChannel.id);
+    setSelectedChannel({ ...selectedChannel, creator_id: transferTarget });
+    setTransferTarget(null);
+    toast({ title: "Владение передано" });
+  };
+
+  const deleteChannel = async () => {
+    if (!selectedChannel) return;
+    if (!confirm("Удалить канал навсегда? Это действие необратимо.")) return;
+    await supabase.from("channels").delete().eq("id", selectedChannel.id);
+    toast({ title: "Канал удалён" });
+    setSelectedChannel(null);
+    setShowSettings(false);
+    fetchMyChannels();
   };
 
   const isCreator = selectedChannel && user && selectedChannel.creator_id === user.id;
@@ -194,6 +243,70 @@ export function ChannelsView({ onViewProfile }: ChannelsViewProps) {
     );
   };
 
+  // Settings panel
+  if (showSettings && selectedChannel) {
+    return (
+      <div className="flex flex-col h-full">
+        <GlassCard className="rounded-none border-x-0 border-t-0 p-4">
+          <div className="flex items-center gap-3">
+            <button onClick={() => setShowSettings(false)} className="p-2 hover:bg-muted/50 rounded-lg touch-target">
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+            <h2 className="font-semibold">Настройки канала</h2>
+          </div>
+        </GlassCard>
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          <GlassCard className="p-4">
+            <h3 className="font-semibold mb-2">{selectedChannel.name}</h3>
+            {selectedChannel.handle && <p className="text-sm text-primary/70 mb-3">@{selectedChannel.handle}</p>}
+          </GlassCard>
+
+          <GlassCard className="p-4">
+            <h3 className="font-semibold mb-3 flex items-center gap-2"><Crown className="w-5 h-5 text-yellow-500" />Передача владения</h3>
+            <p className="text-sm text-muted-foreground mb-3">Выберите подписчика для передачи прав</p>
+            <div className="space-y-2 max-h-48 overflow-y-auto">
+              {subscribers.filter(s => s.user_id !== user?.id).map(s => (
+                <div key={s.user_id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/30">
+                  <UserAvatar username={s.username} avatarUrl={s.avatar_url} size="sm" />
+                  <span className="flex-1 text-sm font-medium">{s.username || "Пользователь"}</span>
+                  <FlameButton size="sm" variant={transferTarget === s.user_id ? "primary" : "outline"}
+                    onClick={() => setTransferTarget(transferTarget === s.user_id ? null : s.user_id)}>
+                    Передать
+                  </FlameButton>
+                </div>
+              ))}
+            </div>
+            {transferTarget && (
+              <FlameButton onClick={transferOwnership} className="w-full mt-3">
+                Подтвердить передачу
+              </FlameButton>
+            )}
+          </GlassCard>
+
+          <GlassCard className="p-4">
+            <h3 className="font-semibold mb-3 flex items-center gap-2"><ShieldCheck className="w-5 h-5 text-primary" />Администраторы</h3>
+            <div className="space-y-2 max-h-48 overflow-y-auto">
+              {subscribers.filter(s => s.user_id !== user?.id).map(s => (
+                <div key={s.user_id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/30">
+                  <UserAvatar username={s.username} avatarUrl={s.avatar_url} size="sm" />
+                  <span className="flex-1 text-sm font-medium">{s.username || "Пользователь"}</span>
+                  <button onClick={() => toggleAdmin(s.user_id)}
+                    className={`p-2 rounded-lg transition-colors ${channelAdmins.has(s.user_id) ? "bg-primary/20 text-primary" : "hover:bg-muted/50 text-muted-foreground"}`}>
+                    <ShieldCheck className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </GlassCard>
+
+          <FlameButton onClick={deleteChannel} variant="outline" className="w-full border-destructive/50 text-destructive hover:bg-destructive/10">
+            <Trash2 className="w-4 h-4 mr-2" /> Удалить канал
+          </FlameButton>
+        </div>
+      </div>
+    );
+  }
+
   if (selectedChannel) {
     const visiblePosts = posts.filter((p) => !hiddenIds.has(p.id));
 
@@ -202,7 +315,7 @@ export function ChannelsView({ onViewProfile }: ChannelsViewProps) {
         <GlassCard className="rounded-none border-x-0 border-t-0 p-4">
           <div className="flex items-center gap-3">
             <button onClick={() => setSelectedChannel(null)} className="p-2 hover:bg-muted/50 rounded-lg transition-colors touch-target">
-              <X className="w-5 h-5" />
+              <ArrowLeft className="w-5 h-5" />
             </button>
             <ChannelIcon channel={selectedChannel} />
             <div className="flex-1">
@@ -212,11 +325,18 @@ export function ChannelsView({ onViewProfile }: ChannelsViewProps) {
                 {subscriberCounts[selectedChannel.id] || 0} подписчиков
               </p>
             </div>
-            {!isCreator && (
-              <button onClick={leaveChannel} className="p-2 hover:bg-destructive/10 rounded-lg transition-colors touch-target" title="Отписаться">
-                <LogOut className="w-5 h-5 text-destructive" />
-              </button>
-            )}
+            <div className="flex items-center gap-1">
+              {isCreator && (
+                <button onClick={openSettings} className="p-2 hover:bg-muted/50 rounded-lg transition-colors touch-target" title="Настройки">
+                  <Settings className="w-5 h-5 text-muted-foreground" />
+                </button>
+              )}
+              {!isCreator && (
+                <button onClick={leaveChannel} className="p-2 hover:bg-destructive/10 rounded-lg transition-colors touch-target" title="Отписаться">
+                  <LogOut className="w-5 h-5 text-destructive" />
+                </button>
+              )}
+            </div>
           </div>
         </GlassCard>
 
