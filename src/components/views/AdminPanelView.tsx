@@ -46,10 +46,12 @@ export function AdminPanelView() {
     setVerifiedUsers(new Set(data?.map(v => v.user_id) || []));
   };
 
+  const escapePattern = (str: string) => str.replace(/[%_\\]/g, '\\$&');
+
   const searchUsers = async () => {
     if (!searchQuery.trim()) return;
     setLoading(true);
-    const q = searchQuery.trim().replace(/^@/, "");
+    const q = escapePattern(searchQuery.trim().replace(/^@/, ""));
     const { data } = await supabase
       .from("profiles")
       .select("user_id, username, avatar_url")
