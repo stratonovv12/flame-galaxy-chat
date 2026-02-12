@@ -67,9 +67,12 @@ export function SearchView({ searchQuery, onSearchChange, onStartChat, onViewPro
     setMyChannels(new Set(cs?.map(s => s.channel_id) || []));
   };
 
+  const escapePattern = (str: string) => str.replace(/[%_\\]/g, '\\$&');
+
   const performSearch = async (query: string) => {
     setLoading(true);
-    const cleanQuery = query.replace(/^@/, "");
+    const cleanQuery = escapePattern(query.replace(/^@/, ""));
+    if (cleanQuery.length < 2) { setChannels([]); setGroups([]); setProfiles([]); setLoading(false); return; }
     const [channelsResult, groupsResult, profilesResult] = await Promise.all([
       supabase.from("channels").select("id, name, description, handle")
         .or(`name.ilike.%${cleanQuery}%,handle.ilike.%${cleanQuery}%`).limit(10),
