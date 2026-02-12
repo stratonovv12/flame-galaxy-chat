@@ -12,10 +12,11 @@ import { MediaUpload } from "@/components/ui/MediaUpload";
 import { VoiceRecorder } from "@/components/ui/VoiceRecorder";
 import { VideoCircleRecorder } from "@/components/ui/VideoCircleRecorder";
 import { MessageContextMenu } from "@/components/ui/MessageContextMenu";
-import { Users, Plus, Send, X, ArrowLeft, LogOut } from "lucide-react";
+import { Users, Plus, Send, X, ArrowLeft, LogOut, Reply } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
 import { ru } from "date-fns/locale";
+import { playNotificationSound, showBrowserNotification } from "@/lib/notifications";
 
 interface Group {
   id: string;
@@ -33,6 +34,8 @@ interface GroupMessage {
   media_url: string | null;
   author_id: string;
   created_at: string;
+  reply_to_id: string | null;
+  forwarded_from: string | null;
   profiles?: { username: string | null; avatar_url: string | null } | null;
 }
 
@@ -56,13 +59,13 @@ export function GroupsView({ onViewProfile }: GroupsViewProps) {
   const [newAvatar, setNewAvatar] = useState("");
   const [loading, setLoading] = useState(false);
   const [myGroupIds, setMyGroupIds] = useState<Set<string>>(new Set());
+  const [replyTo, setReplyTo] = useState<GroupMessage | null>(null);
 
   useEffect(() => { fetchMyGroups(); }, [user]);
 
   useEffect(() => {
     if (selectedGroup) {
       fetchMessages(selectedGroup.id);
-      joinGroup(selectedGroup.id);
       fetchHiddenMessages();
 
       const channel = supabase
@@ -72,8 +75,13 @@ export function GroupsView({ onViewProfile }: GroupsViewProps) {
           filter: `group_id=eq.${selectedGroup.id}`,
         }, (payload) => {
           if (payload.eventType === "DELETE") {
-            setMessages((prev) => prev.filter((m) => m.id !== (payload.old as any).id));
+            setMessages(prev => prev.filter(m => m.id !== (payload.old as any).id));
           } else {
+            const newMsg = payload.new as any;
+            if (newMsg.author_id !== user?.id) {
+              playNotificationSound();
+              showBrowserNotification(selectedGroup.name, newMsg.content);
+            }
             fetchMessages(selectedGroup.id);
           }
         })
@@ -86,7 +94,7 @@ export function GroupsView({ onViewProfile }: GroupsViewProps) {
   const fetchMyGroups = async () => {
     if (!user) return;
     const { data: memberships } = await supabase.from("group_members").select("group_id").eq("user_id", user.id);
-    const ids = new Set(memberships?.map((m) => m.group_id) || []);
+    const ids = new Set(memberships?.map(m => m.group_id) || []);
     setMyGroupIds(ids);
 
     if (ids.size === 0) { setGroups([]); return; }
@@ -106,12 +114,7 @@ export function GroupsView({ onViewProfile }: GroupsViewProps) {
   const fetchHiddenMessages = async () => {
     if (!user) return;
     const { data } = await supabase.from("hidden_messages").select("message_id").eq("user_id", user.id).eq("message_type", "group");
-    setHiddenIds(new Set(data?.map((h) => h.message_id) || []));
-  };
-
-  const joinGroup = async (groupId: string) => {
-    if (!user) return;
-    await supabase.from("group_members").upsert({ group_id: groupId, user_id: user.id }, { onConflict: "group_id,user_id" });
+    setHiddenIds(new Set(data?.map(h => h.message_id) || []));
   };
 
   const leaveGroup = async () => {
@@ -127,25 +130,29 @@ export function GroupsView({ onViewProfile }: GroupsViewProps) {
       .from("group_messages").select("*").eq("group_id", groupId).order("created_at", { ascending: true });
     if (!msgs) return;
 
-    const authorIds = [...new Set(msgs.map((m) => m.author_id))];
+    const authorIds = [...new Set(msgs.map(m => m.author_id))];
     const { data: profiles } = await supabase.from("profiles").select("user_id, username, avatar_url").in("user_id", authorIds);
-    const profilesMap = new Map(profiles?.map((p) => [p.user_id, { username: p.username, avatar_url: p.avatar_url }]) || []);
-    setMessages(msgs.map((m) => ({ ...m, profiles: profilesMap.get(m.author_id) || null })));
+    const profilesMap = new Map(profiles?.map(p => [p.user_id, { username: p.username, avatar_url: p.avatar_url }]) || []);
+    setMessages(msgs.map(m => ({ ...m, profiles: profilesMap.get(m.author_id) || null })));
   };
 
   const createGroup = async () => {
     if (!newName.trim() || !user) return;
     setLoading(true);
-    const { error } = await supabase.from("groups").insert({
+    const { data: newGroup, error } = await supabase.from("groups").insert({
       name: newName.trim(),
       description: newDesc.trim() || null,
       avatar_url: newAvatar.trim() || null,
       handle: newHandle.trim().replace(/^@/, "") || null,
       creator_id: user.id,
-    });
+    }).select().single();
     if (error) {
       toast({ title: "Ошибка", description: error.message?.includes("handle") ? "Этот хендл уже занят" : "Не удалось создать", variant: "destructive" });
     } else {
+      // Auto-join as member
+      if (newGroup) {
+        await supabase.from("group_members").upsert({ group_id: newGroup.id, user_id: user.id }, { onConflict: "group_id,user_id" });
+      }
       toast({ title: "Группа создана!" });
       setNewName(""); setNewDesc(""); setNewAvatar(""); setNewHandle(""); setShowCreate(false);
       fetchMyGroups();
@@ -160,11 +167,12 @@ export function GroupsView({ onViewProfile }: GroupsViewProps) {
       media_url: mediaUrl || null,
       group_id: selectedGroup.id,
       author_id: user.id,
+      reply_to_id: replyTo?.id || null,
     });
     if (error) {
       toast({ title: "Ошибка", description: "Не удалось отправить", variant: "destructive" });
     } else {
-      setNewMessage(""); setMediaUrl("");
+      setNewMessage(""); setMediaUrl(""); setReplyTo(null);
     }
   };
 
@@ -184,27 +192,32 @@ export function GroupsView({ onViewProfile }: GroupsViewProps) {
     });
   };
 
+  const getReplyPreview = (replyId: string) => {
+    const msg = messages.find(m => m.id === replyId);
+    return msg ? msg.content.slice(0, 60) : null;
+  };
+
   const renderMedia = (url: string) => {
-    if (url.match(/\.webm$/) && url.includes("_circle")) {
-      return <video src={url} controls className="w-48 h-48 rounded-full object-cover mt-2 border-2 border-primary" />;
+    if (url.includes("_circle")) {
+      return <video src={url} controls playsInline className="w-48 h-48 rounded-full object-cover mt-2 border-2 border-primary" style={{ aspectRatio: "1/1" }} />;
     }
-    if (url.match(/\.webm$/)) {
+    if (url.includes("_voice")) {
       return <audio src={url} controls className="mt-2 max-w-full" />;
     }
-    if (url.match(/\.(mp4|mov)$/)) {
-      return <video src={url} controls className="mt-2 max-h-64 rounded-lg" />;
+    if (url.match(/\.(mp4|mov|webm)$/)) {
+      return <video src={url} controls playsInline className="mt-2 max-h-64 rounded-lg" />;
     }
     return <img src={url} alt="" className="mt-2 max-h-64 rounded-lg object-cover cursor-pointer" onClick={() => window.open(url, "_blank")} />;
   };
 
   if (selectedGroup) {
-    const visibleMessages = messages.filter((m) => !hiddenIds.has(m.id));
+    const visibleMessages = messages.filter(m => !hiddenIds.has(m.id));
 
     return (
       <div className="flex flex-col h-full">
         <GlassCard className="rounded-none border-x-0 border-t-0 p-4">
           <div className="flex items-center gap-3">
-            <button onClick={() => setSelectedGroup(null)} className="p-2 hover:bg-muted/50 rounded-lg transition-colors touch-target">
+            <button onClick={() => { setSelectedGroup(null); setReplyTo(null); }} className="p-2 hover:bg-muted/50 rounded-lg transition-colors touch-target">
               <ArrowLeft className="w-5 h-5" />
             </button>
             {selectedGroup.avatar_url ? (
@@ -234,7 +247,7 @@ export function GroupsView({ onViewProfile }: GroupsViewProps) {
               <p>Сообщений пока нет</p>
             </div>
           ) : (
-            visibleMessages.map((msg) => (
+            visibleMessages.map(msg => (
               <GlassCard key={msg.id} className="p-3 group">
                 <div className="flex items-start gap-3">
                   <button onClick={() => onViewProfile?.(msg.author_id)} className="shrink-0">
@@ -248,6 +261,14 @@ export function GroupsView({ onViewProfile }: GroupsViewProps) {
                         {formatDistanceToNow(new Date(msg.created_at), { addSuffix: true, locale: ru })}
                       </span>
                     </div>
+                    {msg.forwarded_from && (
+                      <p className="text-xs text-primary/70 mt-1">↪ Переслано от {msg.forwarded_from}</p>
+                    )}
+                    {msg.reply_to_id && (
+                      <div className="mt-1 pl-2 border-l-2 border-primary/50 text-xs text-muted-foreground">
+                        {getReplyPreview(msg.reply_to_id) || "Сообщение"}
+                      </div>
+                    )}
                     {msg.media_url && renderMedia(msg.media_url)}
                     {msg.content && msg.content !== "📎 Медиа" && msg.content !== "🎤 Голосовое сообщение" && msg.content !== "🎥 Видео-кружок" && (
                       <p className="mt-1 text-sm break-words">{msg.content}</p>
@@ -256,8 +277,10 @@ export function GroupsView({ onViewProfile }: GroupsViewProps) {
                   </div>
                   <MessageContextMenu
                     messageId={msg.id} messageType="group" isSender={msg.author_id === user?.id}
-                    onDeleted={() => setMessages((prev) => prev.filter((m) => m.id !== msg.id))}
-                    onHidden={() => setHiddenIds((prev) => new Set([...prev, msg.id]))}
+                    messageContent={msg.content}
+                    onDeleted={() => setMessages(prev => prev.filter(m => m.id !== msg.id))}
+                    onHidden={() => setHiddenIds(prev => new Set([...prev, msg.id]))}
+                    onReply={() => setReplyTo(msg)}
                   />
                 </div>
               </GlassCard>
@@ -265,14 +288,25 @@ export function GroupsView({ onViewProfile }: GroupsViewProps) {
           )}
         </div>
 
+        {replyTo && (
+          <div className="px-4 py-2 border-t border-border bg-muted/30 flex items-center gap-2">
+            <Reply className="w-4 h-4 text-primary shrink-0" />
+            <div className="flex-1 pl-2 border-l-2 border-primary">
+              <p className="text-xs text-primary font-medium">{replyTo.profiles?.username || "Пользователь"}</p>
+              <p className="text-xs text-muted-foreground truncate">{replyTo.content}</p>
+            </div>
+            <button onClick={() => setReplyTo(null)} className="p-1 hover:bg-muted/50 rounded"><X className="w-4 h-4" /></button>
+          </div>
+        )}
+
         <div className="p-4 glass-card rounded-none border-x-0 border-b-0 ipad-input">
           <div className="flex items-end gap-2">
             <MediaUpload onUpload={setMediaUrl} />
             <VoiceRecorder onRecorded={handleVoiceRecorded} />
             <VideoCircleRecorder onRecorded={handleVideoRecorded} />
             <FlameInput placeholder="Написать сообщение..." value={newMessage}
-              onChange={(e) => setNewMessage(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && sendMessage()} className="flex-1" />
+              onChange={e => setNewMessage(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && sendMessage()} className="flex-1" />
             <FlameButton onClick={sendMessage} size="md"><Send className="w-5 h-5" /></FlameButton>
           </div>
         </div>
@@ -298,7 +332,7 @@ export function GroupsView({ onViewProfile }: GroupsViewProps) {
         </GlassCard>
       ) : (
         <div className="space-y-3">
-          {groups.map((g) => (
+          {groups.map(g => (
             <GlassCard key={g.id} className="p-4 cursor-pointer hover:border-primary/50 transition-colors" onClick={() => setSelectedGroup(g)}>
               <div className="flex items-center gap-3">
                 {g.avatar_url ? (
@@ -333,9 +367,9 @@ export function GroupsView({ onViewProfile }: GroupsViewProps) {
               <div className="flex justify-center">
                 <AvatarUpload currentUrl={newAvatar} onUpload={setNewAvatar} folder="groups" />
               </div>
-              <FlameInput label="Название" placeholder="Название группы" value={newName} onChange={(e) => setNewName(e.target.value)} />
-              <FlameInput label="@Хендл" placeholder="unique_handle" value={newHandle} onChange={(e) => setNewHandle(e.target.value)} />
-              <FlameInput label="Описание" placeholder="О чём группа?" value={newDesc} onChange={(e) => setNewDesc(e.target.value)} />
+              <FlameInput label="Название" placeholder="Название группы" value={newName} onChange={e => setNewName(e.target.value)} />
+              <FlameInput label="@Хендл" placeholder="unique_handle" value={newHandle} onChange={e => setNewHandle(e.target.value)} />
+              <FlameInput label="Описание" placeholder="О чём группа?" value={newDesc} onChange={e => setNewDesc(e.target.value)} />
               <FlameButton onClick={createGroup} className="w-full" disabled={!newName.trim() || loading}>
                 {loading ? "Создание..." : "Создать группу"}
               </FlameButton>

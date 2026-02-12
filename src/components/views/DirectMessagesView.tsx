@@ -11,10 +11,11 @@ import { VoiceRecorder } from "@/components/ui/VoiceRecorder";
 import { VideoCircleRecorder } from "@/components/ui/VideoCircleRecorder";
 import { MessageContextMenu } from "@/components/ui/MessageContextMenu";
 import { CallUI } from "@/components/ui/CallUI";
-import { MessageCircle, Send, ArrowLeft, Phone, ShieldBan, ShieldCheck } from "lucide-react";
+import { MessageCircle, Send, ArrowLeft, Phone, ShieldBan, ShieldCheck, X, Forward } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ru } from "date-fns/locale";
 import { toast } from "@/hooks/use-toast";
+import { playNotificationSound, showBrowserNotification, requestNotificationPermission } from "@/lib/notifications";
 
 interface Conversation {
   partnerId: string;
@@ -32,6 +33,8 @@ interface Message {
   content: string;
   media_url: string | null;
   created_at: string;
+  reply_to_id: string | null;
+  forwarded_from: string | null;
 }
 
 interface DirectMessagesViewProps {
@@ -52,9 +55,14 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
   const [calling, setCalling] = useState(false);
   const [isBlocked, setIsBlocked] = useState(false);
   const [blockedByThem, setBlockedByThem] = useState(false);
+  const [replyTo, setReplyTo] = useState<Message | null>(null);
+  const [forwardMsg, setForwardMsg] = useState<Message | null>(null);
+  const [forwardTargets, setForwardTargets] = useState<Conversation[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => { if (user) fetchConversations(); }, [user]);
+  useEffect(() => {
+    if (user) { fetchConversations(); requestNotificationPermission(); }
+  }, [user]);
   useEffect(() => { if (selectedUserId && user) openChatWithUser(selectedUserId); }, [selectedUserId, user]);
 
   useEffect(() => {
@@ -63,14 +71,22 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
       .channel("dm-realtime")
       .on("postgres_changes", { event: "*", schema: "public", table: "direct_messages" }, (payload) => {
         if (payload.eventType === "DELETE") {
-          setMessages((prev) => prev.filter((m) => m.id !== (payload.old as any).id));
+          setMessages(prev => prev.filter(m => m.id !== (payload.old as any).id));
           fetchConversations();
           return;
         }
         const newMsg = payload.new as Message;
         if (newMsg.sender_id === user.id || newMsg.receiver_id === user.id) {
           if (activeChat && (newMsg.sender_id === activeChat.id || newMsg.receiver_id === activeChat.id)) {
-            setMessages((prev) => [...prev, newMsg]);
+            setMessages(prev => {
+              if (prev.some(m => m.id === newMsg.id)) return prev;
+              return [...prev, newMsg];
+            });
+          }
+          // Notification for incoming messages
+          if (newMsg.sender_id !== user.id) {
+            playNotificationSound();
+            showBrowserNotification("Новое сообщение", newMsg.content);
           }
           fetchConversations();
         }
@@ -82,10 +98,7 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
 
   useEffect(() => {
-    if (activeChat && user) {
-      checkBlockStatus(activeChat.id);
-      fetchHiddenMessages();
-    }
+    if (activeChat && user) { checkBlockStatus(activeChat.id); fetchHiddenMessages(); }
   }, [activeChat, user]);
 
   const checkBlockStatus = async (partnerId: string) => {
@@ -101,7 +114,7 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
   const fetchHiddenMessages = async () => {
     if (!user) return;
     const { data } = await supabase.from("hidden_messages").select("message_id").eq("user_id", user.id).eq("message_type", "dm");
-    setHiddenIds(new Set(data?.map((h) => h.message_id) || []));
+    setHiddenIds(new Set(data?.map(h => h.message_id) || []));
   };
 
   const toggleBlock = async () => {
@@ -119,8 +132,7 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
   const fetchConversations = async () => {
     if (!user) return;
     const { data: messagesData } = await supabase
-      .from("direct_messages")
-      .select("*")
+      .from("direct_messages").select("*")
       .or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`)
       .order("created_at", { ascending: false });
 
@@ -136,7 +148,7 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
     if (partnerIds.length === 0) { setConversations([]); return; }
 
     const { data: profiles } = await supabase.from("profiles").select("user_id, username, avatar_url").in("user_id", partnerIds);
-    const profilesMap = new Map(profiles?.map((p) => [p.user_id, { username: p.username, avatar_url: p.avatar_url }]) || []);
+    const profilesMap = new Map(profiles?.map(p => [p.user_id, { username: p.username, avatar_url: p.avatar_url }]) || []);
 
     setConversations(Array.from(conversationsMap.entries()).map(([partnerId, data]) => {
       const profile = profilesMap.get(partnerId);
@@ -155,14 +167,18 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
     const { data: profile } = await supabase.from("profiles").select("user_id, username, avatar_url").eq("user_id", partnerId).maybeSingle();
     setActiveChat({ id: partnerId, username: profile?.username || null, avatarUrl: profile?.avatar_url || null });
     fetchMessages(partnerId);
+    // Mark as read
+    if (user) {
+      await supabase.from("direct_messages").update({ read_at: new Date().toISOString() })
+        .eq("receiver_id", user.id).eq("sender_id", partnerId).is("read_at", null);
+    }
   };
 
   const fetchMessages = async (partnerId: string) => {
     if (!user) return;
     setLoading(true);
     const { data } = await supabase
-      .from("direct_messages")
-      .select("*")
+      .from("direct_messages").select("*")
       .or(`and(sender_id.eq.${user.id},receiver_id.eq.${partnerId}),and(sender_id.eq.${partnerId},receiver_id.eq.${user.id})`)
       .order("created_at", { ascending: true });
     setMessages(data || []);
@@ -180,55 +196,62 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
       receiver_id: activeChat.id,
       content: newMessage.trim() || (mediaUrl ? "📎 Медиа" : ""),
       media_url: mediaUrl || null,
+      reply_to_id: replyTo?.id || null,
     });
     if (error) {
-      toast({ title: "Ошибка", description: error.message?.includes("blocked") ? "Вы заблокированы" : "Не удалось отправить", variant: "destructive" });
+      toast({ title: "Ошибка", description: "Не удалось отправить", variant: "destructive" });
     } else {
-      setNewMessage(""); setMediaUrl("");
+      setNewMessage(""); setMediaUrl(""); setReplyTo(null);
     }
-  };
-
-  const handleMediaUpload = (url: string) => {
-    setMediaUrl(url);
   };
 
   const handleVoiceRecorded = (url: string) => {
     if (!activeChat || !user) return;
     supabase.from("direct_messages").insert({
-      sender_id: user.id,
-      receiver_id: activeChat.id,
-      content: "🎤 Голосовое сообщение",
-      media_url: url,
-    }).then(({ error }) => {
-      if (error) toast({ title: "Ошибка", description: "Не удалось отправить", variant: "destructive" });
+      sender_id: user.id, receiver_id: activeChat.id,
+      content: "🎤 Голосовое сообщение", media_url: url,
     });
   };
 
   const handleVideoRecorded = (url: string) => {
     if (!activeChat || !user) return;
     supabase.from("direct_messages").insert({
-      sender_id: user.id,
-      receiver_id: activeChat.id,
-      content: "🎥 Видео-кружок",
-      media_url: url,
-    }).then(({ error }) => {
-      if (error) toast({ title: "Ошибка", description: "Не удалось отправить", variant: "destructive" });
+      sender_id: user.id, receiver_id: activeChat.id,
+      content: "🎥 Видео-кружок", media_url: url,
     });
   };
 
+  const forwardMessage = async (targetUserId: string) => {
+    if (!forwardMsg || !user) return;
+    await supabase.from("direct_messages").insert({
+      sender_id: user.id,
+      receiver_id: targetUserId,
+      content: forwardMsg.content,
+      media_url: forwardMsg.media_url,
+      forwarded_from: forwardMsg.sender_id === user.id ? "Вы" : (activeChat?.username || "Пользователь"),
+    });
+    toast({ title: "Сообщение переслано" });
+    setForwardMsg(null);
+  };
+
   const closeChat = () => {
-    setActiveChat(null); setMessages([]); setHiddenIds(new Set()); onClearSelectedUser?.();
+    setActiveChat(null); setMessages([]); setHiddenIds(new Set()); setReplyTo(null); onClearSelectedUser?.();
+  };
+
+  const getReplyPreview = (replyId: string) => {
+    const msg = messages.find(m => m.id === replyId);
+    return msg ? msg.content.slice(0, 60) : null;
   };
 
   const renderMedia = (url: string) => {
     if (url.includes("_circle")) {
-      return <video src={url} controls className="w-48 h-48 rounded-full object-cover mb-2 border-2 border-primary" />;
+      return <video src={url} controls playsInline className="w-48 h-48 rounded-full object-cover mb-2 border-2 border-primary" style={{ aspectRatio: "1/1" }} />;
     }
     if (url.includes("_voice")) {
       return <audio src={url} controls className="mb-2 max-w-full" />;
     }
     if (url.match(/\.(mp4|mov|webm)/i) || url.includes("video")) {
-      return <video src={url} controls className="max-h-48 rounded-lg mb-2" />;
+      return <video src={url} controls playsInline className="max-h-48 rounded-lg mb-2" />;
     }
     return <img src={url} alt="" className="max-h-48 rounded-lg object-cover mb-2 cursor-pointer" onClick={() => window.open(url, "_blank")} />;
   };
@@ -237,8 +260,42 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
     return <CallUI partnerUsername={activeChat.username} partnerAvatarUrl={activeChat.avatarUrl} onEnd={() => setCalling(false)} />;
   }
 
+  // Forward dialog
+  if (forwardMsg) {
+    return (
+      <div className="flex flex-col h-full">
+        <GlassCard className="rounded-none border-x-0 border-t-0 p-4">
+          <div className="flex items-center gap-3">
+            <button onClick={() => setForwardMsg(null)} className="p-2 hover:bg-muted/50 rounded-lg touch-target">
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+            <h2 className="font-semibold">Переслать сообщение</h2>
+          </div>
+        </GlassCard>
+        <div className="p-4 mb-2">
+          <GlassCard className="p-3 bg-muted/30">
+            <p className="text-xs text-muted-foreground mb-1">Сообщение:</p>
+            <p className="text-sm">{forwardMsg.content}</p>
+          </GlassCard>
+        </div>
+        <div className="flex-1 overflow-y-auto p-4 space-y-2">
+          <p className="text-sm text-muted-foreground mb-2">Выберите чат:</p>
+          {conversations.map(conv => (
+            <GlassCard key={conv.partnerId} className="p-3 cursor-pointer hover:border-primary/50 transition-colors" onClick={() => forwardMessage(conv.partnerId)}>
+              <div className="flex items-center gap-3">
+                <UserAvatar username={conv.partnerUsername} avatarUrl={conv.partnerAvatarUrl} size="sm" />
+                <span className="font-medium text-sm">{conv.partnerUsername || "Пользователь"}</span>
+                <Forward className="w-4 h-4 ml-auto text-primary" />
+              </div>
+            </GlassCard>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   if (activeChat) {
-    const visibleMessages = messages.filter((m) => !hiddenIds.has(m.id));
+    const visibleMessages = messages.filter(m => !hiddenIds.has(m.id));
 
     return (
       <div className="flex flex-col h-full">
@@ -261,7 +318,7 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
               <button onClick={() => setCalling(true)} className="p-2 hover:bg-muted/50 rounded-lg transition-colors touch-target">
                 <Phone className="w-5 h-5 text-primary" />
               </button>
-              <button onClick={toggleBlock} className="p-2 hover:bg-muted/50 rounded-lg transition-colors touch-target" title={isBlocked ? "Разблокировать" : "Заблокировать"}>
+              <button onClick={toggleBlock} className="p-2 hover:bg-muted/50 rounded-lg transition-colors touch-target">
                 {isBlocked ? <ShieldCheck className="w-5 h-5 text-destructive" /> : <ShieldBan className="w-5 h-5 text-muted-foreground" />}
               </button>
             </div>
@@ -279,10 +336,20 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
               <p>Начните разговор!</p>
             </div>
           ) : (
-            visibleMessages.map((msg) => (
+            visibleMessages.map(msg => (
               <div key={msg.id} className={`flex group ${msg.sender_id === user?.id ? "justify-end" : "justify-start"}`}>
                 <div className="flex items-start gap-1 max-w-[80%]">
                   <GlassCard className={`p-3 ${msg.sender_id === user?.id ? "bg-primary/20 border-primary/30" : ""}`}>
+                    {msg.forwarded_from && (
+                      <p className="text-xs text-primary/70 mb-1 flex items-center gap-1">
+                        <Forward className="w-3 h-3" /> Переслано от {msg.forwarded_from}
+                      </p>
+                    )}
+                    {msg.reply_to_id && (
+                      <div className="mb-2 pl-2 border-l-2 border-primary/50 text-xs text-muted-foreground">
+                        {getReplyPreview(msg.reply_to_id) || "Сообщение"}
+                      </div>
+                    )}
                     {msg.media_url && renderMedia(msg.media_url)}
                     {msg.content && msg.content !== "📎 Медиа" && msg.content !== "🎤 Голосовое сообщение" && msg.content !== "🎥 Видео-кружок" && (
                       <p className="text-sm break-words">{msg.content}</p>
@@ -292,11 +359,12 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
                     </p>
                   </GlassCard>
                   <MessageContextMenu
-                    messageId={msg.id}
-                    messageType="dm"
-                    isSender={msg.sender_id === user?.id}
-                    onDeleted={() => setMessages((prev) => prev.filter((m) => m.id !== msg.id))}
-                    onHidden={() => setHiddenIds((prev) => new Set([...prev, msg.id]))}
+                    messageId={msg.id} messageType="dm" isSender={msg.sender_id === user?.id}
+                    messageContent={msg.content}
+                    onDeleted={() => setMessages(prev => prev.filter(m => m.id !== msg.id))}
+                    onHidden={() => setHiddenIds(prev => new Set([...prev, msg.id]))}
+                    onReply={() => setReplyTo(msg)}
+                    onForward={() => setForwardMsg(msg)}
                   />
                 </div>
               </div>
@@ -305,21 +373,32 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
           <div ref={messagesEndRef} />
         </div>
 
+        {/* Reply preview */}
+        {replyTo && (
+          <div className="px-4 py-2 border-t border-border bg-muted/30 flex items-center gap-2">
+            <div className="flex-1 pl-2 border-l-2 border-primary">
+              <p className="text-xs text-primary font-medium">Ответ</p>
+              <p className="text-xs text-muted-foreground truncate">{replyTo.content}</p>
+            </div>
+            <button onClick={() => setReplyTo(null)} className="p-1 hover:bg-muted/50 rounded">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
         <div className="p-4 glass-card rounded-none border-x-0 border-b-0 ipad-input">
           <div className="flex items-end gap-2">
-            <MediaUpload onUpload={handleMediaUpload} />
+            <MediaUpload onUpload={setMediaUrl} />
             <VoiceRecorder onRecorded={handleVoiceRecorded} />
             <VideoCircleRecorder onRecorded={handleVideoRecorded} />
             <FlameInput
               placeholder="Написать сообщение..."
               value={newMessage}
-              onChange={(e) => setNewMessage(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+              onChange={e => setNewMessage(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && sendMessage()}
               className="flex-1"
             />
-            <FlameButton onClick={sendMessage} size="md">
-              <Send className="w-5 h-5" />
-            </FlameButton>
+            <FlameButton onClick={sendMessage} size="md"><Send className="w-5 h-5" /></FlameButton>
           </div>
         </div>
       </div>
@@ -329,7 +408,6 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
   return (
     <div className="p-4 space-y-4">
       <h2 className="text-xl font-bold">Личные сообщения</h2>
-
       {conversations.length === 0 ? (
         <GlassCard className="text-center py-12">
           <MessageCircle className="w-16 h-16 mx-auto mb-4 text-primary/50" />
@@ -338,14 +416,12 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
         </GlassCard>
       ) : (
         <div className="space-y-3">
-          {conversations.map((conv) => (
-            <GlassCard
-              key={conv.partnerId}
+          {conversations.map(conv => (
+            <GlassCard key={conv.partnerId}
               className={`p-4 cursor-pointer hover:border-primary/50 transition-colors ${conv.unread ? "border-primary/50" : ""}`}
-              onClick={() => openChatWithUser(conv.partnerId)}
-            >
+              onClick={() => openChatWithUser(conv.partnerId)}>
               <div className="flex items-center gap-3">
-                <button onClick={(e) => { e.stopPropagation(); onViewProfile?.(conv.partnerId); }} className="shrink-0">
+                <button onClick={e => { e.stopPropagation(); onViewProfile?.(conv.partnerId); }} className="shrink-0">
                   <UserAvatar username={conv.partnerUsername} avatarUrl={conv.partnerAvatarUrl} size="lg" />
                 </button>
                 <div className="flex-1 min-w-0">

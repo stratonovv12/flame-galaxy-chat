@@ -1,10 +1,10 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { FlameButton } from "@/components/ui/FlameButton";
 import { FlameInput } from "@/components/ui/FlameInput";
-import { Sparkles, Send, Bot, User, Trash2 } from "lucide-react";
+import { Sparkles, Send, Bot, User, Trash2, Plus, Image, MessageSquare, Menu, X } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import ReactMarkdown from "react-markdown";
 
@@ -12,6 +12,14 @@ interface Message {
   id: string;
   role: "user" | "assistant";
   content: string;
+  imageUrl?: string;
+}
+
+interface Topic {
+  id: string;
+  title: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export function AIView() {
@@ -20,130 +28,148 @@ export function AIView() {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
+  const [topics, setTopics] = useState<Topic[]>([]);
+  const [activeTopic, setActiveTopic] = useState<Topic | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [attachedImage, setAttachedImage] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
+  const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  useEffect(() => { scrollToBottom(); }, [messages]);
 
   useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
-
-  // Load conversation history on mount
-  useEffect(() => {
-    if (user) {
-      loadHistory();
-    }
+    if (user) { loadTopics(); }
   }, [user]);
 
-  const loadHistory = async () => {
+  useEffect(() => {
+    if (activeTopic) loadMessages(activeTopic.id);
+    else setMessages([]);
+  }, [activeTopic]);
+
+  const loadTopics = async () => {
     if (!user) return;
-    setIsLoadingHistory(true);
-
-    const { data, error } = await supabase
-      .from("ai_conversations")
-      .select("id, role, content")
+    const { data } = await supabase
+      .from("ai_topics")
+      .select("*")
       .eq("user_id", user.id)
-      .order("created_at", { ascending: true });
-
-    if (error) {
-      console.error("Error loading AI history:", error);
-    } else if (data) {
-      setMessages(data.map(m => ({
-        id: m.id,
-        role: m.role as "user" | "assistant",
-        content: m.content,
-      })));
+      .order("updated_at", { ascending: false });
+    setTopics(data || []);
+    // Auto-select most recent if exists
+    if (data && data.length > 0 && !activeTopic) {
+      setActiveTopic(data[0]);
     }
     setIsLoadingHistory(false);
   };
 
-  const saveMessage = async (role: "user" | "assistant", content: string) => {
+  const loadMessages = async (topicId: string) => {
     if (!user) return;
-
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from("ai_conversations")
-      .insert({
-        user_id: user.id,
-        role,
-        content,
-      })
+      .select("id, role, content")
+      .eq("user_id", user.id)
+      .eq("topic_id", topicId)
+      .order("created_at", { ascending: true });
+    setMessages(data?.map(m => ({ id: m.id, role: m.role as "user" | "assistant", content: m.content })) || []);
+  };
+
+  const createNewTopic = async () => {
+    if (!user) return;
+    const { data, error } = await supabase
+      .from("ai_topics")
+      .insert({ user_id: user.id, title: "Новый чат" })
+      .select()
+      .single();
+    if (data) {
+      setTopics(prev => [data, ...prev]);
+      setActiveTopic(data);
+      setMessages([]);
+      setSidebarOpen(false);
+    }
+  };
+
+  const deleteTopic = async (topicId: string) => {
+    await supabase.from("ai_topics").delete().eq("id", topicId);
+    setTopics(prev => prev.filter(t => t.id !== topicId));
+    if (activeTopic?.id === topicId) {
+      setActiveTopic(null);
+      setMessages([]);
+    }
+  };
+
+  const saveMessage = async (role: "user" | "assistant", content: string, topicId: string) => {
+    if (!user) return null;
+    const { data } = await supabase
+      .from("ai_conversations")
+      .insert({ user_id: user.id, role, content, topic_id: topicId })
       .select("id")
       .single();
-
-    if (error) {
-      console.error("Error saving message:", error);
-      return null;
-    }
     return data?.id;
   };
 
-  const clearHistory = async () => {
-    if (!user) return;
-
-    const { error } = await supabase
-      .from("ai_conversations")
-      .delete()
-      .eq("user_id", user.id);
-
-    if (error) {
-      toast({
-        title: "Ошибка",
-        description: "Не удалось очистить историю",
-        variant: "destructive",
-      });
-    } else {
-      setMessages([]);
-      toast({
-        title: "Готово",
-        description: "История очищена",
-      });
+  const handleImageAttach = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast({ title: "Ошибка", description: "Только изображения", variant: "destructive" });
+      return;
     }
+    const reader = new FileReader();
+    reader.onload = (ev) => setAttachedImage(ev.target?.result as string);
+    reader.readAsDataURL(file);
   };
 
   const sendMessage = async () => {
-    if (!input.trim() || isLoading) return;
+    if ((!input.trim() && !attachedImage) || isLoading) return;
 
-    const userContent = input.trim();
+    let topic = activeTopic;
+    // Auto-create topic if none selected
+    if (!topic && user) {
+      const { data } = await supabase
+        .from("ai_topics")
+        .insert({ user_id: user.id, title: input.trim().slice(0, 50) || "Новый чат" })
+        .select()
+        .single();
+      if (data) {
+        topic = data;
+        setTopics(prev => [data, ...prev]);
+        setActiveTopic(data);
+      }
+    }
+    if (!topic) return;
+
+    const userContent = input.trim() || (attachedImage ? "📷 Изображение" : "");
     const tempUserId = Date.now().toString();
-    
-    const userMessage: Message = {
-      id: tempUserId,
-      role: "user",
-      content: userContent,
-    };
+    const userMessage: Message = { id: tempUserId, role: "user", content: userContent, imageUrl: attachedImage || undefined };
 
-    setMessages((prev) => [...prev, userMessage]);
+    setMessages(prev => [...prev, userMessage]);
     setInput("");
+    const currentImage = attachedImage;
+    setAttachedImage(null);
     setIsLoading(true);
 
-    // Save user message to DB
-    const savedUserId = await saveMessage("user", userContent);
-    if (savedUserId) {
-      setMessages((prev) =>
-        prev.map((m) => (m.id === tempUserId ? { ...m, id: savedUserId } : m))
-      );
+    const savedUserId = await saveMessage("user", userContent, topic.id);
+    if (savedUserId) setMessages(prev => prev.map(m => m.id === tempUserId ? { ...m, id: savedUserId } : m));
+
+    // Update topic title from first message
+    if (messages.length === 0 && userContent.length > 2) {
+      await supabase.from("ai_topics").update({ title: userContent.slice(0, 60) }).eq("id", topic.id);
+      setTopics(prev => prev.map(t => t.id === topic!.id ? { ...t, title: userContent.slice(0, 60) } : t));
     }
 
-    let assistantContent = "";
-    const tempAssistantId = (Date.now() + 1).toString();
+    // Check if image generation is requested
+    const isImageGen = /(?:сгенерируй|нарисуй|создай|generate|draw|make).{0,20}(?:картинк|изображени|фото|image|picture|рисунок)/i.test(userContent);
 
-    // Add empty assistant message that we'll update
-    setMessages((prev) => [
-      ...prev,
-      { id: tempAssistantId, role: "assistant", content: "" },
-    ]);
+    const tempAssistantId = (Date.now() + 1).toString();
+    setMessages(prev => [...prev, { id: tempAssistantId, role: "assistant", content: isImageGen ? "🎨 Генерирую изображение..." : "" }]);
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.access_token) {
-        throw new Error("Необходимо войти в аккаунт");
-      }
+      if (!session?.access_token) throw new Error("Необходимо войти в аккаунт");
 
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/flame-ai`,
-        {
+      if (isImageGen) {
+        // Non-streaming image generation
+        const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/flame-ai`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -151,198 +177,220 @@ export function AIView() {
             apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
           },
           body: JSON.stringify({
-            messages: [...messages, userMessage].map((m) => ({
-              role: m.role,
-              content: m.content,
-            })),
+            messages: [...messages, userMessage].map(m => ({ role: m.role, content: m.content })),
+            mode: "image_gen",
           }),
+        });
+
+        if (!response.ok) throw new Error("Ошибка генерации");
+        const result = await response.json();
+        const assistantContent = result.text || "Вот сгенерированное изображение:";
+
+        setMessages(prev => prev.map(m => m.id === tempAssistantId ? { ...m, content: assistantContent, imageUrl: result.imageUrl } : m));
+        await saveMessage("assistant", assistantContent + (result.imageUrl ? `\n![image](${result.imageUrl})` : ""), topic.id);
+      } else {
+        // Streaming text response (with optional vision)
+        const body: any = {
+          messages: [...messages, userMessage].map(m => ({ role: m.role, content: m.content })),
+        };
+        if (currentImage) body.images = [currentImage];
+
+        const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/flame-ai`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          },
+          body: JSON.stringify(body),
+        });
+
+        if (!response.ok) {
+          if (response.status === 429) throw new Error("Превышен лимит запросов");
+          if (response.status === 402) throw new Error("Закончились кредиты AI");
+          throw new Error("Ошибка сервера");
         }
-      );
 
-      if (!response.ok) {
-        if (response.status === 429) {
-          throw new Error("Превышен лимит запросов. Попробуйте позже.");
-        }
-        if (response.status === 402) {
-          throw new Error("Закончились кредиты AI. Обратитесь к администратору.");
-        }
-        throw new Error("Ошибка сервера");
-      }
+        const reader = response.body?.getReader();
+        if (!reader) throw new Error("No response body");
+        const decoder = new TextDecoder();
+        let textBuffer = "";
+        let assistantContent = "";
 
-      const reader = response.body?.getReader();
-      const decoder = new TextDecoder();
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          textBuffer += decoder.decode(value, { stream: true });
 
-      if (!reader) throw new Error("No response body");
-
-      let textBuffer = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        textBuffer += decoder.decode(value, { stream: true });
-
-        let newlineIndex: number;
-        while ((newlineIndex = textBuffer.indexOf("\n")) !== -1) {
-          let line = textBuffer.slice(0, newlineIndex);
-          textBuffer = textBuffer.slice(newlineIndex + 1);
-
-          if (line.endsWith("\r")) line = line.slice(0, -1);
-          if (line.startsWith(":") || line.trim() === "") continue;
-          if (!line.startsWith("data: ")) continue;
-
-          const jsonStr = line.slice(6).trim();
-          if (jsonStr === "[DONE]") break;
-
-          try {
-            const parsed = JSON.parse(jsonStr);
-            const content = parsed.choices?.[0]?.delta?.content;
-            if (content) {
-              assistantContent += content;
-              setMessages((prev) =>
-                prev.map((m) =>
-                  m.id === tempAssistantId ? { ...m, content: assistantContent } : m
-                )
-              );
+          let newlineIndex: number;
+          while ((newlineIndex = textBuffer.indexOf("\n")) !== -1) {
+            let line = textBuffer.slice(0, newlineIndex);
+            textBuffer = textBuffer.slice(newlineIndex + 1);
+            if (line.endsWith("\r")) line = line.slice(0, -1);
+            if (line.startsWith(":") || line.trim() === "") continue;
+            if (!line.startsWith("data: ")) continue;
+            const jsonStr = line.slice(6).trim();
+            if (jsonStr === "[DONE]") break;
+            try {
+              const parsed = JSON.parse(jsonStr);
+              const content = parsed.choices?.[0]?.delta?.content;
+              if (content) {
+                assistantContent += content;
+                setMessages(prev => prev.map(m => m.id === tempAssistantId ? { ...m, content: assistantContent } : m));
+              }
+            } catch {
+              textBuffer = line + "\n" + textBuffer;
+              break;
             }
-          } catch {
-            textBuffer = line + "\n" + textBuffer;
-            break;
           }
         }
-      }
 
-      // Save assistant message to DB
-      if (assistantContent) {
-        const savedAssistantId = await saveMessage("assistant", assistantContent);
-        if (savedAssistantId) {
-          setMessages((prev) =>
-            prev.map((m) =>
-              m.id === tempAssistantId ? { ...m, id: savedAssistantId } : m
-            )
-          );
-        }
+        if (assistantContent) await saveMessage("assistant", assistantContent, topic.id);
       }
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Неизвестная ошибка";
-      toast({
-        title: "Ошибка AI",
-        description: errorMessage,
-        variant: "destructive",
-      });
-      // Remove the empty assistant message on error
-      setMessages((prev) => prev.filter((m) => m.id !== tempAssistantId));
+      toast({ title: "Ошибка AI", description: error instanceof Error ? error.message : "Неизвестная ошибка", variant: "destructive" });
+      setMessages(prev => prev.filter(m => m.id !== tempAssistantId));
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Header */}
-      <GlassCard className="rounded-none border-x-0 border-t-0 p-4">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center neon-glow-sm">
-            <Sparkles className="w-6 h-6 text-primary-foreground" />
-          </div>
-          <div className="flex-1">
-            <h2 className="font-bold text-lg">FLAME AI</h2>
-            <p className="text-sm text-muted-foreground">
-              Ваш умный помощник
-            </p>
-          </div>
-          {messages.length > 0 && (
-            <FlameButton
-              variant="ghost"
-              size="sm"
-              onClick={clearHistory}
-              className="text-muted-foreground hover:text-destructive"
-            >
-              <Trash2 className="w-4 h-4" />
-            </FlameButton>
-          )}
+    <div className="flex h-full relative">
+      {/* Sidebar */}
+      <div className={`absolute inset-y-0 left-0 z-30 w-72 transform transition-transform duration-300 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} bg-background/95 backdrop-blur-md border-r border-border`}>
+        <div className="flex items-center justify-between p-4 border-b border-border">
+          <h3 className="font-semibold text-sm">История чатов</h3>
+          <button onClick={() => setSidebarOpen(false)} className="p-1 hover:bg-muted/50 rounded-lg"><X className="w-4 h-4" /></button>
         </div>
-      </GlassCard>
-
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
-        {isLoadingHistory ? (
-          <div className="text-center py-12">
-            <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
-            <p className="text-muted-foreground mt-4">Загрузка истории...</p>
-          </div>
-        ) : messages.length === 0 ? (
-          <div className="text-center py-12">
-            <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center neon-glow animate-float">
-              <Sparkles className="w-10 h-10 text-primary-foreground" />
+        <div className="p-2">
+          <button onClick={createNewTopic} className="w-full flex items-center gap-2 p-3 rounded-lg hover:bg-muted/50 text-sm text-primary transition-colors">
+            <Plus className="w-4 h-4" /> Новый чат
+          </button>
+        </div>
+        <div className="overflow-y-auto flex-1 p-2 space-y-1" style={{ maxHeight: "calc(100% - 120px)" }}>
+          {topics.map(topic => (
+            <div key={topic.id} className={`group flex items-center gap-2 p-3 rounded-lg cursor-pointer text-sm transition-colors ${activeTopic?.id === topic.id ? "bg-primary/20 text-primary" : "hover:bg-muted/50"}`}
+              onClick={() => { setActiveTopic(topic); setSidebarOpen(false); }}>
+              <MessageSquare className="w-4 h-4 shrink-0" />
+              <span className="truncate flex-1">{topic.title}</span>
+              <button onClick={(e) => { e.stopPropagation(); deleteTopic(topic.id); }}
+                className="opacity-0 group-hover:opacity-100 p-1 hover:bg-destructive/20 rounded transition-all">
+                <Trash2 className="w-3 h-3 text-destructive" />
+              </button>
             </div>
-            <h3 className="text-xl font-bold mb-2 text-glow">
-              Привет! Я FLAME AI
-            </h3>
-            <p className="text-muted-foreground max-w-sm mx-auto">
-              Задайте мне любой вопрос, и я постараюсь помочь вам!
-            </p>
+          ))}
+        </div>
+      </div>
+
+      {/* Main */}
+      <div className="flex flex-col flex-1">
+        <GlassCard className="rounded-none border-x-0 border-t-0 p-4">
+          <div className="flex items-center gap-3">
+            <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-2 hover:bg-muted/50 rounded-lg transition-colors touch-target">
+              <Menu className="w-5 h-5" />
+            </button>
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center neon-glow-sm">
+              <Sparkles className="w-5 h-5 text-primary-foreground" />
+            </div>
+            <div className="flex-1">
+              <h2 className="font-bold text-lg">FLAME AI</h2>
+              <p className="text-xs text-muted-foreground truncate">
+                {activeTopic?.title || "Ваш умный помощник"}
+              </p>
+            </div>
           </div>
-        ) : (
-          messages.map((message) => (
-            <div
-              key={message.id}
-              className={`flex gap-3 ${
-                message.role === "user" ? "justify-end" : "justify-start"
-              }`}
-            >
-              {message.role === "assistant" && (
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center shrink-0">
-                  <Bot className="w-4 h-4 text-primary-foreground" />
-                </div>
-              )}
-              <GlassCard
-                className={`max-w-[80%] p-3 ${
-                  message.role === "user"
-                    ? "bg-primary/20 border-primary/30"
-                    : ""
-                }`}
-              >
-                {message.role === "assistant" ? (
-                  <div className="prose prose-sm prose-invert max-w-none">
-                    <ReactMarkdown>{message.content || "..."}</ReactMarkdown>
+        </GlassCard>
+
+        <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
+          {isLoadingHistory ? (
+            <div className="text-center py-12">
+              <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
+              <p className="text-muted-foreground mt-4">Загрузка...</p>
+            </div>
+          ) : messages.length === 0 ? (
+            <div className="text-center py-12">
+              <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center neon-glow animate-float">
+                <Sparkles className="w-10 h-10 text-primary-foreground" />
+              </div>
+              <h3 className="text-xl font-bold mb-2 text-glow">Привет! Я FLAME AI</h3>
+              <p className="text-muted-foreground max-w-sm mx-auto mb-4">
+                Задайте мне вопрос, отправьте фото для анализа или попросите сгенерировать изображение!
+              </p>
+              <div className="flex flex-wrap gap-2 justify-center max-w-md mx-auto">
+                {["📷 Анализ фото", "🎨 Нарисуй картинку", "💡 Помоги с задачей"].map(hint => (
+                  <button key={hint} onClick={() => setInput(hint)} className="px-3 py-1.5 rounded-full text-xs bg-muted/50 hover:bg-primary/20 transition-colors border border-border">
+                    {hint}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : (
+            messages.map(message => (
+              <div key={message.id} className={`flex gap-3 ${message.role === "user" ? "justify-end" : "justify-start"}`}>
+                {message.role === "assistant" && (
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center shrink-0">
+                    <Bot className="w-4 h-4 text-primary-foreground" />
                   </div>
-                ) : (
-                  <p className="text-sm">{message.content}</p>
                 )}
-              </GlassCard>
-              {message.role === "user" && (
-                <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center shrink-0">
-                  <User className="w-4 h-4" />
-                </div>
-              )}
-            </div>
-          ))
-        )}
-        <div ref={messagesEndRef} />
-      </div>
+                <GlassCard className={`max-w-[80%] p-3 ${message.role === "user" ? "bg-primary/20 border-primary/30" : ""}`}>
+                  {message.imageUrl && (
+                    <img src={message.imageUrl} alt="" className="max-h-64 rounded-lg object-cover mb-2" />
+                  )}
+                  {message.role === "assistant" ? (
+                    <div className="prose prose-sm prose-invert max-w-none">
+                      <ReactMarkdown>{message.content || "..."}</ReactMarkdown>
+                    </div>
+                  ) : (
+                    <p className="text-sm">{message.content}</p>
+                  )}
+                </GlassCard>
+                {message.role === "user" && (
+                  <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center shrink-0">
+                    <User className="w-4 h-4" />
+                  </div>
+                )}
+              </div>
+            ))
+          )}
+          <div ref={messagesEndRef} />
+        </div>
 
-      {/* Input */}
-      <div className="p-4 glass-card rounded-none border-x-0 border-b-0 ipad-input">
-        <div className="flex gap-2">
-          <FlameInput
-            placeholder="Спросите что-нибудь..."
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && sendMessage()}
-            disabled={isLoading}
-            className="flex-1"
-          />
-          <FlameButton onClick={sendMessage} disabled={isLoading || !input.trim()}>
-            {isLoading ? (
-              <div className="w-5 h-5 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
-            ) : (
-              <Send className="w-5 h-5" />
-            )}
-          </FlameButton>
+        {/* Attached image preview */}
+        {attachedImage && (
+          <div className="px-4 pb-2">
+            <div className="relative inline-block">
+              <img src={attachedImage} alt="Attached" className="max-h-24 rounded-lg object-cover" />
+              <button onClick={() => setAttachedImage(null)} className="absolute -top-1 -right-1 w-5 h-5 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center">
+                <X className="w-3 h-3" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        <div className="p-4 glass-card rounded-none border-x-0 border-b-0 ipad-input">
+          <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageAttach} className="hidden" />
+          <div className="flex gap-2 items-end">
+            <button onClick={() => fileInputRef.current?.click()} className="p-2 hover:bg-muted/50 rounded-lg transition-colors text-muted-foreground hover:text-foreground touch-target">
+              <Image className="w-5 h-5" />
+            </button>
+            <FlameInput
+              placeholder="Спросите или попросите нарисовать..."
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && !e.shiftKey && sendMessage()}
+              disabled={isLoading}
+              className="flex-1"
+            />
+            <FlameButton onClick={sendMessage} disabled={isLoading || (!input.trim() && !attachedImage)}>
+              {isLoading ? <div className="w-5 h-5 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" /> : <Send className="w-5 h-5" />}
+            </FlameButton>
+          </div>
         </div>
       </div>
+
+      {/* Overlay when sidebar open */}
+      {sidebarOpen && <div className="absolute inset-0 z-20 bg-background/50" onClick={() => setSidebarOpen(false)} />}
     </div>
   );
 }
