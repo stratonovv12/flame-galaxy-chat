@@ -10,7 +10,9 @@ import { MediaUpload } from "@/components/ui/MediaUpload";
 import { VoiceRecorder } from "@/components/ui/VoiceRecorder";
 import { VideoCircleRecorder } from "@/components/ui/VideoCircleRecorder";
 import { MessageContextMenu } from "@/components/ui/MessageContextMenu";
+import { UploadingBubble } from "@/components/ui/UploadingBubble";
 import { CallUI } from "@/components/ui/CallUI";
+import { useMediaUpload } from "@/hooks/useMediaUpload";
 import { MessageCircle, Send, ArrowLeft, Phone, ShieldBan, ShieldCheck, X, Forward } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ru } from "date-fns/locale";
@@ -59,6 +61,7 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
   const [forwardMsg, setForwardMsg] = useState<Message | null>(null);
   const [forwardTargets, setForwardTargets] = useState<Conversation[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { pendingUploads, startUpload, cancelUpload } = useMediaUpload();
 
   useEffect(() => {
     if (user) { fetchConversations(); requestNotificationPermission(); }
@@ -205,19 +208,23 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
     }
   };
 
-  const handleVoiceRecorded = (url: string) => {
+  const handleVoiceRecorded = (blob: Blob, _durationSec: number) => {
     if (!activeChat || !user) return;
-    supabase.from("direct_messages").insert({
-      sender_id: user.id, receiver_id: activeChat.id,
-      content: "🎤 Голосовое сообщение", media_url: url,
+    startUpload(blob, "voice", (url) => {
+      supabase.from("direct_messages").insert({
+        sender_id: user.id, receiver_id: activeChat.id,
+        content: "🎤 Голосовое сообщение", media_url: url,
+      });
     });
   };
 
-  const handleVideoRecorded = (url: string) => {
+  const handleVideoRecorded = (blob: Blob, _durationSec: number, _thumbnail: string) => {
     if (!activeChat || !user) return;
-    supabase.from("direct_messages").insert({
-      sender_id: user.id, receiver_id: activeChat.id,
-      content: "🎥 Видео-кружок", media_url: url,
+    startUpload(blob, "circle", (url) => {
+      supabase.from("direct_messages").insert({
+        sender_id: user.id, receiver_id: activeChat.id,
+        content: "🎥 Видео-кружок", media_url: url,
+      });
     });
   };
 
@@ -370,6 +377,10 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
               </div>
             ))
           )}
+          {/* Uploading bubbles */}
+          {pendingUploads.map(upload => (
+            <UploadingBubble key={upload.id} upload={upload} onCancel={cancelUpload} />
+          ))}
           <div ref={messagesEndRef} />
         </div>
 
