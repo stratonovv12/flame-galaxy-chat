@@ -6,6 +6,8 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
+  isAdmin: boolean;
+  isBanned: boolean;
   signUp: (email: string, password: string) => Promise<{ error: Error | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
@@ -17,6 +19,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [isBanned, setIsBanned] = useState(false);
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -24,6 +28,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
+        if (session?.user) {
+          setTimeout(() => checkUserStatus(session.user.id), 0);
+        } else {
+          setIsAdmin(false);
+          setIsBanned(false);
+        }
       }
     );
 
@@ -31,28 +41,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
+      if (session?.user) {
+        checkUserStatus(session.user.id);
+      }
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
+  const checkUserStatus = async (userId: string) => {
+    const [{ data: roles }, { data: ban }] = await Promise.all([
+      supabase.from("user_roles").select("role").eq("user_id", userId),
+      supabase.from("banned_users").select("id").eq("user_id", userId).maybeSingle(),
+    ]);
+    setIsAdmin(roles?.some(r => r.role === "admin") || false);
+    if (ban) {
+      setIsBanned(true);
+      await supabase.auth.signOut();
+    }
+  };
+
   const signUp = async (email: string, password: string) => {
     const redirectUrl = `${window.location.origin}/`;
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: redirectUrl,
-      },
-    });
+    const { error } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo: redirectUrl } });
     return { error };
   };
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (!error && data.user) {
+      // Check ban after login
+      const { data: ban } = await supabase.from("banned_users").select("id").eq("user_id", data.user.id).maybeSingle();
+      if (ban) {
+        await supabase.auth.signOut();
+        return { error: new Error("ACCOUNT_BANNED") };
+      }
+    }
     return { error };
   };
 
@@ -61,7 +85,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, signUp, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, session, loading, isAdmin, isBanned, signUp, signIn, signOut }}>
       {children}
     </AuthContext.Provider>
   );

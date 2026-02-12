@@ -20,7 +20,15 @@ export function VoiceRecorder({ onRecorded, className }: VoiceRecorderProps) {
     if (!user) return;
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
+      
+      // Find supported mimeType
+      const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+        ? "audio/webm;codecs=opus"
+        : MediaRecorder.isTypeSupported("audio/webm")
+        ? "audio/webm"
+        : "";
+
+      const mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
       mediaRecorderRef.current = mediaRecorder;
       chunksRef.current = [];
 
@@ -29,17 +37,18 @@ export function VoiceRecorder({ onRecorded, className }: VoiceRecorderProps) {
       };
 
       mediaRecorder.onstop = async () => {
-        stream.getTracks().forEach((t) => t.stop());
-        const blob = new Blob(chunksRef.current, { type: "audio/webm" });
-        if (blob.size < 1000) return; // too short
+        stream.getTracks().forEach(t => t.stop());
+        const blob = new Blob(chunksRef.current, { type: mediaRecorder.mimeType || "audio/webm" });
+        if (blob.size < 500) return;
 
         setUploading(true);
         try {
-          const filePath = `${user.id}/${Date.now()}.webm`;
-          const { error } = await supabase.storage.from("media").upload(filePath, blob, { cacheControl: "3600", upsert: true });
+          const ext = "webm";
+          const filePath = `${user.id}/${Date.now()}_voice.${ext}`;
+          const { error } = await supabase.storage.from("media").upload(filePath, blob, { cacheControl: "3600", upsert: true, contentType: "audio/webm" });
           if (error) throw error;
-          const { data } = await supabase.storage.from("media").createSignedUrl(filePath, 60 * 60 * 24 * 365);
-          if (data?.signedUrl) onRecorded(data.signedUrl);
+          const { data } = supabase.storage.from("media").getPublicUrl(filePath);
+          if (data?.publicUrl) onRecorded(data.publicUrl);
         } catch (err: any) {
           toast({ title: "Ошибка", description: err.message, variant: "destructive" });
         } finally {
@@ -47,7 +56,7 @@ export function VoiceRecorder({ onRecorded, className }: VoiceRecorderProps) {
         }
       };
 
-      mediaRecorder.start();
+      mediaRecorder.start(100); // collect data every 100ms
       setRecording(true);
     } catch {
       toast({ title: "Ошибка", description: "Нет доступа к микрофону", variant: "destructive" });
@@ -67,18 +76,10 @@ export function VoiceRecorder({ onRecorded, className }: VoiceRecorderProps) {
       onPointerUp={stopRecording}
       onPointerLeave={stopRecording}
       disabled={uploading}
-      className={`p-2 rounded-lg transition-colors touch-target ${
-        recording
-          ? "bg-destructive/20 text-destructive animate-pulse"
-          : "hover:bg-muted/50 text-muted-foreground hover:text-foreground"
-      } ${className || ""}`}
+      className={`p-2 rounded-lg transition-colors touch-target ${recording ? "bg-destructive/20 text-destructive animate-pulse" : "hover:bg-muted/50 text-muted-foreground hover:text-foreground"} ${className || ""}`}
       title="Зажмите для записи"
     >
-      {uploading ? (
-        <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
-      ) : (
-        <Mic className="w-5 h-5" />
-      )}
+      {uploading ? <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" /> : <Mic className="w-5 h-5" />}
     </button>
   );
 }

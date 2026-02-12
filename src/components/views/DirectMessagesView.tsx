@@ -221,20 +221,16 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
   };
 
   const renderMedia = (url: string) => {
-    if (url.match(/\.(webm)$/) && url.includes("_circle")) {
-      return (
-        <video src={url} controls className="w-48 h-48 rounded-full object-cover mb-2 border-2 border-primary" />
-      );
+    if (url.includes("_circle")) {
+      return <video src={url} controls className="w-48 h-48 rounded-full object-cover mb-2 border-2 border-primary" />;
     }
-    if (url.match(/\.webm$/) && !url.includes("_circle")) {
+    if (url.includes("_voice")) {
       return <audio src={url} controls className="mb-2 max-w-full" />;
     }
-    if (url.match(/\.(mp4|mov)$/)) {
+    if (url.match(/\.(mp4|mov|webm)/i) || url.includes("video")) {
       return <video src={url} controls className="max-h-48 rounded-lg mb-2" />;
     }
-    return (
-      <img src={url} alt="" className="max-h-48 rounded-lg object-cover mb-2 cursor-pointer" onClick={() => window.open(url, "_blank")} />
-    );
+    return <img src={url} alt="" className="max-h-48 rounded-lg object-cover mb-2 cursor-pointer" onClick={() => window.open(url, "_blank")} />;
   };
 
   if (calling && activeChat) {
