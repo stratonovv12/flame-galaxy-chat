@@ -53,11 +53,6 @@ export function SearchView({ searchQuery, onSearchChange, onStartChat, onViewPro
   const [myChannels, setMyChannels] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
 
-  // Channel/Group preview state
-  const [previewChannel, setPreviewChannel] = useState<Channel | null>(null);
-  const [previewGroup, setPreviewGroup] = useState<Group | null>(null);
-  const [previewMemberCount, setPreviewMemberCount] = useState(0);
-
   useEffect(() => {
     if (user) fetchMemberships();
   }, [user]);
@@ -102,7 +97,6 @@ export function SearchView({ searchQuery, onSearchChange, onStartChat, onViewPro
     await supabase.from("group_members").upsert({ group_id: groupId, user_id: user.id }, { onConflict: "group_id,user_id" });
     setMyGroups(prev => new Set([...prev, groupId]));
     toast({ title: "Вы вступили в группу!" });
-    setPreviewGroup(null);
   };
 
   const handleSubscribeChannel = async (channelId: string) => {
@@ -110,86 +104,25 @@ export function SearchView({ searchQuery, onSearchChange, onStartChat, onViewPro
     await supabase.from("channel_subscribers").upsert({ channel_id: channelId, user_id: user.id }, { onConflict: "channel_id,user_id" });
     setMyChannels(prev => new Set([...prev, channelId]));
     toast({ title: "Вы подписались на канал!" });
-    setPreviewChannel(null);
   };
 
-  const openChannelPreview = async (channel: Channel) => {
-    const { count } = await supabase.from("channel_subscribers").select("*", { count: "exact", head: true }).eq("channel_id", channel.id);
-    setPreviewMemberCount(count || 0);
-    setPreviewChannel(channel);
+  const handleOpenChannelClick = async (channel: Channel) => {
+    // Subscribe first if not a member
+    if (!myChannels.has(channel.id) && user) {
+      await supabase.from("channel_subscribers").upsert({ channel_id: channel.id, user_id: user.id }, { onConflict: "channel_id,user_id" });
+      setMyChannels(prev => new Set([...prev, channel.id]));
+    }
+    onOpenChannel?.(channel.id);
   };
 
-  const openGroupPreview = async (group: Group) => {
-    const { count } = await supabase.from("group_members").select("*", { count: "exact", head: true }).eq("group_id", group.id);
-    setPreviewMemberCount(count || 0);
-    setPreviewGroup(group);
+  const handleOpenGroupClick = async (group: Group) => {
+    // Join first if not a member
+    if (!myGroups.has(group.id) && user) {
+      await supabase.from("group_members").upsert({ group_id: group.id, user_id: user.id }, { onConflict: "group_id,user_id" });
+      setMyGroups(prev => new Set([...prev, group.id]));
+    }
+    onOpenGroup?.(group.id);
   };
-
-  // Channel preview overlay
-  if (previewChannel) {
-    return (
-      <div className="p-4 space-y-6">
-        <button onClick={() => setPreviewChannel(null)} className="text-sm text-primary hover:underline">← Назад к поиску</button>
-        <GlassCard className="p-6 text-center" glow>
-          <div className="flex flex-col items-center gap-4">
-            {previewChannel.avatar_url ? (
-              <img src={previewChannel.avatar_url} alt={previewChannel.name} className="w-20 h-20 rounded-2xl object-cover" />
-            ) : (
-              <div className="w-20 h-20 rounded-2xl bg-primary/20 flex items-center justify-center">
-                <Hash className="w-10 h-10 text-primary" />
-              </div>
-            )}
-            <div>
-              <h2 className="text-xl font-bold">{previewChannel.name}</h2>
-              {previewChannel.handle && <p className="text-sm text-primary/70">@{previewChannel.handle}</p>}
-              <p className="text-sm text-muted-foreground mt-1">{previewMemberCount} подписчиков</p>
-            </div>
-            {previewChannel.description && <p className="text-sm text-muted-foreground max-w-sm">{previewChannel.description}</p>}
-            {myChannels.has(previewChannel.id) ? (
-              <span className="text-sm text-muted-foreground px-4 py-2 rounded-full bg-muted/50">Вы уже подписаны</span>
-            ) : (
-              <FlameButton onClick={() => handleSubscribeChannel(previewChannel.id)} className="w-full max-w-xs">
-                <LogIn className="w-4 h-4 mr-2" /> Подписаться на канал
-              </FlameButton>
-            )}
-          </div>
-        </GlassCard>
-      </div>
-    );
-  }
-
-  // Group preview overlay
-  if (previewGroup) {
-    return (
-      <div className="p-4 space-y-6">
-        <button onClick={() => setPreviewGroup(null)} className="text-sm text-primary hover:underline">← Назад к поиску</button>
-        <GlassCard className="p-6 text-center" glow>
-          <div className="flex flex-col items-center gap-4">
-            {previewGroup.avatar_url ? (
-              <img src={previewGroup.avatar_url} alt={previewGroup.name} className="w-20 h-20 rounded-2xl object-cover" />
-            ) : (
-              <div className="w-20 h-20 rounded-2xl bg-accent/20 flex items-center justify-center">
-                <Users className="w-10 h-10 text-accent" />
-              </div>
-            )}
-            <div>
-              <h2 className="text-xl font-bold">{previewGroup.name}</h2>
-              {previewGroup.handle && <p className="text-sm text-primary/70">@{previewGroup.handle}</p>}
-              <p className="text-sm text-muted-foreground mt-1">{previewMemberCount} участников</p>
-            </div>
-            {previewGroup.description && <p className="text-sm text-muted-foreground max-w-sm">{previewGroup.description}</p>}
-            {myGroups.has(previewGroup.id) ? (
-              <span className="text-sm text-muted-foreground px-4 py-2 rounded-full bg-muted/50">Вы уже участник</span>
-            ) : (
-              <FlameButton onClick={() => handleJoinGroup(previewGroup.id)} className="w-full max-w-xs">
-                <UserPlus className="w-4 h-4 mr-2" /> Вступить в группу
-              </FlameButton>
-            )}
-          </div>
-        </GlassCard>
-      </div>
-    );
-  }
 
   return (
     <div className="p-4 space-y-6">
@@ -238,7 +171,7 @@ export function SearchView({ searchQuery, onSearchChange, onStartChat, onViewPro
                         {channel.description && <p className="text-sm text-muted-foreground truncate">{channel.description}</p>}
                       </div>
                       <div className="flex items-center gap-2">
-                        <FlameButton size="sm" variant="outline" onClick={() => openChannelPreview(channel)}>
+                        <FlameButton size="sm" variant="outline" onClick={() => handleOpenChannelClick(channel)}>
                           <Eye className="w-4 h-4 mr-1" /> Открыть
                         </FlameButton>
                         {!myChannels.has(channel.id) && (
@@ -276,7 +209,7 @@ export function SearchView({ searchQuery, onSearchChange, onStartChat, onViewPro
                         {group.description && <p className="text-sm text-muted-foreground truncate">{group.description}</p>}
                       </div>
                       <div className="flex items-center gap-2">
-                        <FlameButton size="sm" variant="outline" onClick={() => openGroupPreview(group)}>
+                        <FlameButton size="sm" variant="outline" onClick={() => handleOpenGroupClick(group)}>
                           <Eye className="w-4 h-4 mr-1" /> Открыть
                         </FlameButton>
                         {!myGroups.has(group.id) && (

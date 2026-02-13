@@ -62,6 +62,8 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
   const [replyTo, setReplyTo] = useState<Message | null>(null);
   const [forwardMsg, setForwardMsg] = useState<Message | null>(null);
   const [forwardTargets, setForwardTargets] = useState<Conversation[]>([]);
+  const [partnerTyping, setPartnerTyping] = useState(false);
+  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { pendingUploads, startUpload, cancelUpload } = useMediaUpload();
 
@@ -144,6 +146,27 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
   }, [user, activeChat]);
 
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
+
+  // Typing indicator via broadcast
+  useEffect(() => {
+    if (!activeChat || !user) { setPartnerTyping(false); return; }
+    const chatId = [user.id, activeChat.id].sort().join("_");
+    const channel = supabase.channel(`typing-${chatId}`);
+    channel.on("broadcast", { event: "typing" }, (payload) => {
+      if (payload.payload?.userId === activeChat.id) {
+        setPartnerTyping(true);
+        if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+        typingTimeoutRef.current = setTimeout(() => setPartnerTyping(false), 3000);
+      }
+    }).subscribe();
+    return () => { supabase.removeChannel(channel); setPartnerTyping(false); };
+  }, [activeChat, user]);
+
+  const broadcastTyping = () => {
+    if (!activeChat || !user) return;
+    const chatId = [user.id, activeChat.id].sort().join("_");
+    supabase.channel(`typing-${chatId}`).send({ type: "broadcast", event: "typing", payload: { userId: user.id } });
+  };
 
   useEffect(() => {
     if (activeChat && user) { checkBlockStatus(activeChat.id); fetchHiddenMessages(); }
@@ -508,6 +531,16 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
           {pendingUploads.map(upload => (
             <UploadingBubble key={upload.id} upload={upload} onCancel={cancelUpload} />
           ))}
+          {partnerTyping && (
+            <div className="flex items-center gap-2 px-2 py-1">
+              <div className="flex gap-1.5">
+                <div className="w-2 h-2 rounded-full bg-primary typing-dot" />
+                <div className="w-2 h-2 rounded-full bg-primary typing-dot" />
+                <div className="w-2 h-2 rounded-full bg-primary typing-dot" />
+              </div>
+              <span className="text-xs text-muted-foreground">печатает...</span>
+            </div>
+          )}
           <div ref={messagesEndRef} />
         </div>
 
@@ -531,7 +564,7 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
             <FlameInput
               placeholder="Написать сообщение..."
               value={newMessage}
-              onChange={e => setNewMessage(e.target.value)}
+              onChange={e => { setNewMessage(e.target.value); broadcastTyping(); }}
               onKeyDown={e => e.key === "Enter" && sendMessage()}
               className="flex-1"
             />

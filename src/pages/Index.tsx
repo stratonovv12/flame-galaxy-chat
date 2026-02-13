@@ -21,6 +21,8 @@ const Index = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedChatUserId, setSelectedChatUserId] = useState<string | null>(null);
   const [viewingProfileUserId, setViewingProfileUserId] = useState<string | null>(null);
+  const [openGroupId, setOpenGroupId] = useState<string | null>(null);
+  const [openChannelId, setOpenChannelId] = useState<string | null>(null);
 
   if (loading) {
     return (
@@ -56,6 +58,18 @@ const Index = () => {
     setSearchQuery("");
   };
 
+  const handleOpenGroup = (groupId: string) => {
+    setOpenGroupId(groupId);
+    setActiveTab("groups");
+    setSearchQuery("");
+  };
+
+  const handleOpenChannel = (channelId: string) => {
+    setOpenChannelId(channelId);
+    setActiveTab("channels");
+    setSearchQuery("");
+  };
+
   const renderView = () => {
     if (viewingProfileUserId) {
       return (
@@ -69,9 +83,9 @@ const Index = () => {
 
     switch (activeTab) {
       case "channels":
-        return <ChannelsView onViewProfile={handleViewProfile} />;
+        return <ChannelsView onViewProfile={handleViewProfile} initialChannelId={openChannelId} onClearInitial={() => setOpenChannelId(null)} />;
       case "groups":
-        return <GroupsView onViewProfile={handleViewProfile} />;
+        return <GroupsView onViewProfile={handleViewProfile} initialGroupId={openGroupId} onClearInitial={() => setOpenGroupId(null)} />;
       case "messages":
         return (
           <DirectMessagesView
@@ -87,6 +101,8 @@ const Index = () => {
             onSearchChange={setSearchQuery}
             onStartChat={handleStartChat}
             onViewProfile={handleViewProfile}
+            onOpenChannel={handleOpenChannel}
+            onOpenGroup={handleOpenGroup}
           />
         );
       case "ai":

@@ -42,9 +42,11 @@ interface ChannelMember {
 
 interface ChannelsViewProps {
   onViewProfile?: (userId: string) => void;
+  initialChannelId?: string | null;
+  onClearInitial?: () => void;
 }
 
-export function ChannelsView({ onViewProfile }: ChannelsViewProps) {
+export function ChannelsView({ onViewProfile, initialChannelId, onClearInitial }: ChannelsViewProps) {
   const { user } = useAuth();
   const [channels, setChannels] = useState<Channel[]>([]);
   const [subscriberCounts, setSubscriberCounts] = useState<Record<string, number>>({});
@@ -68,6 +70,18 @@ export function ChannelsView({ onViewProfile }: ChannelsViewProps) {
   const [transferTarget, setTransferTarget] = useState<string | null>(null);
 
   useEffect(() => { fetchMyChannels(); }, [user]);
+
+  // Auto-open channel from search
+  useEffect(() => {
+    if (!initialChannelId) return;
+    const target = channels.find(c => c.id === initialChannelId);
+    if (target) {
+      setSelectedChannel(target);
+      onClearInitial?.();
+    } else if (channels.length > 0 || myChannelIds.size > 0) {
+      fetchMyChannels();
+    }
+  }, [initialChannelId, channels]);
 
   useEffect(() => {
     if (selectedChannel) {

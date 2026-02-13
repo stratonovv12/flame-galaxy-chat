@@ -49,9 +49,11 @@ interface GroupMember {
 
 interface GroupsViewProps {
   onViewProfile?: (userId: string) => void;
+  initialGroupId?: string | null;
+  onClearInitial?: () => void;
 }
 
-export function GroupsView({ onViewProfile }: GroupsViewProps) {
+export function GroupsView({ onViewProfile, initialGroupId, onClearInitial }: GroupsViewProps) {
   const { user } = useAuth();
   const [groups, setGroups] = useState<Group[]>([]);
   const [memberCounts, setMemberCounts] = useState<Record<string, number>>({});
@@ -77,6 +79,21 @@ export function GroupsView({ onViewProfile }: GroupsViewProps) {
   const [transferTarget, setTransferTarget] = useState<string | null>(null);
 
   useEffect(() => { fetchMyGroups(); }, [user]);
+
+  // Auto-open group from search
+  useEffect(() => {
+    if (!initialGroupId) return;
+    const target = groups.find(g => g.id === initialGroupId);
+    if (target) {
+      setSelectedGroup(target);
+      onClearInitial?.();
+    } else if (groups.length > 0 || myGroupIds.size > 0) {
+      // Group not in list yet, refetch (user may have just joined)
+      fetchMyGroups().then(() => {
+        // Will be caught by next render cycle
+      });
+    }
+  }, [initialGroupId, groups]);
 
   useEffect(() => {
     if (selectedGroup) {
@@ -160,6 +177,16 @@ export function GroupsView({ onViewProfile }: GroupsViewProps) {
       setGroupAdmins(prev => new Set([...prev, userId]));
       toast({ title: "Назначен администратором" });
     }
+  };
+
+  const kickMember = async (userId: string) => {
+    if (!selectedGroup || !user) return;
+    if (!confirm("Исключить этого участника из группы?")) return;
+    await supabase.from("group_members").delete().eq("group_id", selectedGroup.id).eq("user_id", userId);
+    await supabase.from("group_admins").delete().eq("group_id", selectedGroup.id).eq("user_id", userId);
+    setMembers(prev => prev.filter(m => m.user_id !== userId));
+    setGroupAdmins(prev => { const n = new Set(prev); n.delete(userId); return n; });
+    toast({ title: "Участник исключён" });
   };
 
   const transferOwnership = async () => {
@@ -318,7 +345,7 @@ export function GroupsView({ onViewProfile }: GroupsViewProps) {
               </GlassCard>
 
               <GlassCard className="p-4">
-                <h3 className="font-semibold mb-3 flex items-center gap-2"><ShieldCheck className="w-5 h-5 text-primary" />Администраторы</h3>
+                <h3 className="font-semibold mb-3 flex items-center gap-2"><ShieldCheck className="w-5 h-5 text-primary" />Управление участниками</h3>
                 <p className="text-sm text-muted-foreground mb-3">Администраторы могут удалять сообщения</p>
                 <div className="space-y-2">
                   {members.filter(m => m.user_id !== user?.id).map(m => (
@@ -326,8 +353,14 @@ export function GroupsView({ onViewProfile }: GroupsViewProps) {
                       <UserAvatar username={m.username} avatarUrl={m.avatar_url} size="sm" />
                       <span className="flex-1 text-sm font-medium">{m.username || "Пользователь"}</span>
                       <button onClick={() => toggleAdmin(m.user_id)}
-                        className={`p-2 rounded-lg transition-colors ${groupAdmins.has(m.user_id) ? "bg-primary/20 text-primary" : "hover:bg-muted/50 text-muted-foreground"}`}>
+                        className={`p-2 rounded-lg transition-colors ${groupAdmins.has(m.user_id) ? "bg-primary/20 text-primary" : "hover:bg-muted/50 text-muted-foreground"}`}
+                        title={groupAdmins.has(m.user_id) ? "Снять админа" : "Назначить админом"}>
                         <ShieldCheck className="w-4 h-4" />
+                      </button>
+                      <button onClick={() => kickMember(m.user_id)}
+                        className="p-2 rounded-lg transition-colors hover:bg-destructive/20 text-muted-foreground hover:text-destructive"
+                        title="Исключить">
+                        <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
                   ))}
