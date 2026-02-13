@@ -7,6 +7,49 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const VALID_ROLES = new Set(["user", "assistant", "system"]);
+const VALID_MODES = new Set(["chat", "image_gen"]);
+const MAX_CONTENT_LENGTH = 10000;
+const MAX_MESSAGES = 50;
+const MAX_IMAGES = 10;
+
+function validateMessages(messages: unknown): { valid: boolean; error?: string } {
+  if (!Array.isArray(messages) || messages.length === 0) {
+    return { valid: false, error: "Messages must be a non-empty array" };
+  }
+  if (messages.length > MAX_MESSAGES) {
+    return { valid: false, error: `Too many messages (max ${MAX_MESSAGES})` };
+  }
+  for (let i = 0; i < messages.length; i++) {
+    const msg = messages[i];
+    if (typeof msg !== "object" || msg === null) {
+      return { valid: false, error: `Message at index ${i} must be an object` };
+    }
+    if (!VALID_ROLES.has(msg.role)) {
+      return { valid: false, error: `Invalid role "${msg.role}" at index ${i}. Must be user, assistant, or system` };
+    }
+    if (typeof msg.content !== "string" || msg.content.length === 0) {
+      return { valid: false, error: `Message content at index ${i} must be a non-empty string` };
+    }
+    if (msg.content.length > MAX_CONTENT_LENGTH) {
+      return { valid: false, error: `Message content at index ${i} exceeds ${MAX_CONTENT_LENGTH} characters` };
+    }
+  }
+  return { valid: true };
+}
+
+function validateImages(images: unknown): { valid: boolean; error?: string } {
+  if (images === undefined || images === null) return { valid: true };
+  if (!Array.isArray(images)) return { valid: false, error: "Images must be an array" };
+  if (images.length > MAX_IMAGES) return { valid: false, error: `Too many images (max ${MAX_IMAGES})` };
+  for (let i = 0; i < images.length; i++) {
+    if (typeof images[i] !== "string") {
+      return { valid: false, error: `Image at index ${i} must be a string URL` };
+    }
+  }
+  return { valid: true };
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -20,7 +63,6 @@ serve(async (req) => {
       });
     }
 
-    // Verify JWT and get user
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_ANON_KEY") ?? "",
@@ -37,7 +79,6 @@ serve(async (req) => {
 
     const userId = claimsData.claims.sub;
 
-    // Check if user is banned
     const { data: ban } = await supabase
       .from("banned_users")
       .select("id")
@@ -50,26 +91,56 @@ serve(async (req) => {
       });
     }
 
-    const { messages, images, mode } = await req.json();
+    let body: unknown;
+    try {
+      body = await req.json();
+    } catch {
+      return new Response(JSON.stringify({ error: "Invalid JSON body" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
-    if (!Array.isArray(messages) || messages.length === 0) {
-      return new Response(JSON.stringify({ error: "Messages must be a non-empty array" }), {
+    if (typeof body !== "object" || body === null) {
+      return new Response(JSON.stringify({ error: "Request body must be an object" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    if (messages.length > 50) {
-      return new Response(JSON.stringify({ error: "Too many messages (max 50)" }), {
+
+    const { messages, images, mode } = body as Record<string, unknown>;
+
+    // Validate mode
+    if (mode !== undefined && (typeof mode !== "string" || !VALID_MODES.has(mode))) {
+      return new Response(JSON.stringify({ error: `Invalid mode. Must be one of: ${[...VALID_MODES].join(", ")}` }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    // Validate messages
+    const msgValidation = validateMessages(messages);
+    if (!msgValidation.valid) {
+      return new Response(JSON.stringify({ error: msgValidation.error }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Validate images
+    const imgValidation = validateImages(images);
+    if (!imgValidation.valid) {
+      return new Response(JSON.stringify({ error: imgValidation.error }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const validatedMessages = messages as Array<{ role: string; content: string }>;
+    const validatedImages = (images as string[] | undefined) || [];
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+    if (!LOVABLE_API_KEY) throw new Error("Server configuration error");
 
     // Image generation mode
     if (mode === "image_gen") {
-      const lastUserMsg = messages[messages.length - 1];
-      const prompt = typeof lastUserMsg === "object" ? lastUserMsg.content : lastUserMsg;
+      const lastUserMsg = validatedMessages[validatedMessages.length - 1];
+      const prompt = lastUserMsg.content;
 
       const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
@@ -88,7 +159,7 @@ serve(async (req) => {
         const status = response.status;
         if (status === 429) return new Response(JSON.stringify({ error: "Rate limited" }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
         if (status === 402) return new Response(JSON.stringify({ error: "Payment required" }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-        return new Response(JSON.stringify({ error: "AI gateway error" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        return new Response(JSON.stringify({ error: "Service temporarily unavailable" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
 
       const data = await response.json();
@@ -120,14 +191,12 @@ serve(async (req) => {
 - Выделяй важное жирным или курсивом`,
     };
 
-    // Build the final messages, handling image attachments on the last user message
-    const finalMessages: any[] = [systemMessage];
+    const finalMessages: Array<{ role: string; content: unknown }> = [systemMessage];
 
-    for (const msg of messages) {
-      if (msg.role === "user" && images && images.length > 0 && msg === messages[messages.length - 1]) {
-        // Multimodal message with images
-        const content: any[] = [{ type: "text", text: msg.content }];
-        for (const img of images) {
+    for (const msg of validatedMessages) {
+      if (msg.role === "user" && validatedImages.length > 0 && msg === validatedMessages[validatedMessages.length - 1]) {
+        const content: Array<{ type: string; text?: string; image_url?: { url: string } }> = [{ type: "text", text: msg.content }];
+        for (const img of validatedImages) {
           content.push({ type: "image_url", image_url: { url: img } });
         }
         finalMessages.push({ role: "user", content });
@@ -150,11 +219,10 @@ serve(async (req) => {
     });
 
     if (!response.ok) {
-      if (response.status === 429) return new Response(JSON.stringify({ error: "Rate limits exceeded" }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      if (response.status === 429) return new Response(JSON.stringify({ error: "Rate limited" }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       if (response.status === 402) return new Response(JSON.stringify({ error: "Payment required" }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      const errorText = await response.text();
-      console.error("AI gateway error:", response.status, errorText);
-      return new Response(JSON.stringify({ error: "AI gateway error" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      console.error("AI gateway error:", response.status);
+      return new Response(JSON.stringify({ error: "Service temporarily unavailable" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     return new Response(response.body, {
@@ -162,7 +230,7 @@ serve(async (req) => {
     });
   } catch (error) {
     console.error("FLAME AI error:", error);
-    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }), {
+    return new Response(JSON.stringify({ error: "An unexpected error occurred" }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
