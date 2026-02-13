@@ -49,6 +49,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
+  // Real-time ban listener — instant redirect on ban
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase
+      .channel("ban-listener")
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "banned_users",
+          filter: `user_id=eq.${user.id}`,
+        },
+        async () => {
+          setIsBanned(true);
+          await supabase.auth.signOut();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user]);
+
   const checkUserStatus = async (userId: string) => {
     const [{ data: roles }, { data: ban }] = await Promise.all([
       supabase.from("user_roles").select("role").eq("user_id", userId),
@@ -70,7 +96,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signIn = async (email: string, password: string) => {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (!error && data.user) {
-      // Check ban after login
       const { data: ban } = await supabase.from("banned_users").select("id").eq("user_id", data.user.id).maybeSingle();
       if (ban) {
         await supabase.auth.signOut();
