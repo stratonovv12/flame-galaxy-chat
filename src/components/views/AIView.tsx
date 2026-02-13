@@ -241,11 +241,11 @@ export function AIView() {
     }
   };
 
-  // Thinking animation component
+  // Thinking animation component with pulsing
   const ThinkingIndicator = () => (
     <div className="flex gap-3 justify-start">
-      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center shrink-0">
-        <Brain className="w-4 h-4 text-primary-foreground animate-pulse" />
+      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center shrink-0 animate-ai-pulse">
+        <Brain className="w-4 h-4 text-primary-foreground" />
       </div>
       <GlassCard className="p-3 max-w-[80%]">
         {isImageGen ? (
@@ -259,10 +259,10 @@ export function AIView() {
           </div>
         ) : (
           <div className="flex items-center gap-2">
-            <div className="flex gap-1">
-              <div className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: "0ms" }} />
-              <div className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: "150ms" }} />
-              <div className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: "300ms" }} />
+            <div className="flex gap-1.5">
+              <div className="w-2 h-2 rounded-full bg-primary typing-dot" />
+              <div className="w-2 h-2 rounded-full bg-primary typing-dot" />
+              <div className="w-2 h-2 rounded-full bg-primary typing-dot" />
             </div>
             <span className="text-sm text-muted-foreground">Думаю...</span>
           </div>
