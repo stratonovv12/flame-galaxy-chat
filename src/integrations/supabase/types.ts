@@ -663,9 +663,27 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      banned_users_check: {
+        Row: {
+          created_at: string | null
+          id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
+      check_user_banned: { Args: { _user_id: string }; Returns: boolean }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
