@@ -4,7 +4,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { FlameButton } from "@/components/ui/FlameButton";
 import { FlameInput } from "@/components/ui/FlameInput";
-import { Sparkles, Send, Bot, User, Trash2, Plus, Image, MessageSquare, Menu, X } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import { Sparkles, Send, Bot, User, Trash2, Plus, Image, MessageSquare, Menu, X, Brain } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import ReactMarkdown from "react-markdown";
 
@@ -27,6 +28,8 @@ export function AIView() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isImageGen, setIsImageGen] = useState(false);
+  const [imageProgress, setImageProgress] = useState(0);
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
   const [topics, setTopics] = useState<Topic[]>([]);
   const [activeTopic, setActiveTopic] = useState<Topic | null>(null);
@@ -47,15 +50,24 @@ export function AIView() {
     else setMessages([]);
   }, [activeTopic]);
 
+  // Fake image progress animation
+  useEffect(() => {
+    if (!isImageGen) { setImageProgress(0); return; }
+    const interval = setInterval(() => {
+      setImageProgress(prev => {
+        if (prev >= 90) return 90; // Hold at 90% until done
+        return prev + Math.random() * 8;
+      });
+    }, 500);
+    return () => clearInterval(interval);
+  }, [isImageGen]);
+
   const loadTopics = async () => {
     if (!user) return;
     const { data } = await supabase
-      .from("ai_topics")
-      .select("*")
-      .eq("user_id", user.id)
+      .from("ai_topics").select("*").eq("user_id", user.id)
       .order("updated_at", { ascending: false });
     setTopics(data || []);
-    // Auto-select most recent if exists
     if (data && data.length > 0 && !activeTopic) {
       setActiveTopic(data[0]);
     }
@@ -65,21 +77,20 @@ export function AIView() {
   const loadMessages = async (topicId: string) => {
     if (!user) return;
     const { data } = await supabase
-      .from("ai_conversations")
-      .select("id, role, content")
-      .eq("user_id", user.id)
-      .eq("topic_id", topicId)
+      .from("ai_conversations").select("id, role, content")
+      .eq("user_id", user.id).eq("topic_id", topicId)
       .order("created_at", { ascending: true });
-    setMessages(data?.map(m => ({ id: m.id, role: m.role as "user" | "assistant", content: m.content })) || []);
+    setMessages(data?.map(m => ({
+      id: m.id, role: m.role as "user" | "assistant",
+      content: m.content,
+      imageUrl: m.content.match(/!\[image\]\((.*?)\)/)?.[1],
+    })) || []);
   };
 
   const createNewTopic = async () => {
     if (!user) return;
-    const { data, error } = await supabase
-      .from("ai_topics")
-      .insert({ user_id: user.id, title: "Новый чат" })
-      .select()
-      .single();
+    const { data } = await supabase
+      .from("ai_topics").insert({ user_id: user.id, title: "Новый чат" }).select().single();
     if (data) {
       setTopics(prev => [data, ...prev]);
       setActiveTopic(data);
@@ -91,19 +102,13 @@ export function AIView() {
   const deleteTopic = async (topicId: string) => {
     await supabase.from("ai_topics").delete().eq("id", topicId);
     setTopics(prev => prev.filter(t => t.id !== topicId));
-    if (activeTopic?.id === topicId) {
-      setActiveTopic(null);
-      setMessages([]);
-    }
+    if (activeTopic?.id === topicId) { setActiveTopic(null); setMessages([]); }
   };
 
   const saveMessage = async (role: "user" | "assistant", content: string, topicId: string) => {
     if (!user) return null;
     const { data } = await supabase
-      .from("ai_conversations")
-      .insert({ user_id: user.id, role, content, topic_id: topicId })
-      .select("id")
-      .single();
+      .from("ai_conversations").insert({ user_id: user.id, role, content, topic_id: topicId }).select("id").single();
     return data?.id;
   };
 
@@ -123,18 +128,10 @@ export function AIView() {
     if ((!input.trim() && !attachedImage) || isLoading) return;
 
     let topic = activeTopic;
-    // Auto-create topic if none selected
     if (!topic && user) {
       const { data } = await supabase
-        .from("ai_topics")
-        .insert({ user_id: user.id, title: input.trim().slice(0, 50) || "Новый чат" })
-        .select()
-        .single();
-      if (data) {
-        topic = data;
-        setTopics(prev => [data, ...prev]);
-        setActiveTopic(data);
-      }
+        .from("ai_topics").insert({ user_id: user.id, title: input.trim().slice(0, 50) || "Новый чат" }).select().single();
+      if (data) { topic = data; setTopics(prev => [data, ...prev]); setActiveTopic(data); }
     }
     if (!topic) return;
 
@@ -151,24 +148,22 @@ export function AIView() {
     const savedUserId = await saveMessage("user", userContent, topic.id);
     if (savedUserId) setMessages(prev => prev.map(m => m.id === tempUserId ? { ...m, id: savedUserId } : m));
 
-    // Update topic title from first message
     if (messages.length === 0 && userContent.length > 2) {
       await supabase.from("ai_topics").update({ title: userContent.slice(0, 60) }).eq("id", topic.id);
       setTopics(prev => prev.map(t => t.id === topic!.id ? { ...t, title: userContent.slice(0, 60) } : t));
     }
 
-    // Check if image generation is requested
-    const isImageGen = /(?:сгенерируй|нарисуй|создай|generate|draw|make).{0,20}(?:картинк|изображени|фото|image|picture|рисунок)/i.test(userContent);
+    const isImgGen = /(?:сгенерируй|нарисуй|создай|generate|draw|make).{0,20}(?:картинк|изображени|фото|image|picture|рисунок)/i.test(userContent);
+    setIsImageGen(isImgGen);
 
     const tempAssistantId = (Date.now() + 1).toString();
-    setMessages(prev => [...prev, { id: tempAssistantId, role: "assistant", content: isImageGen ? "🎨 Генерирую изображение..." : "" }]);
+    setMessages(prev => [...prev, { id: tempAssistantId, role: "assistant", content: "" }]);
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) throw new Error("Необходимо войти в аккаунт");
 
-      if (isImageGen) {
-        // Non-streaming image generation
+      if (isImgGen) {
         const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/flame-ai`, {
           method: "POST",
           headers: {
@@ -181,20 +176,15 @@ export function AIView() {
             mode: "image_gen",
           }),
         });
-
         if (!response.ok) throw new Error("Ошибка генерации");
         const result = await response.json();
+        setImageProgress(100);
         const assistantContent = result.text || "Вот сгенерированное изображение:";
-
         setMessages(prev => prev.map(m => m.id === tempAssistantId ? { ...m, content: assistantContent, imageUrl: result.imageUrl } : m));
         await saveMessage("assistant", assistantContent + (result.imageUrl ? `\n![image](${result.imageUrl})` : ""), topic.id);
       } else {
-        // Streaming text response (with optional vision)
-        const body: any = {
-          messages: [...messages, userMessage].map(m => ({ role: m.role, content: m.content })),
-        };
+        const body: any = { messages: [...messages, userMessage].map(m => ({ role: m.role, content: m.content })) };
         if (currentImage) body.images = [currentImage];
-
         const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/flame-ai`, {
           method: "POST",
           headers: {
@@ -204,24 +194,20 @@ export function AIView() {
           },
           body: JSON.stringify(body),
         });
-
         if (!response.ok) {
           if (response.status === 429) throw new Error("Превышен лимит запросов");
           if (response.status === 402) throw new Error("Закончились кредиты AI");
           throw new Error("Ошибка сервера");
         }
-
         const reader = response.body?.getReader();
         if (!reader) throw new Error("No response body");
         const decoder = new TextDecoder();
         let textBuffer = "";
         let assistantContent = "";
-
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
           textBuffer += decoder.decode(value, { stream: true });
-
           let newlineIndex: number;
           while ((newlineIndex = textBuffer.indexOf("\n")) !== -1) {
             let line = textBuffer.slice(0, newlineIndex);
@@ -244,7 +230,6 @@ export function AIView() {
             }
           }
         }
-
         if (assistantContent) await saveMessage("assistant", assistantContent, topic.id);
       }
     } catch (error) {
@@ -252,8 +237,39 @@ export function AIView() {
       setMessages(prev => prev.filter(m => m.id !== tempAssistantId));
     } finally {
       setIsLoading(false);
+      setIsImageGen(false);
     }
   };
+
+  // Thinking animation component
+  const ThinkingIndicator = () => (
+    <div className="flex gap-3 justify-start">
+      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center shrink-0">
+        <Brain className="w-4 h-4 text-primary-foreground animate-pulse" />
+      </div>
+      <GlassCard className="p-3 max-w-[80%]">
+        {isImageGen ? (
+          <div className="space-y-2 min-w-[200px]">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-primary animate-spin" />
+              <span className="text-sm text-primary font-medium">Генерация изображения...</span>
+            </div>
+            <Progress value={imageProgress} className="h-2" />
+            <p className="text-xs text-muted-foreground">{Math.round(imageProgress)}%</p>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2">
+            <div className="flex gap-1">
+              <div className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: "0ms" }} />
+              <div className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: "150ms" }} />
+              <div className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: "300ms" }} />
+            </div>
+            <span className="text-sm text-muted-foreground">Думаю...</span>
+          </div>
+        )}
+      </GlassCard>
+    </div>
+  );
 
   return (
     <div className="flex h-full relative">
@@ -308,7 +324,7 @@ export function AIView() {
               <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
               <p className="text-muted-foreground mt-4">Загрузка...</p>
             </div>
-          ) : messages.length === 0 ? (
+          ) : messages.length === 0 && !isLoading ? (
             <div className="text-center py-12">
               <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center neon-glow animate-float">
                 <Sparkles className="w-10 h-10 text-primary-foreground" />
@@ -326,37 +342,43 @@ export function AIView() {
               </div>
             </div>
           ) : (
-            messages.map(message => (
-              <div key={message.id} className={`flex gap-3 ${message.role === "user" ? "justify-end" : "justify-start"}`}>
-                {message.role === "assistant" && (
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center shrink-0">
-                    <Bot className="w-4 h-4 text-primary-foreground" />
+            <>
+              {messages.map(message => {
+                // Skip empty assistant messages when loading (they're shown as ThinkingIndicator)
+                if (message.role === "assistant" && !message.content && isLoading) return null;
+                return (
+                  <div key={message.id} className={`flex gap-3 ${message.role === "user" ? "justify-end" : "justify-start"}`}>
+                    {message.role === "assistant" && (
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center shrink-0">
+                        <Bot className="w-4 h-4 text-primary-foreground" />
+                      </div>
+                    )}
+                    <GlassCard className={`max-w-[80%] p-3 ${message.role === "user" ? "bg-primary/20 border-primary/30" : ""}`}>
+                      {message.imageUrl && (
+                        <img src={message.imageUrl} alt="" className="max-h-64 rounded-lg object-cover mb-2" />
+                      )}
+                      {message.role === "assistant" ? (
+                        <div className="prose prose-sm prose-invert max-w-none">
+                          <ReactMarkdown>{message.content || "..."}</ReactMarkdown>
+                        </div>
+                      ) : (
+                        <p className="text-sm">{message.content}</p>
+                      )}
+                    </GlassCard>
+                    {message.role === "user" && (
+                      <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center shrink-0">
+                        <User className="w-4 h-4" />
+                      </div>
+                    )}
                   </div>
-                )}
-                <GlassCard className={`max-w-[80%] p-3 ${message.role === "user" ? "bg-primary/20 border-primary/30" : ""}`}>
-                  {message.imageUrl && (
-                    <img src={message.imageUrl} alt="" className="max-h-64 rounded-lg object-cover mb-2" />
-                  )}
-                  {message.role === "assistant" ? (
-                    <div className="prose prose-sm prose-invert max-w-none">
-                      <ReactMarkdown>{message.content || "..."}</ReactMarkdown>
-                    </div>
-                  ) : (
-                    <p className="text-sm">{message.content}</p>
-                  )}
-                </GlassCard>
-                {message.role === "user" && (
-                  <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center shrink-0">
-                    <User className="w-4 h-4" />
-                  </div>
-                )}
-              </div>
-            ))
+                );
+              })}
+              {isLoading && <ThinkingIndicator />}
+            </>
           )}
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Attached image preview */}
         {attachedImage && (
           <div className="px-4 pb-2">
             <div className="relative inline-block">
@@ -389,7 +411,6 @@ export function AIView() {
         </div>
       </div>
 
-      {/* Overlay when sidebar open */}
       {sidebarOpen && <div className="absolute inset-0 z-20 bg-background/50" onClick={() => setSidebarOpen(false)} />}
     </div>
   );

@@ -13,8 +13,7 @@ const Auth = () => {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [banned, setBanned] = useState(false);
-  const { signIn, signUp } = useAuth();
+  const { signIn, signUp, isBanned } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -34,7 +33,7 @@ const Auth = () => {
         const { error } = await signIn(email, password);
         if (error) {
           if (error.message === "ACCOUNT_BANNED") {
-            setBanned(true);
+            // isBanned is set via context, will show banned screen
             return;
           }
           if (error.message.includes("Invalid login")) {
@@ -65,7 +64,8 @@ const Auth = () => {
     }
   };
 
-  if (banned) {
+  // Show banned screen if user was banned (real-time or on login)
+  if (isBanned) {
     return (
       <div className="min-h-screen cosmic-bg flex items-center justify-center p-4">
         <GlassCard className="w-full max-w-md p-8 text-center">

@@ -13,6 +13,7 @@ import { toast } from "@/hooks/use-toast";
 
 export function ProfileView() {
   const { user, signOut, isAdmin } = useAuth();
+  const [displayName, setDisplayName] = useState("");
   const [username, setUsername] = useState("");
   const [bio, setBio] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
@@ -26,9 +27,10 @@ export function ProfileView() {
   const fetchProfile = async () => {
     if (!user) return;
     setLoading(true);
-    const { data, error } = await supabase.from("profiles").select("username, avatar_url, bio").eq("user_id", user.id).maybeSingle();
+    const { data, error } = await supabase.from("profiles").select("username, display_name, avatar_url, bio").eq("user_id", user.id).maybeSingle();
     if (data) {
       setUsername(data.username || "");
+      setDisplayName(data.display_name || "");
       setAvatarUrl(data.avatar_url || "");
       setBio(data.bio || "");
     } else if (!error) {
@@ -37,13 +39,13 @@ export function ProfileView() {
     setLoading(false);
   };
 
-  const autoSave = useCallback(async (fields: { username?: string; bio?: string; avatar_url?: string }) => {
+  const autoSave = useCallback(async (fields: { username?: string; display_name?: string; bio?: string; avatar_url?: string }) => {
     if (!user) return;
     if (fields.username !== undefined) {
       const cleanName = fields.username.replace(/^@/, "").trim();
       if (cleanName) {
         const { data: existing } = await supabase.from("profiles").select("user_id").eq("username", cleanName).neq("user_id", user.id).maybeSingle();
-        if (existing) { setUsernameError("Это имя уже занято"); return; }
+        if (existing) { setUsernameError("Этот @username уже занят"); return; }
       }
       setUsernameError("");
       fields.username = cleanName;
@@ -52,11 +54,12 @@ export function ProfileView() {
     if (error) toast({ title: "Ошибка", description: "Не удалось сохранить", variant: "destructive" });
   }, [user]);
 
-  const debouncedSave = useCallback((fields: { username?: string; bio?: string; avatar_url?: string }) => {
+  const debouncedSave = useCallback((fields: { username?: string; display_name?: string; bio?: string; avatar_url?: string }) => {
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => autoSave(fields), 800);
   }, [autoSave]);
 
+  const handleDisplayNameChange = (val: string) => { setDisplayName(val); debouncedSave({ display_name: val }); };
   const handleUsernameChange = (val: string) => { setUsername(val); setUsernameError(""); debouncedSave({ username: val }); };
   const handleBioChange = (val: string) => { setBio(val); debouncedSave({ bio: val }); };
   const handleAvatarUpload = (url: string) => { setAvatarUrl(url); autoSave({ avatar_url: url || null }); };
@@ -79,9 +82,9 @@ export function ProfileView() {
       <GlassCard className="p-6" glow>
         <div className="flex flex-col items-center mb-6">
           <AvatarUpload currentUrl={avatarUrl} onUpload={handleAvatarUpload} />
-          {username && (
+          {(displayName || username) && (
             <div className="flex items-center gap-1.5 mt-4">
-              <h3 className="text-lg font-semibold">{username}</h3>
+              <h3 className="text-lg font-semibold">{displayName || username}</h3>
               {user && <UserBadge userId={user.id} />}
             </div>
           )}
@@ -92,7 +95,8 @@ export function ProfileView() {
         </div>
 
         <div className="space-y-4">
-          <FlameInput label="Имя пользователя (@handle)" placeholder="Введите уникальное имя..." value={username} onChange={e => handleUsernameChange(e.target.value)} disabled={loading} error={usernameError} />
+          <FlameInput label="Отображаемое имя" placeholder="Как вас зовут?" value={displayName} onChange={e => handleDisplayNameChange(e.target.value)} disabled={loading} />
+          <FlameInput label="@Username (уникальный)" placeholder="unique_handle" value={username} onChange={e => handleUsernameChange(e.target.value)} disabled={loading} error={usernameError} />
           <div className="w-full">
             <label className="block text-sm font-medium text-foreground/80 mb-2">О себе</label>
             <textarea className="w-full touch-target px-4 py-3 rounded-lg bg-input border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all duration-200 resize-none" placeholder="Расскажите о себе..." rows={3} value={bio} onChange={e => handleBioChange(e.target.value)} disabled={loading} />

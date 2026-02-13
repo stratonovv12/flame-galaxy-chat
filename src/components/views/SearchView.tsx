@@ -6,7 +6,7 @@ import { FlameInput } from "@/components/ui/FlameInput";
 import { FlameButton } from "@/components/ui/FlameButton";
 import { UserAvatar } from "@/components/ui/UserAvatar";
 import { UserBadge } from "@/components/ui/UserBadge";
-import { Search, Hash, MessageCircle, User, Users, ChevronRight, UserPlus, LogIn } from "lucide-react";
+import { Search, Hash, MessageCircle, User, Users, ChevronRight, UserPlus, LogIn, Eye } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 interface Channel {
@@ -14,6 +14,7 @@ interface Channel {
   name: string;
   description: string | null;
   handle: string | null;
+  avatar_url: string | null;
 }
 
 interface Group {
@@ -21,11 +22,13 @@ interface Group {
   name: string;
   description: string | null;
   handle: string | null;
+  avatar_url: string | null;
 }
 
 interface Profile {
   id: string;
   username: string | null;
+  display_name: string | null;
   user_id: string;
   avatar_url: string | null;
 }
@@ -37,9 +40,11 @@ interface SearchViewProps {
   onViewProfile?: (userId: string) => void;
   onJoinGroup?: (groupId: string) => void;
   onSubscribeChannel?: (channelId: string) => void;
+  onOpenChannel?: (channelId: string) => void;
+  onOpenGroup?: (groupId: string) => void;
 }
 
-export function SearchView({ searchQuery, onSearchChange, onStartChat, onViewProfile }: SearchViewProps) {
+export function SearchView({ searchQuery, onSearchChange, onStartChat, onViewProfile, onOpenChannel, onOpenGroup }: SearchViewProps) {
   const { user } = useAuth();
   const [channels, setChannels] = useState<Channel[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
@@ -47,6 +52,11 @@ export function SearchView({ searchQuery, onSearchChange, onStartChat, onViewPro
   const [myGroups, setMyGroups] = useState<Set<string>>(new Set());
   const [myChannels, setMyChannels] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
+
+  // Channel/Group preview state
+  const [previewChannel, setPreviewChannel] = useState<Channel | null>(null);
+  const [previewGroup, setPreviewGroup] = useState<Group | null>(null);
+  const [previewMemberCount, setPreviewMemberCount] = useState(0);
 
   useEffect(() => {
     if (user) fetchMemberships();
@@ -74,12 +84,12 @@ export function SearchView({ searchQuery, onSearchChange, onStartChat, onViewPro
     const cleanQuery = escapePattern(query.replace(/^@/, ""));
     if (cleanQuery.length < 2) { setChannels([]); setGroups([]); setProfiles([]); setLoading(false); return; }
     const [channelsResult, groupsResult, profilesResult] = await Promise.all([
-      supabase.from("channels").select("id, name, description, handle")
+      supabase.from("channels").select("id, name, description, handle, avatar_url")
         .or(`name.ilike.%${cleanQuery}%,handle.ilike.%${cleanQuery}%`).limit(10),
-      supabase.from("groups").select("id, name, description, handle")
+      supabase.from("groups").select("id, name, description, handle, avatar_url")
         .or(`name.ilike.%${cleanQuery}%,handle.ilike.%${cleanQuery}%`).limit(10),
-      supabase.from("profiles").select("id, username, user_id, avatar_url")
-        .ilike("username", `%${cleanQuery}%`).limit(10),
+      supabase.from("profiles").select("id, username, display_name, user_id, avatar_url")
+        .or(`username.ilike.%${cleanQuery}%,display_name.ilike.%${cleanQuery}%`).limit(10),
     ]);
     setChannels(channelsResult.data || []);
     setGroups(groupsResult.data || []);
@@ -92,6 +102,7 @@ export function SearchView({ searchQuery, onSearchChange, onStartChat, onViewPro
     await supabase.from("group_members").upsert({ group_id: groupId, user_id: user.id }, { onConflict: "group_id,user_id" });
     setMyGroups(prev => new Set([...prev, groupId]));
     toast({ title: "Вы вступили в группу!" });
+    setPreviewGroup(null);
   };
 
   const handleSubscribeChannel = async (channelId: string) => {
@@ -99,7 +110,86 @@ export function SearchView({ searchQuery, onSearchChange, onStartChat, onViewPro
     await supabase.from("channel_subscribers").upsert({ channel_id: channelId, user_id: user.id }, { onConflict: "channel_id,user_id" });
     setMyChannels(prev => new Set([...prev, channelId]));
     toast({ title: "Вы подписались на канал!" });
+    setPreviewChannel(null);
   };
+
+  const openChannelPreview = async (channel: Channel) => {
+    const { count } = await supabase.from("channel_subscribers").select("*", { count: "exact", head: true }).eq("channel_id", channel.id);
+    setPreviewMemberCount(count || 0);
+    setPreviewChannel(channel);
+  };
+
+  const openGroupPreview = async (group: Group) => {
+    const { count } = await supabase.from("group_members").select("*", { count: "exact", head: true }).eq("group_id", group.id);
+    setPreviewMemberCount(count || 0);
+    setPreviewGroup(group);
+  };
+
+  // Channel preview overlay
+  if (previewChannel) {
+    return (
+      <div className="p-4 space-y-6">
+        <button onClick={() => setPreviewChannel(null)} className="text-sm text-primary hover:underline">← Назад к поиску</button>
+        <GlassCard className="p-6 text-center" glow>
+          <div className="flex flex-col items-center gap-4">
+            {previewChannel.avatar_url ? (
+              <img src={previewChannel.avatar_url} alt={previewChannel.name} className="w-20 h-20 rounded-2xl object-cover" />
+            ) : (
+              <div className="w-20 h-20 rounded-2xl bg-primary/20 flex items-center justify-center">
+                <Hash className="w-10 h-10 text-primary" />
+              </div>
+            )}
+            <div>
+              <h2 className="text-xl font-bold">{previewChannel.name}</h2>
+              {previewChannel.handle && <p className="text-sm text-primary/70">@{previewChannel.handle}</p>}
+              <p className="text-sm text-muted-foreground mt-1">{previewMemberCount} подписчиков</p>
+            </div>
+            {previewChannel.description && <p className="text-sm text-muted-foreground max-w-sm">{previewChannel.description}</p>}
+            {myChannels.has(previewChannel.id) ? (
+              <span className="text-sm text-muted-foreground px-4 py-2 rounded-full bg-muted/50">Вы уже подписаны</span>
+            ) : (
+              <FlameButton onClick={() => handleSubscribeChannel(previewChannel.id)} className="w-full max-w-xs">
+                <LogIn className="w-4 h-4 mr-2" /> Подписаться на канал
+              </FlameButton>
+            )}
+          </div>
+        </GlassCard>
+      </div>
+    );
+  }
+
+  // Group preview overlay
+  if (previewGroup) {
+    return (
+      <div className="p-4 space-y-6">
+        <button onClick={() => setPreviewGroup(null)} className="text-sm text-primary hover:underline">← Назад к поиску</button>
+        <GlassCard className="p-6 text-center" glow>
+          <div className="flex flex-col items-center gap-4">
+            {previewGroup.avatar_url ? (
+              <img src={previewGroup.avatar_url} alt={previewGroup.name} className="w-20 h-20 rounded-2xl object-cover" />
+            ) : (
+              <div className="w-20 h-20 rounded-2xl bg-accent/20 flex items-center justify-center">
+                <Users className="w-10 h-10 text-accent" />
+              </div>
+            )}
+            <div>
+              <h2 className="text-xl font-bold">{previewGroup.name}</h2>
+              {previewGroup.handle && <p className="text-sm text-primary/70">@{previewGroup.handle}</p>}
+              <p className="text-sm text-muted-foreground mt-1">{previewMemberCount} участников</p>
+            </div>
+            {previewGroup.description && <p className="text-sm text-muted-foreground max-w-sm">{previewGroup.description}</p>}
+            {myGroups.has(previewGroup.id) ? (
+              <span className="text-sm text-muted-foreground px-4 py-2 rounded-full bg-muted/50">Вы уже участник</span>
+            ) : (
+              <FlameButton onClick={() => handleJoinGroup(previewGroup.id)} className="w-full max-w-xs">
+                <UserPlus className="w-4 h-4 mr-2" /> Вступить в группу
+              </FlameButton>
+            )}
+          </div>
+        </GlassCard>
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 space-y-6">
@@ -135,21 +225,28 @@ export function SearchView({ searchQuery, onSearchChange, onStartChat, onViewPro
                 {channels.map(channel => (
                   <GlassCard key={channel.id} className="p-4 hover:border-primary/50 transition-colors">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center">
-                        <Hash className="w-5 h-5 text-primary" />
-                      </div>
+                      {channel.avatar_url ? (
+                        <img src={channel.avatar_url} alt={channel.name} className="w-10 h-10 rounded-xl object-cover" />
+                      ) : (
+                        <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center">
+                          <Hash className="w-5 h-5 text-primary" />
+                        </div>
+                      )}
                       <div className="flex-1">
                         <h4 className="font-medium">{channel.name}</h4>
                         {channel.handle && <p className="text-xs text-primary/70">@{channel.handle}</p>}
                         {channel.description && <p className="text-sm text-muted-foreground truncate">{channel.description}</p>}
                       </div>
-                      {myChannels.has(channel.id) ? (
-                        <span className="text-xs text-muted-foreground px-2 py-1 rounded-full bg-muted/50">Подписан</span>
-                      ) : (
-                        <FlameButton size="sm" onClick={() => handleSubscribeChannel(channel.id)}>
-                          <LogIn className="w-4 h-4 mr-1" /> Подписаться
+                      <div className="flex items-center gap-2">
+                        <FlameButton size="sm" variant="outline" onClick={() => openChannelPreview(channel)}>
+                          <Eye className="w-4 h-4 mr-1" /> Открыть
                         </FlameButton>
-                      )}
+                        {!myChannels.has(channel.id) && (
+                          <FlameButton size="sm" onClick={() => handleSubscribeChannel(channel.id)}>
+                            <LogIn className="w-4 h-4" />
+                          </FlameButton>
+                        )}
+                      </div>
                     </div>
                   </GlassCard>
                 ))}
@@ -166,21 +263,28 @@ export function SearchView({ searchQuery, onSearchChange, onStartChat, onViewPro
                 {groups.map(group => (
                   <GlassCard key={group.id} className="p-4 hover:border-primary/50 transition-colors">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-accent/20 flex items-center justify-center">
-                        <Users className="w-5 h-5 text-accent" />
-                      </div>
+                      {group.avatar_url ? (
+                        <img src={group.avatar_url} alt={group.name} className="w-10 h-10 rounded-xl object-cover" />
+                      ) : (
+                        <div className="w-10 h-10 rounded-xl bg-accent/20 flex items-center justify-center">
+                          <Users className="w-5 h-5 text-accent" />
+                        </div>
+                      )}
                       <div className="flex-1">
                         <h4 className="font-medium">{group.name}</h4>
                         {group.handle && <p className="text-xs text-primary/70">@{group.handle}</p>}
                         {group.description && <p className="text-sm text-muted-foreground truncate">{group.description}</p>}
                       </div>
-                      {myGroups.has(group.id) ? (
-                        <span className="text-xs text-muted-foreground px-2 py-1 rounded-full bg-muted/50">Участник</span>
-                      ) : (
-                        <FlameButton size="sm" onClick={() => handleJoinGroup(group.id)}>
-                          <UserPlus className="w-4 h-4 mr-1" /> Вступить
+                      <div className="flex items-center gap-2">
+                        <FlameButton size="sm" variant="outline" onClick={() => openGroupPreview(group)}>
+                          <Eye className="w-4 h-4 mr-1" /> Открыть
                         </FlameButton>
-                      )}
+                        {!myGroups.has(group.id) && (
+                          <FlameButton size="sm" onClick={() => handleJoinGroup(group.id)}>
+                            <UserPlus className="w-4 h-4" />
+                          </FlameButton>
+                        )}
+                      </div>
                     </div>
                   </GlassCard>
                 ))}
@@ -198,10 +302,10 @@ export function SearchView({ searchQuery, onSearchChange, onStartChat, onViewPro
                   <GlassCard key={profile.id} className="p-4 cursor-pointer hover:border-primary/50 transition-colors"
                     onClick={() => onViewProfile?.(profile.user_id)}>
                     <div className="flex items-center gap-3">
-                      <UserAvatar username={profile.username} avatarUrl={profile.avatar_url} size="md" />
+                      <UserAvatar username={profile.display_name || profile.username} avatarUrl={profile.avatar_url} size="md" />
                       <div className="flex-1">
                         <div className="flex items-center gap-1.5">
-                          <h4 className="font-medium">{profile.username || "Без имени"}</h4>
+                          <h4 className="font-medium">{profile.display_name || profile.username || "Без имени"}</h4>
                           <UserBadge userId={profile.user_id} />
                         </div>
                         {profile.username && <p className="text-xs text-primary/70">@{profile.username.replace(/^@/, "")}</p>}
