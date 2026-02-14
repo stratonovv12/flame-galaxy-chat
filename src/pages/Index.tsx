@@ -15,7 +15,7 @@ import { UserProfileView } from "@/components/views/UserProfileView";
 type TabType = "channels" | "groups" | "messages" | "search" | "ai" | "profile";
 
 const Index = () => {
-  const { user, loading } = useAuth();
+  const { user, loading, isBanned } = useAuth();
   usePresence();
   const [activeTab, setActiveTab] = useState<TabType>("channels");
   const [searchQuery, setSearchQuery] = useState("");
@@ -36,6 +36,7 @@ const Index = () => {
   }
 
   if (!user) return <Navigate to="/auth" replace />;
+  if (isBanned) return <Navigate to="/banned" replace />;
 
   const handleViewProfile = (userId: string) => {
     setViewingProfileUserId(userId);
