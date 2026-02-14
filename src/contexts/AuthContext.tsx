@@ -66,6 +66,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         async () => {
           setIsBanned(true);
           await supabase.auth.signOut();
+          // Instant redirect without refresh
+          window.location.replace("/banned");
         }
       )
       .subscribe();
