@@ -111,6 +111,8 @@ const Index = () => {
         return <AIView />;
       case "profile":
         return <ProfileView />;
+      case "market":
+        return <MarketplaceView />;
       default:
         return <ChannelsView onViewProfile={handleViewProfile} />;
     }
@@ -121,7 +123,10 @@ const Index = () => {
       <TopBar searchQuery={searchQuery} onSearchChange={(q) => {
         setSearchQuery(q);
         if (q.trim()) setActiveTab("search");
-      }} />
+      }}
+        onOpenMarketplace={() => setActiveTab("market")}
+        onOpenProfile={() => setActiveTab("profile")}
+      />
       
       <main className="flex-1 pt-[72px] pb-[80px] overflow-hidden">
         <div className="h-full overflow-y-auto custom-scrollbar">
@@ -129,7 +134,7 @@ const Index = () => {
         </div>
       </main>
       
-      <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
+      <BottomNav activeTab={activeTab === "market" ? "channels" : activeTab} onTabChange={setActiveTab} />
     </div>
   );
 };
