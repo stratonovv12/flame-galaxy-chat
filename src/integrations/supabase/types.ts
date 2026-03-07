@@ -446,6 +446,42 @@ export type Database = {
         }
         Relationships: []
       }
+      marketplace_listings: {
+        Row: {
+          category: string | null
+          created_at: string
+          description: string | null
+          id: string
+          image_url: string | null
+          price: number
+          seller_id: string
+          status: string
+          title: string
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          price: number
+          seller_id: string
+          status?: string
+          title: string
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          price?: number
+          seller_id?: string
+          status?: string
+          title?: string
+        }
+        Relationships: []
+      }
       message_reactions: {
         Row: {
           created_at: string
@@ -520,6 +556,7 @@ export type Database = {
           created_at: string
           display_name: string | null
           id: string
+          steam_trade_url: string | null
           updated_at: string
           user_id: string
           username: string | null
@@ -530,6 +567,7 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           id?: string
+          steam_trade_url?: string | null
           updated_at?: string
           user_id: string
           username?: string | null
@@ -540,11 +578,53 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           id?: string
+          steam_trade_url?: string | null
           updated_at?: string
           user_id?: string
           username?: string | null
         }
         Relationships: []
+      }
+      transactions: {
+        Row: {
+          amount: number
+          buyer_id: string
+          commission: number
+          created_at: string
+          id: string
+          listing_id: string | null
+          seller_id: string
+          status: string
+        }
+        Insert: {
+          amount: number
+          buyer_id: string
+          commission: number
+          created_at?: string
+          id?: string
+          listing_id?: string | null
+          seller_id: string
+          status?: string
+        }
+        Update: {
+          amount?: number
+          buyer_id?: string
+          commission?: number
+          created_at?: string
+          id?: string
+          listing_id?: string | null
+          seller_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transactions_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_listings"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_presence: {
         Row: {
@@ -661,6 +741,30 @@ export type Database = {
         }
         Relationships: []
       }
+      wallets: {
+        Row: {
+          balance: number
+          created_at: string
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          balance?: number
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          balance?: number
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       banned_users_check: {
@@ -683,6 +787,10 @@ export type Database = {
       }
     }
     Functions: {
+      buy_listing: {
+        Args: { _buyer_id: string; _listing_id: string }
+        Returns: Json
+      }
       check_user_banned: { Args: { _user_id: string }; Returns: boolean }
       has_role: {
         Args: {
