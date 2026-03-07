@@ -17,6 +17,7 @@ export function ProfileView() {
   const [username, setUsername] = useState("");
   const [bio, setBio] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
+  const [steamTradeUrl, setSteamTradeUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [usernameError, setUsernameError] = useState("");
   const [showAdmin, setShowAdmin] = useState(false);
