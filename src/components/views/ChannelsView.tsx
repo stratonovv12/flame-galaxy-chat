@@ -326,7 +326,7 @@ export function ChannelsView({ onViewProfile, initialChannelId, onClearInitial }
 
     return (
       <div className="flex flex-col h-full">
-        <GlassCard className="rounded-none border-x-0 border-t-0 p-4">
+        <GlassCard className="rounded-none border-x-0 border-t-0 p-4 sticky top-0 z-10">
           <div className="flex items-center gap-3">
             <button onClick={() => setSelectedChannel(null)} className="p-2 hover:bg-muted/50 rounded-lg transition-colors touch-target">
               <ArrowLeft className="w-5 h-5" />

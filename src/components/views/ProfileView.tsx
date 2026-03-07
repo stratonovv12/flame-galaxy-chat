@@ -17,6 +17,7 @@ export function ProfileView() {
   const [username, setUsername] = useState("");
   const [bio, setBio] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
+  const [steamTradeUrl, setSteamTradeUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [usernameError, setUsernameError] = useState("");
   const [showAdmin, setShowAdmin] = useState(false);
@@ -27,19 +28,20 @@ export function ProfileView() {
   const fetchProfile = async () => {
     if (!user) return;
     setLoading(true);
-    const { data, error } = await supabase.from("profiles").select("username, display_name, avatar_url, bio").eq("user_id", user.id).maybeSingle();
+    const { data, error } = await supabase.from("profiles").select("username, display_name, avatar_url, bio, steam_trade_url").eq("user_id", user.id).maybeSingle();
     if (data) {
       setUsername(data.username || "");
       setDisplayName(data.display_name || "");
       setAvatarUrl(data.avatar_url || "");
       setBio(data.bio || "");
+      setSteamTradeUrl(data.steam_trade_url || "");
     } else if (!error) {
       await supabase.from("profiles").insert({ user_id: user.id, username: "" });
     }
     setLoading(false);
   };
 
-  const autoSave = useCallback(async (fields: { username?: string; display_name?: string; bio?: string; avatar_url?: string }) => {
+  const autoSave = useCallback(async (fields: { username?: string; display_name?: string; bio?: string; avatar_url?: string; steam_trade_url?: string }) => {
     if (!user) return;
     if (fields.username !== undefined) {
       const cleanName = fields.username.replace(/^@/, "").trim();
@@ -54,7 +56,7 @@ export function ProfileView() {
     if (error) toast({ title: "Ошибка", description: "Не удалось сохранить", variant: "destructive" });
   }, [user]);
 
-  const debouncedSave = useCallback((fields: { username?: string; display_name?: string; bio?: string; avatar_url?: string }) => {
+  const debouncedSave = useCallback((fields: { username?: string; display_name?: string; bio?: string; avatar_url?: string; steam_trade_url?: string }) => {
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => autoSave(fields), 800);
   }, [autoSave]);
@@ -63,6 +65,7 @@ export function ProfileView() {
   const handleUsernameChange = (val: string) => { setUsername(val); setUsernameError(""); debouncedSave({ username: val }); };
   const handleBioChange = (val: string) => { setBio(val); debouncedSave({ bio: val }); };
   const handleAvatarUpload = (url: string) => { setAvatarUrl(url); autoSave({ avatar_url: url || null }); };
+  const handleSteamUrlChange = (val: string) => { setSteamTradeUrl(val); debouncedSave({ steam_trade_url: val }); };
 
   if (showAdmin) {
     return (
@@ -114,6 +117,18 @@ export function ProfileView() {
             <div><p className="font-medium">Аккаунт создан</p><p className="text-sm text-muted-foreground">{user?.created_at ? new Date(user.created_at).toLocaleDateString("ru-RU") : "—"}</p></div>
           </div>
         </div>
+      </GlassCard>
+
+      <GlassCard className="p-6">
+        <h3 className="font-semibold mb-4 flex items-center gap-2">🎮 Steam интеграция</h3>
+        <FlameInput
+          label="Steam Trade URL"
+          placeholder="https://steamcommunity.com/tradeoffer/new/?..."
+          value={steamTradeUrl}
+          onChange={e => handleSteamUrlChange(e.target.value)}
+          disabled={loading}
+        />
+        <p className="text-xs text-muted-foreground mt-2">Необходим для покупки/продажи на маркетплейсе</p>
       </GlassCard>
 
       {isAdmin && (
