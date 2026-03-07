@@ -41,7 +41,7 @@ export function ProfileView() {
     setLoading(false);
   };
 
-  const autoSave = useCallback(async (fields: { username?: string; display_name?: string; bio?: string; avatar_url?: string }) => {
+  const autoSave = useCallback(async (fields: { username?: string; display_name?: string; bio?: string; avatar_url?: string; steam_trade_url?: string }) => {
     if (!user) return;
     if (fields.username !== undefined) {
       const cleanName = fields.username.replace(/^@/, "").trim();
@@ -56,7 +56,7 @@ export function ProfileView() {
     if (error) toast({ title: "Ошибка", description: "Не удалось сохранить", variant: "destructive" });
   }, [user]);
 
-  const debouncedSave = useCallback((fields: { username?: string; display_name?: string; bio?: string; avatar_url?: string }) => {
+  const debouncedSave = useCallback((fields: { username?: string; display_name?: string; bio?: string; avatar_url?: string; steam_trade_url?: string }) => {
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => autoSave(fields), 800);
   }, [autoSave]);
