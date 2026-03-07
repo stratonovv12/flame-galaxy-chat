@@ -116,6 +116,18 @@ export function ProfileView() {
         </div>
       </GlassCard>
 
+      <GlassCard className="p-6">
+        <h3 className="font-semibold mb-4 flex items-center gap-2">🎮 Steam интеграция</h3>
+        <FlameInput
+          label="Steam Trade URL"
+          placeholder="https://steamcommunity.com/tradeoffer/new/?..."
+          value={steamTradeUrl}
+          onChange={e => handleSteamUrlChange(e.target.value)}
+          disabled={loading}
+        />
+        <p className="text-xs text-muted-foreground mt-2">Необходим для покупки/продажи на маркетплейсе</p>
+      </GlassCard>
+
       {isAdmin && (
         <FlameButton onClick={() => setShowAdmin(true)} className="w-full" variant="outline">
           <Shield className="w-4 h-4 mr-2" />
