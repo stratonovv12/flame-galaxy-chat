@@ -28,12 +28,13 @@ export function ProfileView() {
   const fetchProfile = async () => {
     if (!user) return;
     setLoading(true);
-    const { data, error } = await supabase.from("profiles").select("username, display_name, avatar_url, bio").eq("user_id", user.id).maybeSingle();
+    const { data, error } = await supabase.from("profiles").select("username, display_name, avatar_url, bio, steam_trade_url").eq("user_id", user.id).maybeSingle();
     if (data) {
       setUsername(data.username || "");
       setDisplayName(data.display_name || "");
       setAvatarUrl(data.avatar_url || "");
       setBio(data.bio || "");
+      setSteamTradeUrl(data.steam_trade_url || "");
     } else if (!error) {
       await supabase.from("profiles").insert({ user_id: user.id, username: "" });
     }
@@ -64,6 +65,7 @@ export function ProfileView() {
   const handleUsernameChange = (val: string) => { setUsername(val); setUsernameError(""); debouncedSave({ username: val }); };
   const handleBioChange = (val: string) => { setBio(val); debouncedSave({ bio: val }); };
   const handleAvatarUpload = (url: string) => { setAvatarUrl(url); autoSave({ avatar_url: url || null }); };
+  const handleSteamUrlChange = (val: string) => { setSteamTradeUrl(val); debouncedSave({ steam_trade_url: val }); };
 
   if (showAdmin) {
     return (
