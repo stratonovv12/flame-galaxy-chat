@@ -1,15 +1,30 @@
-import { Search, Flame } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Search, Flame, ShoppingBag, User } from "lucide-react";
 import { FlameInput } from "@/components/ui/FlameInput";
+import { UserAvatar } from "@/components/ui/UserAvatar";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface TopBarProps {
   searchQuery: string;
   onSearchChange: (query: string) => void;
+  onOpenMarketplace?: () => void;
+  onOpenProfile?: () => void;
 }
 
-export function TopBar({ searchQuery, onSearchChange }: TopBarProps) {
+export function TopBar({ searchQuery, onSearchChange, onOpenMarketplace, onOpenProfile }: TopBarProps) {
+  const { user } = useAuth();
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!user) return;
+    supabase.from("profiles").select("avatar_url").eq("user_id", user.id).maybeSingle()
+      .then(({ data }) => { if (data) setAvatarUrl(data.avatar_url); });
+  }, [user]);
+
   return (
     <header className="fixed top-0 left-0 right-0 z-50 glass-card rounded-none border-b border-border/50 pt-safe">
-      <div className="flex items-center gap-3 px-4 py-3">
+      <div className="flex items-center gap-2 px-4 py-3">
         {/* Logo */}
         <div className="flex items-center gap-2 shrink-0">
           <div className="w-9 h-9 rounded-lg bg-primary flex items-center justify-center neon-glow-sm">
@@ -28,6 +43,30 @@ export function TopBar({ searchQuery, onSearchChange }: TopBarProps) {
           />
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         </div>
+
+        {/* Market icon */}
+        <button
+          onClick={onOpenMarketplace}
+          className="p-2 hover:bg-muted/50 rounded-lg transition-colors touch-target shrink-0"
+          title="Маркетплейс"
+        >
+          <ShoppingBag className="w-5 h-5 text-muted-foreground hover:text-primary transition-colors" />
+        </button>
+
+        {/* Profile icon */}
+        <button
+          onClick={onOpenProfile}
+          className="shrink-0"
+          title="Профиль"
+        >
+          {avatarUrl ? (
+            <img src={avatarUrl} alt="" className="w-8 h-8 rounded-full object-cover border border-border/50" />
+          ) : (
+            <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
+              <User className="w-4 h-4 text-muted-foreground" />
+            </div>
+          )}
+        </button>
       </div>
     </header>
   );

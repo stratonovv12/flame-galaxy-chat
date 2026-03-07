@@ -11,8 +11,9 @@ import { SearchView } from "@/components/views/SearchView";
 import { AIView } from "@/components/views/AIView";
 import { ProfileView } from "@/components/views/ProfileView";
 import { UserProfileView } from "@/components/views/UserProfileView";
+import { MarketplaceView } from "@/components/views/MarketplaceView";
 
-type TabType = "channels" | "groups" | "messages" | "search" | "ai" | "profile";
+type TabType = "channels" | "groups" | "messages" | "search" | "ai" | "profile" | "market";
 
 const Index = () => {
   const { user, loading, isBanned } = useAuth();
