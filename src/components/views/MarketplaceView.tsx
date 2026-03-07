@@ -212,7 +212,7 @@ export function MarketplaceView() {
                   <p className="text-xs text-muted-foreground">{listing.description}</p>
                 )}
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <UserAvatar username={listing.seller_username} avatarUrl={listing.seller_avatar} size="xs" />
+                  <UserAvatar username={listing.seller_username} avatarUrl={listing.seller_avatar} size="sm" />
                   <span>{listing.seller_username || "Продавец"}</span>
                   <span>·</span>
                   <span>{formatDistanceToNow(new Date(listing.created_at), { addSuffix: true, locale: ru })}</span>
