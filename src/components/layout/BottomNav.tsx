@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Hash, MessageCircle, Sparkles, User, Search, Users } from "lucide-react";
+import { Hash, MessageCircle, Sparkles, Search, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
