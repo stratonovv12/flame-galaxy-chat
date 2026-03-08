@@ -123,7 +123,20 @@ export function ProfileView({ onNavigate }: ProfileViewProps) {
         </div>
       </GlassCard>
 
-      <GlassCard className="p-6">
+      {onNavigate && (
+        <div className="grid grid-cols-3 gap-3">
+          <FlameButton variant="outline" className="w-full" onClick={() => onNavigate("wallet")}>
+            <Wallet className="w-4 h-4 mr-2" /> Кошелёк
+          </FlameButton>
+          <FlameButton variant="outline" className="w-full" onClick={() => onNavigate("inventory")}>
+            <Package className="w-4 h-4 mr-2" /> Инвентарь
+          </FlameButton>
+          <FlameButton variant="outline" className="w-full" onClick={() => onNavigate("trades")}>
+            <ArrowLeftRight className="w-4 h-4 mr-2" /> Трейды
+          </FlameButton>
+        </div>
+      )}
+
         <h3 className="font-semibold mb-4 flex items-center gap-2">🎮 Steam интеграция</h3>
         <FlameInput
           label="Steam Trade URL"
