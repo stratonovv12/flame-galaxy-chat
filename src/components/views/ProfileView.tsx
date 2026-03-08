@@ -8,10 +8,14 @@ import { UserAvatar } from "@/components/ui/UserAvatar";
 import { UserBadge } from "@/components/ui/UserBadge";
 import { AvatarUpload } from "@/components/ui/AvatarUpload";
 import { AdminPanelView } from "@/components/views/AdminPanelView";
-import { LogOut, Settings, Mail, Shield } from "lucide-react";
+import { LogOut, Settings, Mail, Shield, Wallet, Package, ArrowLeftRight } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
-export function ProfileView() {
+interface ProfileViewProps {
+  onNavigate?: (tab: string) => void;
+}
+
+export function ProfileView({ onNavigate }: ProfileViewProps) {
   const { user, signOut, isAdmin } = useAuth();
   const [displayName, setDisplayName] = useState("");
   const [username, setUsername] = useState("");
@@ -118,6 +122,20 @@ export function ProfileView() {
           </div>
         </div>
       </GlassCard>
+
+      {onNavigate && (
+        <div className="grid grid-cols-3 gap-3">
+          <FlameButton variant="outline" className="w-full" onClick={() => onNavigate("wallet")}>
+            <Wallet className="w-4 h-4 mr-2" /> Кошелёк
+          </FlameButton>
+          <FlameButton variant="outline" className="w-full" onClick={() => onNavigate("inventory")}>
+            <Package className="w-4 h-4 mr-2" /> Инвентарь
+          </FlameButton>
+          <FlameButton variant="outline" className="w-full" onClick={() => onNavigate("trades")}>
+            <ArrowLeftRight className="w-4 h-4 mr-2" /> Трейды
+          </FlameButton>
+        </div>
+      )}
 
       <GlassCard className="p-6">
         <h3 className="font-semibold mb-4 flex items-center gap-2">🎮 Steam интеграция</h3>

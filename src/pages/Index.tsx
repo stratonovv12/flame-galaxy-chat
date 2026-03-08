@@ -12,8 +12,11 @@ import { AIView } from "@/components/views/AIView";
 import { ProfileView } from "@/components/views/ProfileView";
 import { UserProfileView } from "@/components/views/UserProfileView";
 import { MarketplaceView } from "@/components/views/MarketplaceView";
+import { InventoryView } from "@/components/views/InventoryView";
+import { WalletView } from "@/components/views/WalletView";
+import { TradeOffersView } from "@/components/views/TradeOffersView";
 
-type TabType = "channels" | "groups" | "messages" | "search" | "ai" | "profile" | "market";
+type TabType = "channels" | "groups" | "messages" | "search" | "ai" | "profile" | "market" | "inventory" | "wallet" | "trades";
 
 const Index = () => {
   const { user, loading, isBanned } = useAuth();
@@ -39,33 +42,24 @@ const Index = () => {
   if (!user) return <Navigate to="/auth" replace />;
   if (isBanned) return <Navigate to="/banned" replace />;
 
-  const handleViewProfile = (userId: string) => {
-    setViewingProfileUserId(userId);
-  };
-
-  const handleBackFromProfile = () => {
-    setViewingProfileUserId(null);
-  };
-
+  const handleViewProfile = (userId: string) => setViewingProfileUserId(userId);
+  const handleBackFromProfile = () => setViewingProfileUserId(null);
   const handleStartChatFromProfile = (userId: string) => {
     setViewingProfileUserId(null);
     setSelectedChatUserId(userId);
     setActiveTab("messages");
     setSearchQuery("");
   };
-
   const handleStartChat = (userId: string) => {
     setSelectedChatUserId(userId);
     setActiveTab("messages");
     setSearchQuery("");
   };
-
   const handleOpenGroup = (groupId: string) => {
     setOpenGroupId(groupId);
     setActiveTab("groups");
     setSearchQuery("");
   };
-
   const handleOpenChannel = (channelId: string) => {
     setOpenChannelId(channelId);
     setActiveTab("channels");
@@ -74,67 +68,37 @@ const Index = () => {
 
   const renderView = () => {
     if (viewingProfileUserId) {
-      return (
-        <UserProfileView
-          userId={viewingProfileUserId}
-          onBack={handleBackFromProfile}
-          onStartChat={handleStartChatFromProfile}
-        />
-      );
+      return <UserProfileView userId={viewingProfileUserId} onBack={handleBackFromProfile} onStartChat={handleStartChatFromProfile} />;
     }
-
     switch (activeTab) {
-      case "channels":
-        return <ChannelsView onViewProfile={handleViewProfile} initialChannelId={openChannelId} onClearInitial={() => setOpenChannelId(null)} />;
-      case "groups":
-        return <GroupsView onViewProfile={handleViewProfile} initialGroupId={openGroupId} onClearInitial={() => setOpenGroupId(null)} />;
-      case "messages":
-        return (
-          <DirectMessagesView
-            selectedUserId={selectedChatUserId}
-            onClearSelectedUser={() => setSelectedChatUserId(null)}
-            onViewProfile={handleViewProfile}
-          />
-        );
-      case "search":
-        return (
-          <SearchView
-            searchQuery={searchQuery}
-            onSearchChange={setSearchQuery}
-            onStartChat={handleStartChat}
-            onViewProfile={handleViewProfile}
-            onOpenChannel={handleOpenChannel}
-            onOpenGroup={handleOpenGroup}
-          />
-        );
-      case "ai":
-        return <AIView />;
-      case "profile":
-        return <ProfileView />;
-      case "market":
-        return <MarketplaceView />;
-      default:
-        return <ChannelsView onViewProfile={handleViewProfile} />;
+      case "channels": return <ChannelsView onViewProfile={handleViewProfile} initialChannelId={openChannelId} onClearInitial={() => setOpenChannelId(null)} />;
+      case "groups": return <GroupsView onViewProfile={handleViewProfile} initialGroupId={openGroupId} onClearInitial={() => setOpenGroupId(null)} />;
+      case "messages": return <DirectMessagesView selectedUserId={selectedChatUserId} onClearSelectedUser={() => setSelectedChatUserId(null)} onViewProfile={handleViewProfile} />;
+      case "search": return <SearchView searchQuery={searchQuery} onSearchChange={setSearchQuery} onStartChat={handleStartChat} onViewProfile={handleViewProfile} onOpenChannel={handleOpenChannel} onOpenGroup={handleOpenGroup} />;
+      case "ai": return <AIView />;
+      case "profile": return <ProfileView onNavigate={(tab) => setActiveTab(tab as TabType)} />;
+      case "market": return <MarketplaceView />;
+      case "inventory": return <InventoryView />;
+      case "wallet": return <WalletView />;
+      case "trades": return <TradeOffersView />;
+      default: return <ChannelsView onViewProfile={handleViewProfile} />;
     }
   };
 
   return (
     <div className="min-h-screen cosmic-bg flex flex-col">
-      <TopBar searchQuery={searchQuery} onSearchChange={(q) => {
-        setSearchQuery(q);
-        if (q.trim()) setActiveTab("search");
-      }}
+      <TopBar
+        searchQuery={searchQuery}
+        onSearchChange={(q) => { setSearchQuery(q); if (q.trim()) setActiveTab("search"); }}
         onOpenMarketplace={() => setActiveTab("market")}
         onOpenProfile={() => setActiveTab("profile")}
       />
-      
       <main className="flex-1 pt-[72px] pb-[80px] overflow-hidden">
         <div className="h-full overflow-y-auto custom-scrollbar">
           {renderView()}
         </div>
       </main>
-      
-      <BottomNav activeTab={activeTab === "market" ? "channels" : activeTab} onTabChange={setActiveTab} />
+      <BottomNav activeTab={activeTab === "market" || activeTab === "inventory" || activeTab === "wallet" || activeTab === "trades" ? "channels" : activeTab} onTabChange={setActiveTab} />
     </div>
   );
 };

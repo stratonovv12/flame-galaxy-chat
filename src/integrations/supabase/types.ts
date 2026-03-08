@@ -239,6 +239,36 @@ export type Database = {
         }
         Relationships: []
       }
+      deposit_requests: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          status: string
+          type: string
+          user_id: string
+          wallet_address: string | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          status?: string
+          type?: string
+          user_id: string
+          wallet_address?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          status?: string
+          type?: string
+          user_id?: string
+          wallet_address?: string | null
+        }
+        Relationships: []
+      }
       direct_messages: {
         Row: {
           content: string
@@ -585,6 +615,57 @@ export type Database = {
         }
         Relationships: []
       }
+      trade_offers: {
+        Row: {
+          created_at: string
+          id: string
+          receiver_id: string
+          receiver_item_id: string | null
+          sender_balance_offer: number
+          sender_id: string
+          sender_item_id: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          receiver_id: string
+          receiver_item_id?: string | null
+          sender_balance_offer?: number
+          sender_id: string
+          sender_item_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          receiver_id?: string
+          receiver_item_id?: string | null
+          sender_balance_offer?: number
+          sender_id?: string
+          sender_item_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trade_offers_receiver_item_id_fkey"
+            columns: ["receiver_item_id"]
+            isOneToOne: false
+            referencedRelation: "user_inventory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trade_offers_sender_item_id_fkey"
+            columns: ["sender_item_id"]
+            isOneToOne: false
+            referencedRelation: "user_inventory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       transactions: {
         Row: {
           amount: number
@@ -619,6 +700,44 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "transactions_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_listings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_inventory: {
+        Row: {
+          acquired_at: string
+          description: string | null
+          id: string
+          image_url: string | null
+          listing_id: string | null
+          owner_id: string
+          title: string
+        }
+        Insert: {
+          acquired_at?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          listing_id?: string | null
+          owner_id: string
+          title: string
+        }
+        Update: {
+          acquired_at?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          listing_id?: string | null
+          owner_id?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_inventory_listing_id_fkey"
             columns: ["listing_id"]
             isOneToOne: false
             referencedRelation: "marketplace_listings"
@@ -787,11 +906,19 @@ export type Database = {
       }
     }
     Functions: {
+      accept_trade: {
+        Args: { _accepter: string; _offer_id: string }
+        Returns: Json
+      }
       buy_listing: {
         Args: { _buyer_id: string; _listing_id: string }
         Returns: Json
       }
       check_user_banned: { Args: { _user_id: string }; Returns: boolean }
+      gift_item: {
+        Args: { _from_user: string; _item_id: string; _to_username: string }
+        Returns: Json
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
