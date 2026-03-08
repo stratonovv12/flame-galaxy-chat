@@ -10,6 +10,7 @@ import { MediaUpload } from "@/components/ui/MediaUpload";
 import { VoiceRecorder } from "@/components/ui/VoiceRecorder";
 import { VideoCircleRecorder } from "@/components/ui/VideoCircleRecorder";
 import { MessageContextMenu } from "@/components/ui/MessageContextMenu";
+import { ChatListContextMenu } from "@/components/ui/ChatListContextMenu";
 import { UploadingBubble } from "@/components/ui/UploadingBubble";
 import { CallUI } from "@/components/ui/CallUI";
 import { IncomingCallUI } from "@/components/ui/IncomingCallUI";
