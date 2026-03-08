@@ -11,7 +11,11 @@ import { AdminPanelView } from "@/components/views/AdminPanelView";
 import { LogOut, Settings, Mail, Shield, Wallet, Package, ArrowLeftRight } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
-export function ProfileView() {
+interface ProfileViewProps {
+  onNavigate?: (tab: string) => void;
+}
+
+export function ProfileView({ onNavigate }: ProfileViewProps) {
   const { user, signOut, isAdmin } = useAuth();
   const [displayName, setDisplayName] = useState("");
   const [username, setUsername] = useState("");
