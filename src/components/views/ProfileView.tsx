@@ -8,7 +8,7 @@ import { UserAvatar } from "@/components/ui/UserAvatar";
 import { UserBadge } from "@/components/ui/UserBadge";
 import { AvatarUpload } from "@/components/ui/AvatarUpload";
 import { AdminPanelView } from "@/components/views/AdminPanelView";
-import { LogOut, Settings, Mail, Shield } from "lucide-react";
+import { LogOut, Settings, Mail, Shield, Wallet, Package, ArrowLeftRight } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 export function ProfileView() {
