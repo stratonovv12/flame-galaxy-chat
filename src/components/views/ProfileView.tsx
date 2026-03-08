@@ -137,6 +137,7 @@ export function ProfileView({ onNavigate }: ProfileViewProps) {
         </div>
       )}
 
+      <GlassCard className="p-6">
         <h3 className="font-semibold mb-4 flex items-center gap-2">🎮 Steam интеграция</h3>
         <FlameInput
           label="Steam Trade URL"
