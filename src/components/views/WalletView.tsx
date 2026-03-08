@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { GlassCard } from "@/components/ui/GlassCard";
@@ -13,7 +13,17 @@ import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "rec
 
 const MIN_DEPOSIT = 0.5;
 const MIN_WITHDRAWAL = 1.0;
-const SWAP_FEE = 0.01; // 1%
+const SWAP_FEE = 0.01;
+const REFRESH_INTERVAL = 10000;
+
+const COINGECKO_IDS: Record<string, string> = {
+  btc: "bitcoin",
+  eth: "ethereum",
+  usdt: "tether",
+  ton: "the-open-network",
+  sol: "solana",
+  bnb: "binancecoin",
+};
 
 interface CoinInfo {
   id: string;
@@ -25,22 +35,29 @@ interface CoinInfo {
   color: string;
   network: string;
   depositAddress: string;
+  prevPrice?: number;
 }
 
-const COINS: CoinInfo[] = [
-  { id: "btc", symbol: "BTC", name: "Bitcoin", price: 67432.50, change24h: 2.34, marketCap: "$1.32T", color: "#F7931A", network: "Bitcoin", depositAddress: "bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh" },
-  { id: "eth", symbol: "ETH", name: "Ethereum", price: 3521.80, change24h: -1.12, marketCap: "$423B", color: "#627EEA", network: "ERC-20", depositAddress: "0x742d35Cc6634C0532925a3b844Bc9e7595f2bD18" },
-  { id: "usdt", symbol: "USDT", name: "Tether", price: 1.00, change24h: 0.01, marketCap: "$112B", color: "#26A17B", network: "TRC-20", depositAddress: "TXqZ3bR9kE7vF2dW8mL5nP1cY6aJ4sU0xH" },
-  { id: "ton", symbol: "TON", name: "Toncoin", price: 7.42, change24h: 5.67, marketCap: "$25.6B", color: "#0098EA", network: "TON", depositAddress: "EQBvW8Z5huBkMJYdnfAEM5JqTNkuFX17Uv7On1W9qJoc_pbt" },
-  { id: "sol", symbol: "SOL", name: "Solana", price: 148.25, change24h: 3.89, marketCap: "$68.2B", color: "#9945FF", network: "Solana", depositAddress: "7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU" },
-  { id: "bnb", symbol: "BNB", name: "BNB", price: 598.30, change24h: -0.45, marketCap: "$91.8B", color: "#F0B90B", network: "BEP-20", depositAddress: "0x28C6c06298d514Db089934071355E5743bf21d60" },
+const COIN_META: Omit<CoinInfo, "price" | "change24h" | "marketCap">[] = [
+  { id: "btc", symbol: "BTC", name: "Bitcoin", color: "#F7931A", network: "Bitcoin", depositAddress: "bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh" },
+  { id: "eth", symbol: "ETH", name: "Ethereum", color: "#627EEA", network: "ERC-20", depositAddress: "0x742d35Cc6634C0532925a3b844Bc9e7595f2bD18" },
+  { id: "usdt", symbol: "USDT", name: "Tether", color: "#26A17B", network: "TRC-20", depositAddress: "TXqZ3bR9kE7vF2dW8mL5nP1cY6aJ4sU0xH" },
+  { id: "ton", symbol: "TON", name: "Toncoin", color: "#0098EA", network: "TON", depositAddress: "EQBvW8Z5huBkMJYdnfAEM5JqTNkuFX17Uv7On1W9qJoc_pbt" },
+  { id: "sol", symbol: "SOL", name: "Solana", color: "#9945FF", network: "Solana", depositAddress: "7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU" },
+  { id: "bnb", symbol: "BNB", name: "BNB", color: "#F0B90B", network: "BEP-20", depositAddress: "0x28C6c06298d514Db089934071355E5743bf21d60" },
 ];
+
+function formatMcap(n: number): string {
+  if (n >= 1e12) return `$${(n / 1e12).toFixed(2)}T`;
+  if (n >= 1e9) return `$${(n / 1e9).toFixed(1)}B`;
+  return `$${(n / 1e6).toFixed(0)}M`;
+}
 
 function generateChartData(basePrice: number, points: number, volatility: number) {
   const data = [];
   let price = basePrice * (0.95 + Math.random() * 0.05);
   const now = Date.now();
-  const interval = (points === 12 ? 5 * 60000 : points === 24 ? 3600000 : 86400000);
+  const interval = points === 12 ? 5 * 60000 : points === 24 ? 3600000 : 86400000;
   for (let i = 0; i < points; i++) {
     price += price * (Math.random() - 0.48) * volatility;
     data.push({
@@ -69,6 +86,59 @@ export function WalletView() {
   const [swapAmount, setSwapAmount] = useState("");
   const [securityPin, setSecurityPin] = useState("");
 
+  const [coins, setCoins] = useState<CoinInfo[]>(
+    COIN_META.map(m => ({ ...m, price: 0, change24h: 0, marketCap: "$0", prevPrice: 0 }))
+  );
+  const [priceFlash, setPriceFlash] = useState<Record<string, "up" | "down" | null>>({});
+  const prevPricesRef = useRef<Record<string, number>>({});
+
+  // Fetch live prices from CoinGecko
+  const fetchPrices = useCallback(async () => {
+    try {
+      const ids = Object.values(COINGECKO_IDS).join(",");
+      const res = await fetch(
+        `https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd&include_24hr_change=true&include_market_cap=true`
+      );
+      if (!res.ok) return;
+      const data = await res.json();
+
+      const flashes: Record<string, "up" | "down" | null> = {};
+
+      setCoins(prev =>
+        prev.map(coin => {
+          const geckoId = COINGECKO_IDS[coin.id];
+          const d = data[geckoId];
+          if (!d) return coin;
+          const newPrice = d.usd || coin.price;
+          const oldPrice = prevPricesRef.current[coin.id] || newPrice;
+
+          if (oldPrice !== 0 && newPrice !== oldPrice) {
+            flashes[coin.id] = newPrice > oldPrice ? "up" : "down";
+          }
+          prevPricesRef.current[coin.id] = newPrice;
+
+          return {
+            ...coin,
+            price: newPrice,
+            change24h: d.usd_24h_change ?? coin.change24h,
+            marketCap: formatMcap(d.usd_market_cap || 0),
+          };
+        })
+      );
+
+      setPriceFlash(flashes);
+      setTimeout(() => setPriceFlash({}), 1200);
+    } catch {
+      // silently fail, keep last prices
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchPrices();
+    const interval = setInterval(fetchPrices, REFRESH_INTERVAL);
+    return () => clearInterval(interval);
+  }, [fetchPrices]);
+
   useEffect(() => { fetchBalance(); }, [user]);
 
   const fetchBalance = async () => {
@@ -80,6 +150,9 @@ export function WalletView() {
       setBalance(0);
     }
   };
+
+  // Portfolio value
+  const portfolioUsd = balance; // balance is already in USD
 
   const chartData = useMemo(() => {
     if (!selectedCoin) return [];
@@ -143,8 +216,8 @@ export function WalletView() {
       toast({ title: "Ошибка", description: "Введите сумму", variant: "destructive" });
       return;
     }
-    const fromCoin = COINS.find(c => c.id === swapFrom)!;
-    const toCoin = COINS.find(c => c.id === swapTo)!;
+    const fromCoin = coins.find(c => c.id === swapFrom)!;
+    const toCoin = coins.find(c => c.id === swapTo)!;
     const usdValue = num * fromCoin.price;
     if (usdValue > balance) {
       toast({ title: "Ошибка", description: "Недостаточно средств", variant: "destructive" });
@@ -165,6 +238,16 @@ export function WalletView() {
     setSelectedCoin(coin);
     setMode("coin");
   };
+
+  // Keep selectedCoin synced with live prices
+  useEffect(() => {
+    if (selectedCoin) {
+      const updated = coins.find(c => c.id === selectedCoin.id);
+      if (updated && updated.price !== selectedCoin.price) {
+        setSelectedCoin(updated);
+      }
+    }
+  }, [coins, selectedCoin]);
 
   // --- COIN DETAIL VIEW ---
   if (mode === "coin" && selectedCoin) {
@@ -188,7 +271,10 @@ export function WalletView() {
         <GlassCard className="p-4" glow>
           <div className="flex items-end justify-between mb-3">
             <div>
-              <p className="text-2xl font-bold" style={{ color: selectedCoin.color }}>
+              <p className={`text-2xl font-bold transition-colors duration-500 ${
+                priceFlash[selectedCoin.id] === "up" ? "text-green-400" :
+                priceFlash[selectedCoin.id] === "down" ? "text-red-400" : ""
+              }`} style={{ color: !priceFlash[selectedCoin.id] ? selectedCoin.color : undefined }}>
                 ${selectedCoin.price.toLocaleString("en-US", { minimumFractionDigits: 2 })}
               </p>
               <div className={`flex items-center gap-1 text-sm ${isPositive ? "text-green-400" : "text-red-400"}`}>
@@ -201,11 +287,8 @@ export function WalletView() {
 
           <div className="flex gap-1 mb-3">
             {(["1H", "1D", "1W"] as const).map(p => (
-              <button
-                key={p}
-                onClick={() => setChartPeriod(p)}
-                className={`px-3 py-1 rounded text-xs font-medium transition-colors ${chartPeriod === p ? "bg-primary text-primary-foreground" : "bg-muted/50 text-muted-foreground hover:text-foreground"}`}
-              >
+              <button key={p} onClick={() => setChartPeriod(p)}
+                className={`px-3 py-1 rounded text-xs font-medium transition-colors ${chartPeriod === p ? "bg-primary text-primary-foreground" : "bg-muted/50 text-muted-foreground hover:text-foreground"}`}>
                 {p}
               </button>
             ))}
@@ -222,12 +305,10 @@ export function WalletView() {
                 </defs>
                 <XAxis dataKey="time" tick={{ fontSize: 10, fill: "hsl(270 15% 60%)" }} axisLine={false} tickLine={false} />
                 <YAxis domain={["auto", "auto"]} tick={{ fontSize: 10, fill: "hsl(270 15% 60%)" }} axisLine={false} tickLine={false} width={60}
-                  tickFormatter={(v: number) => selectedCoin.price > 1000 ? `$${(v / 1000).toFixed(1)}k` : `$${v.toFixed(2)}`}
-                />
+                  tickFormatter={(v: number) => selectedCoin.price > 1000 ? `$${(v / 1000).toFixed(1)}k` : `$${v.toFixed(2)}`} />
                 <Tooltip
                   contentStyle={{ background: "hsl(240 25% 12%)", border: "1px solid hsl(260 30% 25%)", borderRadius: 8, color: "hsl(270 30% 95%)" }}
-                  formatter={(v: number) => [`$${v.toLocaleString("en-US", { minimumFractionDigits: 2 })}`, "Price"]}
-                />
+                  formatter={(v: number) => [`$${v.toLocaleString("en-US", { minimumFractionDigits: 2 })}`, "Price"]} />
                 <Area type="monotone" dataKey="price" stroke={selectedCoin.color} strokeWidth={2} fill={`url(#grad-${selectedCoin.id})`} />
               </AreaChart>
             </ResponsiveContainer>
@@ -242,7 +323,6 @@ export function WalletView() {
               {copied ? <CheckCircle className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4 text-muted-foreground" />}
             </button>
           </div>
-          {/* Simple QR placeholder */}
           <div className="mx-auto w-32 h-32 bg-white rounded-lg flex items-center justify-center">
             <div className="grid grid-cols-5 gap-0.5 w-24 h-24">
               {Array.from({ length: 25 }).map((_, i) => (
@@ -265,7 +345,7 @@ export function WalletView() {
         <GlassCard className="p-6 space-y-4" glow>
           <p className="text-sm text-muted-foreground">Выберите монету для пополнения:</p>
           <div className="grid grid-cols-3 gap-2">
-            {COINS.map(c => (
+            {coins.map(c => (
               <button key={c.id} onClick={() => openCoin(c)}
                 className="flex flex-col items-center gap-1 p-3 rounded-lg bg-muted/30 border border-border hover:border-primary/50 transition-colors">
                 <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold" style={{ background: c.color + "22", color: c.color }}>
@@ -301,15 +381,9 @@ export function WalletView() {
             <label className="block text-sm font-medium text-foreground/80 mb-1.5">
               <Shield className="w-3.5 h-3.5 inline mr-1" /> PIN-код (6 цифр)
             </label>
-            <input
-              type="password"
-              inputMode="numeric"
-              maxLength={6}
-              placeholder="••••••"
-              value={securityPin}
-              onChange={e => setSecurityPin(e.target.value.replace(/\D/g, "").slice(0, 6))}
-              className="w-full rounded-lg border border-border bg-muted/30 px-4 py-2.5 text-center text-lg tracking-[0.5em] placeholder:tracking-normal placeholder:text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
-            />
+            <input type="password" inputMode="numeric" maxLength={6} placeholder="••••••"
+              value={securityPin} onChange={e => setSecurityPin(e.target.value.replace(/\D/g, "").slice(0, 6))}
+              className="w-full rounded-lg border border-border bg-muted/30 px-4 py-2.5 text-center text-lg tracking-[0.5em] placeholder:tracking-normal placeholder:text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" />
           </div>
           <FlameButton onClick={submitWithdrawal} className="w-full" disabled={loading}>
             {loading ? "Отправка..." : "Вывести"}
@@ -321,8 +395,8 @@ export function WalletView() {
 
   // --- SWAP ---
   if (mode === "swap") {
-    const fromCoin = COINS.find(c => c.id === swapFrom)!;
-    const toCoin = COINS.find(c => c.id === swapTo)!;
+    const fromCoin = coins.find(c => c.id === swapFrom)!;
+    const toCoin = coins.find(c => c.id === swapTo)!;
     const swapNum = parseFloat(swapAmount) || 0;
     const usdVal = swapNum * fromCoin.price;
     const fee = usdVal * SWAP_FEE;
@@ -338,33 +412,30 @@ export function WalletView() {
             <div className="flex gap-2">
               <select value={swapFrom} onChange={e => setSwapFrom(e.target.value)}
                 className="rounded-lg border border-border bg-muted/30 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50">
-                {COINS.map(c => <option key={c.id} value={c.id}>{c.symbol}</option>)}
+                {coins.map(c => <option key={c.id} value={c.id}>{c.symbol}</option>)}
               </select>
               <input type="number" placeholder="0.00" value={swapAmount} onChange={e => setSwapAmount(e.target.value)}
                 className="flex-1 rounded-lg border border-border bg-muted/30 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" />
             </div>
           </div>
-
           <div className="flex justify-center">
             <button onClick={() => { setSwapFrom(swapTo); setSwapTo(swapFrom); }}
               className="p-2 rounded-full bg-primary/20 hover:bg-primary/30 transition-colors">
               <ArrowLeftRight className="w-4 h-4 text-primary" />
             </button>
           </div>
-
           <div>
             <label className="block text-sm font-medium text-foreground/80 mb-1.5">Получаете</label>
             <div className="flex gap-2">
               <select value={swapTo} onChange={e => setSwapTo(e.target.value)}
                 className="rounded-lg border border-border bg-muted/30 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50">
-                {COINS.filter(c => c.id !== swapFrom).map(c => <option key={c.id} value={c.id}>{c.symbol}</option>)}
+                {coins.filter(c => c.id !== swapFrom).map(c => <option key={c.id} value={c.id}>{c.symbol}</option>)}
               </select>
               <div className="flex-1 rounded-lg border border-border bg-muted/10 px-4 py-2.5 text-sm text-muted-foreground">
                 ≈ {receiveVal > 0 ? receiveVal.toFixed(6) : "0.00"} {toCoin.symbol}
               </div>
             </div>
           </div>
-
           {swapNum > 0 && (
             <div className="text-xs space-y-1 text-muted-foreground border-t border-border pt-3">
               <div className="flex justify-between"><span>Стоимость</span><span>${usdVal.toFixed(2)}</span></div>
@@ -372,10 +443,7 @@ export function WalletView() {
               <div className="flex justify-between font-medium text-foreground"><span>Итого получите</span><span>{receiveVal.toFixed(6)} {toCoin.symbol}</span></div>
             </div>
           )}
-
-          <FlameButton onClick={submitSwap} className="w-full" disabled={swapFrom === swapTo}>
-            Обменять
-          </FlameButton>
+          <FlameButton onClick={submitSwap} className="w-full" disabled={swapFrom === swapTo}>Обменять</FlameButton>
         </GlassCard>
       </div>
     );
@@ -389,9 +457,9 @@ export function WalletView() {
       </h2>
 
       <GlassCard className="p-5 text-center" glow>
-        <p className="text-xs text-muted-foreground mb-1">Общий баланс</p>
-        <p className="text-3xl font-bold text-primary">${balance.toFixed(2)}</p>
-        <p className="text-[10px] text-muted-foreground mt-1">USDT / Credits</p>
+        <p className="text-xs text-muted-foreground mb-1">Портфель (USD)</p>
+        <p className="text-3xl font-bold text-primary">${portfolioUsd.toFixed(2)}</p>
+        <p className="text-[10px] text-muted-foreground mt-1">Обновление каждые 10 сек</p>
       </GlassCard>
 
       <div className="grid grid-cols-3 gap-2">
@@ -407,16 +475,16 @@ export function WalletView() {
       </div>
 
       <div>
-        <h3 className="text-sm font-semibold text-muted-foreground mb-2">Рынок</h3>
+        <h3 className="text-sm font-semibold text-muted-foreground mb-2">Рынок — Live</h3>
         <div className="space-y-1.5">
-          {COINS.map(coin => {
+          {coins.map(coin => {
             const isPositive = coin.change24h >= 0;
+            const flash = priceFlash[coin.id];
             return (
-              <button
-                key={coin.id}
-                onClick={() => openCoin(coin)}
-                className="w-full flex items-center gap-3 p-3 rounded-xl bg-muted/20 border border-border/50 hover:border-primary/40 transition-all group"
-              >
+              <button key={coin.id} onClick={() => openCoin(coin)}
+                className={`w-full flex items-center gap-3 p-3 rounded-xl bg-muted/20 border border-border/50 hover:border-primary/40 transition-all group ${
+                  flash === "up" ? "ring-1 ring-green-400/50" : flash === "down" ? "ring-1 ring-red-400/50" : ""
+                }`}>
                 <div className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold shrink-0" style={{ background: coin.color + "22", color: coin.color }}>
                   {coin.symbol[0]}
                 </div>
@@ -425,7 +493,11 @@ export function WalletView() {
                   <p className="text-[10px] text-muted-foreground">{coin.network}</p>
                 </div>
                 <div className="text-right shrink-0">
-                  <p className="text-sm font-semibold">${coin.price.toLocaleString("en-US", { minimumFractionDigits: 2 })}</p>
+                  <p className={`text-sm font-semibold transition-colors duration-500 ${
+                    flash === "up" ? "text-green-400" : flash === "down" ? "text-red-400" : ""
+                  }`}>
+                    {coin.price > 0 ? `$${coin.price.toLocaleString("en-US", { minimumFractionDigits: 2 })}` : "—"}
+                  </p>
                   <p className={`text-xs flex items-center justify-end gap-0.5 ${isPositive ? "text-green-400" : "text-red-400"}`}>
                     {isPositive ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
                     {isPositive ? "+" : ""}{coin.change24h.toFixed(2)}%
