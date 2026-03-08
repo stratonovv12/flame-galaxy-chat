@@ -6,7 +6,7 @@ import { FlameButton } from "@/components/ui/FlameButton";
 import { FlameInput } from "@/components/ui/FlameInput";
 import { MediaUpload } from "@/components/ui/MediaUpload";
 import { UserAvatar } from "@/components/ui/UserAvatar";
-import { ShoppingBag, Plus, X, Tag, Wallet, ArrowLeft, Send } from "lucide-react";
+import { ShoppingBag, Plus, X, Tag, Wallet, ArrowLeft, AlertTriangle } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
 import { ru } from "date-fns/locale";
@@ -32,8 +32,8 @@ export function MarketplaceView() {
   const [showCreate, setShowCreate] = useState(false);
   const [loading, setLoading] = useState(false);
   const [buying, setBuying] = useState<string | null>(null);
+  const [hasSteamUrl, setHasSteamUrl] = useState(false);
 
-  // Create form
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
@@ -42,15 +42,20 @@ export function MarketplaceView() {
   useEffect(() => {
     fetchListings();
     fetchBalance();
+    checkSteamUrl();
   }, [user]);
+
+  const checkSteamUrl = async () => {
+    if (!user) return;
+    const { data } = await supabase.from("profiles").select("steam_trade_url").eq("user_id", user.id).maybeSingle();
+    setHasSteamUrl(!!(data?.steam_trade_url && data.steam_trade_url.trim()));
+  };
 
   const fetchBalance = async () => {
     if (!user) return;
     const { data } = await supabase.from("wallets").select("balance").eq("user_id", user.id).maybeSingle();
-    if (data) {
-      setBalance(Number(data.balance));
-    } else {
-      // Create wallet if not exists
+    if (data) setBalance(Number(data.balance));
+    else {
       await supabase.from("wallets").insert({ user_id: user.id, balance: 0 });
       setBalance(0);
     }
@@ -62,12 +67,10 @@ export function MarketplaceView() {
       .select("*")
       .eq("status", "active")
       .order("created_at", { ascending: false });
-
     if (!data) return;
     const sellerIds = [...new Set(data.map(l => l.seller_id))];
     const { data: profiles } = await supabase.from("profiles").select("user_id, username, avatar_url").in("user_id", sellerIds);
     const profileMap = new Map(profiles?.map(p => [p.user_id, p]) || []);
-
     setListings(data.map(l => ({
       ...l,
       price: Number(l.price),
@@ -78,6 +81,10 @@ export function MarketplaceView() {
 
   const createListing = async () => {
     if (!title.trim() || !price || !user) return;
+    if (!hasSteamUrl) {
+      toast({ title: "Steam Trade URL не указан", description: "Добавьте его в профиле для продажи", variant: "destructive" });
+      return;
+    }
     const numPrice = parseFloat(price);
     if (isNaN(numPrice) || numPrice <= 0) {
       toast({ title: "Ошибка", description: "Укажите корректную цену", variant: "destructive" });
@@ -103,6 +110,10 @@ export function MarketplaceView() {
 
   const buyItem = async (listing: Listing) => {
     if (!user) return;
+    if (!hasSteamUrl) {
+      toast({ title: "Steam Trade URL не указан", description: "Добавьте его в профиле", variant: "destructive" });
+      return;
+    }
     if (listing.seller_id === user.id) {
       toast({ title: "Ошибка", description: "Нельзя купить свой товар", variant: "destructive" });
       return;
@@ -112,19 +123,17 @@ export function MarketplaceView() {
       return;
     }
     if (!confirm(`Купить "${listing.title}" за $${listing.price}? Комиссия 5%.`)) return;
-
     setBuying(listing.id);
     const { data, error } = await supabase.rpc("buy_listing", {
       _listing_id: listing.id,
       _buyer_id: user.id,
     });
-
     if (error) {
       toast({ title: "Ошибка", description: error.message, variant: "destructive" });
     } else if (data && typeof data === "object" && "error" in data) {
       toast({ title: "Ошибка", description: (data as any).error, variant: "destructive" });
     } else {
-      toast({ title: "Покупка завершена!", description: "Ожидайте трейд от продавца." });
+      toast({ title: "Покупка завершена!", description: "Предмет добавлен в инвентарь." });
       fetchListings();
       fetchBalance();
     }
@@ -147,7 +156,6 @@ export function MarketplaceView() {
           </button>
           <h2 className="text-xl font-bold">Новый товар</h2>
         </div>
-
         <GlassCard className="p-6 space-y-4" glow>
           <FlameInput label="Название" placeholder="CS2 AWP | Dragon Lore" value={title} onChange={e => setTitle(e.target.value)} />
           <FlameInput label="Описание" placeholder="Factory New, StatTrak™" value={description} onChange={e => setDescription(e.target.value)} />
@@ -178,6 +186,13 @@ export function MarketplaceView() {
         </FlameButton>
       </div>
 
+      {!hasSteamUrl && (
+        <GlassCard className="p-3 flex items-center gap-3 border-destructive/50">
+          <AlertTriangle className="w-5 h-5 text-destructive shrink-0" />
+          <p className="text-sm text-destructive">Укажите Steam Trade URL в профиле для покупки и продажи</p>
+        </GlassCard>
+      )}
+
       <GlassCard className="p-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Wallet className="w-5 h-5 text-primary" />
@@ -200,8 +215,7 @@ export function MarketplaceView() {
           {listings.map(listing => (
             <GlassCard key={listing.id} className="overflow-hidden">
               {listing.image_url && (
-                <img src={listing.image_url} alt={listing.title}
-                  className="w-full h-40 object-cover" />
+                <img src={listing.image_url} alt={listing.title} className="w-full h-40 object-cover" />
               )}
               <div className="p-4 space-y-2">
                 <div className="flex items-start justify-between">
@@ -217,22 +231,24 @@ export function MarketplaceView() {
                   <span>·</span>
                   <span>{formatDistanceToNow(new Date(listing.created_at), { addSuffix: true, locale: ru })}</span>
                 </div>
-
                 {user && listing.seller_id === user.id ? (
                   <FlameButton variant="outline" size="sm" className="w-full border-destructive/50 text-destructive" onClick={() => deleteListing(listing.id)}>
                     <X className="w-3 h-3 mr-1" /> Снять
                   </FlameButton>
                 ) : (
-                  <FlameButton size="sm" className="w-full" onClick={() => buyItem(listing)} disabled={buying === listing.id}>
+                  <FlameButton
+                    size="sm"
+                    className="w-full"
+                    onClick={() => buyItem(listing)}
+                    disabled={buying === listing.id || !hasSteamUrl}
+                  >
                     {buying === listing.id ? (
                       <span className="flex items-center gap-2">
                         <div className="w-3 h-3 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
                         Обработка...
                       </span>
                     ) : (
-                      <>
-                        <Tag className="w-3 h-3 mr-1" /> Купить
-                      </>
+                      <><Tag className="w-3 h-3 mr-1" /> Купить</>
                     )}
                   </FlameButton>
                 )}
