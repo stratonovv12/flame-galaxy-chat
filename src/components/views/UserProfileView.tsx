@@ -90,45 +90,41 @@ export function UserProfileView({ userId, onBack, onStartChat }: UserProfileView
 
   const fetchUserData = async () => {
     setLoading(true);
-    const promises: Promise<any>[] = [];
 
     // Profile
-    promises.push(supabase.from("profiles").select("*").eq("user_id", userId).maybeSingle());
+    const { data: profileData } = await supabase.from("profiles").select("*").eq("user_id", userId).maybeSingle();
+    setProfile(profileData as Profile | null);
+
     // My profile
-    if (user) promises.push(supabase.from("profiles").select("*").eq("user_id", user.id).maybeSingle());
+    if (user) {
+      const { data: mp } = await supabase.from("profiles").select("*").eq("user_id", user.id).maybeSingle();
+      setMyProfile(mp as Profile | null);
+    }
+
     // Posts
-    promises.push(
-      supabase.from("posts").select("id, content, media_url, created_at, channel_id")
-        .eq("author_id", userId).not("media_url", "is", null)
-        .order("created_at", { ascending: false }).limit(20)
-    );
-    // Marketplace listings by this user
-    promises.push(
-      supabase.from("marketplace_listings").select("*")
-        .eq("seller_id", userId).eq("status", "active").order("created_at", { ascending: false })
-    );
-    // My inventory for gift/trade
-    if (user) promises.push(
-      supabase.from("user_inventory").select("id, title, description, image_url, acquired_at")
-        .eq("owner_id", user.id).order("acquired_at", { ascending: false })
-    );
+    const { data: postsData } = await supabase.from("posts").select("id, content, media_url, created_at, channel_id")
+      .eq("author_id", userId).not("media_url", "is", null)
+      .order("created_at", { ascending: false }).limit(20);
 
-    const results = await Promise.all(promises);
-    let idx = 0;
-
-    const profileData = results[idx++]?.data as Profile | null;
-    setProfile(profileData);
-
-    if (user) setMyProfile(results[idx++]?.data as Profile | null);
-
-    const postsData = results[idx++]?.data || [];
-    if (postsData.length > 0) {
-      const channelIds = [...new Set(postsData.map((p: any) => p.channel_id))];
+    if (postsData && postsData.length > 0) {
+      const channelIds = [...new Set(postsData.map((p) => p.channel_id))] as string[];
       const { data: channelsData } = await supabase.from("channels").select("id, name").in("id", channelIds);
-      const channelMap = new Map(channelsData?.map((c: any) => [c.id, c.name]) || []);
-      setPosts(postsData.map((p: any) => ({ ...p, channel_name: channelMap.get(p.channel_id) || "Канал" })));
+      const channelMap = new Map(channelsData?.map((c) => [c.id, c.name]) || []);
+      setPosts(postsData.map((p) => ({ ...p, channel_name: channelMap.get(p.channel_id) || "Канал" })));
     } else {
       setPosts([]);
+    }
+
+    // Listings
+    const { data: listData } = await supabase.from("marketplace_listings").select("*")
+      .eq("seller_id", userId).eq("status", "active").order("created_at", { ascending: false });
+    setListings((listData || []) as MarketListing[]);
+
+    // My inventory
+    if (user) {
+      const { data: myInvData } = await supabase.from("user_inventory").select("id, title, description, image_url, acquired_at")
+        .eq("owner_id", user.id).order("acquired_at", { ascending: false });
+      setMyInventory((myInvData || []) as InventoryItem[]);
     }
 
     setListings((results[idx++]?.data || []) as MarketListing[]);
