@@ -127,9 +127,6 @@ export function UserProfileView({ userId, onBack, onStartChat }: UserProfileView
       setMyInventory((myInvData || []) as InventoryItem[]);
     }
 
-    setListings((results[idx++]?.data || []) as MarketListing[]);
-    if (user) setMyInventory((results[idx++]?.data || []) as InventoryItem[]);
-
     // Inventory visibility
     const visibility = profileData?.inventory_visibility || "public";
     const canSee = user?.id === userId || visibility === "public";
