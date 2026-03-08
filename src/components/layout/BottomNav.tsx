@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
-import { Hash, MessageCircle, Sparkles, User, Search, Users } from "lucide-react";
+import { Hash, MessageCircle, Sparkles, Search, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
-type TabType = "channels" | "groups" | "messages" | "search" | "ai" | "profile";
+type TabType = "channels" | "groups" | "messages" | "search" | "ai";
 
 interface BottomNavProps {
   activeTab: TabType;
@@ -17,7 +17,6 @@ const tabs = [
   { id: "messages" as const, label: "Чаты", icon: MessageCircle },
   { id: "search" as const, label: "Поиск", icon: Search },
   { id: "ai" as const, label: "AI", icon: Sparkles },
-  { id: "profile" as const, label: "Профиль", icon: User },
 ];
 
 export function BottomNav({ activeTab, onTabChange }: BottomNavProps) {

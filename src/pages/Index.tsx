@@ -98,7 +98,7 @@ const Index = () => {
           {renderView()}
         </div>
       </main>
-      <BottomNav activeTab={activeTab === "market" || activeTab === "inventory" || activeTab === "wallet" || activeTab === "trades" ? "channels" : activeTab} onTabChange={setActiveTab} />
+      <BottomNav activeTab={activeTab === "market" || activeTab === "inventory" || activeTab === "wallet" || activeTab === "trades" || activeTab === "profile" ? "channels" : activeTab} onTabChange={setActiveTab} />
     </div>
   );
 };

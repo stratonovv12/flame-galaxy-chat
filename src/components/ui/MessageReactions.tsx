@@ -64,6 +64,7 @@ export function MessageReactions({ postId, className }: MessageReactionsProps) {
     const existing = reactions.find((r) => r.emoji === emoji && r.reacted);
 
     if (existing) {
+      // Remove the same emoji (toggle off)
       await supabase
         .from("message_reactions")
         .delete()
@@ -71,6 +72,13 @@ export function MessageReactions({ postId, className }: MessageReactionsProps) {
         .eq("user_id", user.id)
         .eq("emoji", emoji);
     } else {
+      // Single reaction: remove any previous reaction by this user on this post
+      await supabase
+        .from("message_reactions")
+        .delete()
+        .eq("post_id", postId)
+        .eq("user_id", user.id);
+      // Then insert the new one
       await supabase
         .from("message_reactions")
         .insert({ post_id: postId, user_id: user.id, emoji });
