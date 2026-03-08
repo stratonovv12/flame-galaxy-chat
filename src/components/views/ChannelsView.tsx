@@ -245,6 +245,15 @@ export function ChannelsView({ onViewProfile, initialChannelId, onClearInitial }
 
   const isCreator = selectedChannel && user && selectedChannel.creator_id === user.id;
 
+  // Verified channels cache
+  const [verifiedChannelIds, setVerifiedChannelIds] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    supabase.from("verified_channels").select("channel_id").then(({ data }) => {
+      setVerifiedChannelIds(new Set(data?.map(v => v.channel_id) || []));
+    });
+  }, []);
+
   const ChannelIcon = ({ channel, size = "md" }: { channel: Channel; size?: "sm" | "md" | "lg" }) => {
     const sizeClasses = { sm: "w-10 h-10", md: "w-10 h-10", lg: "w-12 h-12" };
     if (channel.avatar_url) {
@@ -254,6 +263,15 @@ export function ChannelsView({ onViewProfile, initialChannelId, onClearInitial }
       <div className={`${sizeClasses[size]} rounded-xl bg-primary/20 flex items-center justify-center`}>
         <Hash className="w-5 h-5 text-primary" />
       </div>
+    );
+  };
+
+  const VerifiedBadge = ({ channelId }: { channelId: string }) => {
+    if (!verifiedChannelIds.has(channelId)) return null;
+    return (
+      <span title="Verified" className="inline-flex">
+        <ShieldCheck className="w-4 h-4 text-blue-400 fill-blue-400/20" />
+      </span>
     );
   };
 
