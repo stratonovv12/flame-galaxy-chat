@@ -76,7 +76,7 @@ const Index = () => {
       case "messages": return <DirectMessagesView selectedUserId={selectedChatUserId} onClearSelectedUser={() => setSelectedChatUserId(null)} onViewProfile={handleViewProfile} />;
       case "search": return <SearchView searchQuery={searchQuery} onSearchChange={setSearchQuery} onStartChat={handleStartChat} onViewProfile={handleViewProfile} onOpenChannel={handleOpenChannel} onOpenGroup={handleOpenGroup} />;
       case "ai": return <AIView />;
-      case "profile": return <ProfileView />;
+      case "profile": return <ProfileView onNavigate={(tab) => setActiveTab(tab as TabType)} />;
       case "market": return <MarketplaceView />;
       case "inventory": return <InventoryView />;
       case "wallet": return <WalletView />;
