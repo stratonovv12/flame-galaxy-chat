@@ -586,6 +586,7 @@ export type Database = {
           created_at: string
           display_name: string | null
           id: string
+          inventory_visibility: string
           steam_trade_url: string | null
           updated_at: string
           user_id: string
@@ -597,6 +598,7 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           id?: string
+          inventory_visibility?: string
           steam_trade_url?: string | null
           updated_at?: string
           user_id: string
@@ -608,6 +610,7 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           id?: string
+          inventory_visibility?: string
           steam_trade_url?: string | null
           updated_at?: string
           user_id?: string
@@ -713,6 +716,7 @@ export type Database = {
           description: string | null
           id: string
           image_url: string | null
+          is_hidden: boolean
           listing_id: string | null
           owner_id: string
           title: string
@@ -722,6 +726,7 @@ export type Database = {
           description?: string | null
           id?: string
           image_url?: string | null
+          is_hidden?: boolean
           listing_id?: string | null
           owner_id: string
           title: string
@@ -731,6 +736,7 @@ export type Database = {
           description?: string | null
           id?: string
           image_url?: string | null
+          is_hidden?: boolean
           listing_id?: string | null
           owner_id?: string
           title?: string
