@@ -351,7 +351,10 @@ export function ChannelsView({ onViewProfile, initialChannelId, onClearInitial }
             </button>
             <ChannelIcon channel={selectedChannel} />
             <div className="flex-1">
-              <h2 className="font-semibold">{selectedChannel.name}</h2>
+              <h2 className="font-semibold flex items-center gap-1">
+                {selectedChannel.name}
+                <VerifiedBadge channelId={selectedChannel.id} />
+              </h2>
               <p className="text-xs text-muted-foreground">
                 {selectedChannel.handle && <span className="text-primary/70">@{selectedChannel.handle} · </span>}
                 {subscriberCounts[selectedChannel.id] || 0} подписчиков
