@@ -588,34 +588,37 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
       ) : (
         <div className="space-y-3">
           {conversations.map(conv => (
-            <GlassCard key={conv.partnerId}
-              className={`p-4 cursor-pointer hover:border-primary/50 transition-colors ${conv.unreadCount > 0 ? "border-primary/50" : ""}`}
-              onClick={() => openChatWithUser(conv.partnerId)}>
-              <div className="flex items-center gap-3">
-                <button onClick={e => { e.stopPropagation(); onViewProfile?.(conv.partnerId); }} className="shrink-0">
-                  <UserAvatar username={conv.partnerUsername} avatarUrl={conv.partnerAvatarUrl} size="lg" />
-                </button>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5">
-                      <h3 className="font-semibold">{conv.partnerUsername || "Пользователь"}</h3>
-                      <UserBadge userId={conv.partnerId} />
+            <ChatListContextMenu key={conv.partnerId} partnerId={conv.partnerId} partnerUsername={conv.partnerUsername} onDeleted={fetchConversations}>
+              <GlassCard
+                className={`p-4 cursor-pointer hover:border-primary/50 transition-colors ${conv.unreadCount > 0 ? "border-primary/50" : ""}`}
+                onClick={() => openChatWithUser(conv.partnerId)}>
+                <div className="flex items-center gap-3">
+                  <button onClick={e => { e.stopPropagation(); onViewProfile?.(conv.partnerId); }} className="shrink-0">
+                    <UserAvatar username={conv.partnerUsername} avatarUrl={conv.partnerAvatarUrl} size="lg" />
+                  </button>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <h3 className="font-semibold">{conv.partnerUsername || "Пользователь"}</h3>
+                        <UserBadge userId={conv.partnerId} />
+                      </div>
+                      <span className="text-xs text-muted-foreground">
+                        {formatDistanceToNow(new Date(conv.lastMessageAt), { addSuffix: true, locale: ru })}
+                      </span>
                     </div>
-                    <span className="text-xs text-muted-foreground">
-                      {formatDistanceToNow(new Date(conv.lastMessageAt), { addSuffix: true, locale: ru })}
-                    </span>
+                    {conv.partnerUsername && <p className="text-xs text-primary/70">@{conv.partnerUsername.replace(/^@/, "")}</p>}
+                    <p className="text-sm text-muted-foreground truncate">{conv.lastMessage}</p>
                   </div>
-                  {conv.partnerUsername && <p className="text-xs text-primary/70">@{conv.partnerUsername.replace(/^@/, "")}</p>}
-                  <p className="text-sm text-muted-foreground truncate">{conv.lastMessage}</p>
+                  {conv.unreadCount > 0 && (
+                    <span className="min-w-[22px] h-[22px] flex items-center justify-center rounded-full bg-primary text-primary-foreground text-[11px] font-bold px-1.5">
+                      {conv.unreadCount > 99 ? "99+" : conv.unreadCount}
+                    </span>
+                  )}
                 </div>
-                {conv.unreadCount > 0 && (
-                  <span className="min-w-[22px] h-[22px] flex items-center justify-center rounded-full bg-primary text-primary-foreground text-[11px] font-bold px-1.5">
-                    {conv.unreadCount > 99 ? "99+" : conv.unreadCount}
-                  </span>
-                )}
-              </div>
-            </GlassCard>
+              </GlassCard>
+            </ChatListContextMenu>
           ))}
+        
         </div>
       )}
     </div>

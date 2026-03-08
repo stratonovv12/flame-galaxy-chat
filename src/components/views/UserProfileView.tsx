@@ -5,7 +5,7 @@ import { GlassCard } from "@/components/ui/GlassCard";
 import { FlameButton } from "@/components/ui/FlameButton";
 import { UserAvatar } from "@/components/ui/UserAvatar";
 import { UserBadge } from "@/components/ui/UserBadge";
-import { ArrowLeft, MessageCircle, Calendar, Hash } from "lucide-react";
+import { ArrowLeft, MessageCircle, Calendar, Hash, Package, Lock } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ru } from "date-fns/locale";
 
@@ -16,6 +16,8 @@ interface Profile {
   bio: string | null;
   user_id: string;
   created_at: string;
+  display_name: string | null;
+  inventory_visibility?: string;
 }
 
 interface Post {
@@ -25,6 +27,14 @@ interface Post {
   created_at: string;
   channel_id: string;
   channel_name?: string;
+}
+
+interface InventoryItem {
+  id: string;
+  title: string;
+  description: string | null;
+  image_url: string | null;
+  acquired_at: string;
 }
 
 interface UserProfileViewProps {
@@ -37,7 +47,10 @@ export function UserProfileView({ userId, onBack, onStartChat }: UserProfileView
   const { user } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
+  const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<"posts" | "inventory">("posts");
+  const [inventoryAccessible, setInventoryAccessible] = useState(false);
 
   useEffect(() => { fetchUserData(); }, [userId]);
 
@@ -45,9 +58,9 @@ export function UserProfileView({ userId, onBack, onStartChat }: UserProfileView
     setLoading(true);
     const { data: profileData } = await supabase
       .from("profiles").select("*").eq("user_id", userId).maybeSingle();
-    setProfile(profileData);
+    setProfile(profileData as Profile | null);
 
-    // Only show posts that have media_url (explicit media posts), not plain text chat messages
+    // Fetch posts
     const { data: postsData } = await supabase
       .from("posts")
       .select("id, content, media_url, created_at, channel_id")
@@ -64,6 +77,22 @@ export function UserProfileView({ userId, onBack, onStartChat }: UserProfileView
     } else {
       setPosts([]);
     }
+
+    // Check inventory visibility
+    const visibility = (profileData as any)?.inventory_visibility || "public";
+    const isOwn = user?.id === userId;
+    const canSee = isOwn || visibility === "public";
+    setInventoryAccessible(canSee);
+
+    if (canSee) {
+      const { data: invData } = await supabase
+        .from("user_inventory")
+        .select("id, title, description, image_url, acquired_at")
+        .eq("owner_id", userId)
+        .order("acquired_at", { ascending: false });
+      setInventory((invData as InventoryItem[]) || []);
+    }
+
     setLoading(false);
   };
 
@@ -99,7 +128,7 @@ export function UserProfileView({ userId, onBack, onStartChat }: UserProfileView
       <GlassCard className="p-8 text-center" glow>
         <UserAvatar username={profile.username} avatarUrl={profile.avatar_url} size="xl" className="mx-auto mb-4 neon-glow" />
         <div className="flex items-center justify-center gap-1.5 mb-1">
-          <h2 className="text-xl font-bold">{profile.username || "Без имени"}</h2>
+          <h2 className="text-xl font-bold">{profile.display_name || profile.username || "Без имени"}</h2>
           <UserBadge userId={userId} />
         </div>
         {profile.username && <p className="text-sm text-primary/80 mb-2">@{profile.username.replace(/^@/, "")}</p>}
@@ -115,32 +144,81 @@ export function UserProfileView({ userId, onBack, onStartChat }: UserProfileView
         )}
       </GlassCard>
 
-      <div>
-        <h3 className="text-lg font-semibold mb-3">Медиа-публикации ({posts.length})</h3>
-        {posts.length === 0 ? (
-          <GlassCard className="text-center py-8">
-            <p className="text-muted-foreground">Нет медиа-публикаций</p>
-          </GlassCard>
-        ) : (
-          <div className="grid grid-cols-2 gap-3">
-            {posts.map((post) => (
-              <GlassCard key={post.id} className="p-2 cursor-pointer" onClick={() => post.media_url && window.open(post.media_url, "_blank")}>
-                {post.media_url && (
-                  post.media_url.match(/\.(mp4|webm|mov)/) ? (
-                    <video src={post.media_url} className="w-full aspect-square rounded-lg object-cover" />
-                  ) : (
-                    <img src={post.media_url} alt="" className="w-full aspect-square rounded-lg object-cover" />
-                  )
-                )}
-                <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1 px-1">
-                  <Hash className="w-3 h-3" />
-                  <span className="truncate">{post.channel_name}</span>
-                </div>
-              </GlassCard>
-            ))}
-          </div>
-        )}
+      {/* Tabs */}
+      <div className="flex border-b border-border">
+        <button
+          onClick={() => setActiveTab("posts")}
+          className={`flex-1 py-2.5 text-sm font-medium border-b-2 transition-colors ${activeTab === "posts" ? "border-primary text-primary" : "border-transparent text-muted-foreground"}`}
+        >
+          Медиа ({posts.length})
+        </button>
+        <button
+          onClick={() => setActiveTab("inventory")}
+          className={`flex-1 py-2.5 text-sm font-medium border-b-2 transition-colors ${activeTab === "inventory" ? "border-primary text-primary" : "border-transparent text-muted-foreground"}`}
+        >
+          <span className="flex items-center justify-center gap-1.5">
+            <Package className="w-4 h-4" /> Инвентарь
+          </span>
+        </button>
       </div>
+
+      {activeTab === "posts" && (
+        <div>
+          {posts.length === 0 ? (
+            <GlassCard className="text-center py-8">
+              <p className="text-muted-foreground">Нет медиа-публикаций</p>
+            </GlassCard>
+          ) : (
+            <div className="grid grid-cols-2 gap-3">
+              {posts.map((post) => (
+                <GlassCard key={post.id} className="p-2 cursor-pointer" onClick={() => post.media_url && window.open(post.media_url, "_blank")}>
+                  {post.media_url && (
+                    post.media_url.match(/\.(mp4|webm|mov)/) ? (
+                      <video src={post.media_url} className="w-full aspect-square rounded-lg object-cover" />
+                    ) : (
+                      <img src={post.media_url} alt="" className="w-full aspect-square rounded-lg object-cover" />
+                    )
+                  )}
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1 px-1">
+                    <Hash className="w-3 h-3" />
+                    <span className="truncate">{post.channel_name}</span>
+                  </div>
+                </GlassCard>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {activeTab === "inventory" && (
+        <div>
+          {!inventoryAccessible ? (
+            <GlassCard className="text-center py-12">
+              <Lock className="w-12 h-12 mx-auto mb-3 text-muted-foreground/50" />
+              <p className="text-muted-foreground">Инвентарь скрыт владельцем</p>
+            </GlassCard>
+          ) : inventory.length === 0 ? (
+            <GlassCard className="text-center py-8">
+              <Package className="w-12 h-12 mx-auto mb-3 text-muted-foreground/50" />
+              <p className="text-muted-foreground">Инвентарь пуст</p>
+            </GlassCard>
+          ) : (
+            <div className="grid grid-cols-2 gap-3">
+              {inventory.map((item) => (
+                <GlassCard key={item.id} className="overflow-hidden">
+                  {item.image_url && (
+                    <img src={item.image_url} alt={item.title} className="w-full h-28 object-cover" />
+                  )}
+                  <div className="p-3">
+                    <h4 className="font-semibold text-sm">{item.title}</h4>
+                    {item.description && <p className="text-xs text-muted-foreground truncate">{item.description}</p>}
+                  </div>
+                </GlassCard>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
