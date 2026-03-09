@@ -264,7 +264,7 @@ export function AIView() {
               <div className="w-2 h-2 rounded-full bg-primary typing-dot" />
               <div className="w-2 h-2 rounded-full bg-primary typing-dot" />
             </div>
-            <span className="text-sm text-muted-foreground">Думаю...</span>
+            <span className="text-sm text-muted-foreground">{t("thinking")}</span>
           </div>
         )}
       </GlassCard>
