@@ -8,7 +8,7 @@ import { UserAvatar } from "@/components/ui/UserAvatar";
 import { UserBadge } from "@/components/ui/UserBadge";
 import { MediaUpload } from "@/components/ui/MediaUpload";
 import { VoiceRecorder } from "@/components/ui/VoiceRecorder";
-import { VideoCircleRecorder } from "@/components/ui/VideoCircleRecorder";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { MessageContextMenu } from "@/components/ui/MessageContextMenu";
 import { ChatListContextMenu } from "@/components/ui/ChatListContextMenu";
 import { UploadingBubble } from "@/components/ui/UploadingBubble";
