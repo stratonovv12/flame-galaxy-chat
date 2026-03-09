@@ -568,7 +568,7 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
 
   return (
     <div className="p-4 space-y-4">
-      <h2 className="text-xl font-bold">Личные сообщения</h2>
+      <h2 className="text-xl font-bold">{t("directMessages")}</h2>
       {conversations.length === 0 ? (
         <GlassCard className="text-center py-12">
           <MessageCircle className="w-16 h-16 mx-auto mb-4 text-primary/50" />
