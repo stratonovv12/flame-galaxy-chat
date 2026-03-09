@@ -252,7 +252,7 @@ export function AIView() {
           <div className="space-y-2 min-w-[200px]">
             <div className="flex items-center gap-2">
               <Sparkles className="w-4 h-4 text-primary animate-spin" />
-              <span className="text-sm text-primary font-medium">Генерация изображения...</span>
+              <span className="text-sm text-primary font-medium">{t("imageGeneration")}</span>
             </div>
             <Progress value={imageProgress} className="h-2" />
             <p className="text-xs text-muted-foreground">{Math.round(imageProgress)}%</p>
