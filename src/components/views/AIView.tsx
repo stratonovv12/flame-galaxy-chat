@@ -329,9 +329,9 @@ export function AIView() {
               <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center neon-glow animate-float">
                 <Sparkles className="w-10 h-10 text-primary-foreground" />
               </div>
-              <h3 className="text-xl font-bold mb-2 text-glow">Привет! Я FLAME AI</h3>
+              <h3 className="text-xl font-bold mb-2 text-glow">{t("helloFlame")}</h3>
               <p className="text-muted-foreground max-w-sm mx-auto mb-4">
-                Задайте мне вопрос, отправьте фото для анализа или попросите сгенерировать изображение!
+                {t("aiHint")}
               </p>
               <div className="flex flex-wrap gap-2 justify-center max-w-md mx-auto">
                 {["📷 Анализ фото", "🎨 Нарисуй картинку", "💡 Помоги с задачей"].map(hint => (
