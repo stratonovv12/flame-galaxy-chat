@@ -397,7 +397,7 @@ export function AIView() {
               <Image className="w-5 h-5" />
             </button>
             <FlameInput
-              placeholder="Спросите или попросите нарисовать..."
+              placeholder={t("askOrDraw")}
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={e => e.key === "Enter" && !e.shiftKey && sendMessage()}
