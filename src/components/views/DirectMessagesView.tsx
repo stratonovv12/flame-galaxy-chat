@@ -572,8 +572,8 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
       {conversations.length === 0 ? (
         <GlassCard className="text-center py-12">
           <MessageCircle className="w-16 h-16 mx-auto mb-4 text-primary/50" />
-          <h3 className="text-lg font-semibold mb-2">Нет сообщений</h3>
-          <p className="text-muted-foreground">Найдите человека в поиске!</p>
+          <h3 className="text-lg font-semibold mb-2">{t("noMessages")}</h3>
+          <p className="text-muted-foreground">{t("findPeople")}</p>
         </GlassCard>
       ) : (
         <div className="space-y-3">
