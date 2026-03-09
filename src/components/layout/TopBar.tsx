@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
 import { Search, Flame, ShoppingBag, User } from "lucide-react";
 import { FlameInput } from "@/components/ui/FlameInput";
-import { UserAvatar } from "@/components/ui/UserAvatar";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface TopBarProps {
   searchQuery: string;
@@ -14,6 +14,7 @@ interface TopBarProps {
 
 export function TopBar({ searchQuery, onSearchChange, onOpenMarketplace, onOpenProfile }: TopBarProps) {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
   useEffect(() => {
@@ -25,18 +26,16 @@ export function TopBar({ searchQuery, onSearchChange, onOpenMarketplace, onOpenP
   return (
     <header className="fixed top-0 left-0 right-0 z-50 glass-card rounded-none border-b border-border/50 pt-safe">
       <div className="flex items-center gap-2 px-4 py-3">
-        {/* Logo */}
         <div className="flex items-center gap-2 shrink-0">
           <div className="w-9 h-9 rounded-lg bg-primary flex items-center justify-center neon-glow-sm">
             <Flame className="w-5 h-5 text-primary-foreground" />
           </div>
         </div>
 
-        {/* Search */}
         <div className="relative flex-1">
           <FlameInput
             type="text"
-            placeholder="Поиск людей и каналов..."
+            placeholder={t("searchPlaceholder")}
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
             className="pl-10 py-2.5 text-sm"
@@ -44,20 +43,18 @@ export function TopBar({ searchQuery, onSearchChange, onOpenMarketplace, onOpenP
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         </div>
 
-        {/* Market icon */}
         <button
           onClick={onOpenMarketplace}
           className="p-2 hover:bg-muted/50 rounded-lg transition-colors touch-target shrink-0"
-          title="Маркетплейс"
+          title={t("marketplace")}
         >
           <ShoppingBag className="w-5 h-5 text-muted-foreground hover:text-primary transition-colors" />
         </button>
 
-        {/* Profile icon */}
         <button
           onClick={onOpenProfile}
           className="shrink-0"
-          title="Профиль"
+          title={t("profile")}
         >
           {avatarUrl ? (
             <img src={avatarUrl} alt="" className="w-8 h-8 rounded-full object-cover border border-border/50" />

@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { FlameButton } from "@/components/ui/FlameButton";
 import { FlameInput } from "@/components/ui/FlameInput";
@@ -25,6 +26,7 @@ interface Topic {
 
 export function AIView() {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -68,9 +70,7 @@ export function AIView() {
       .from("ai_topics").select("*").eq("user_id", user.id)
       .order("updated_at", { ascending: false });
     setTopics(data || []);
-    if (data && data.length > 0 && !activeTopic) {
-      setActiveTopic(data[0]);
-    }
+    // Don't auto-select a topic on load — start fresh, history in sidebar
     setIsLoadingHistory(false);
   };
 
@@ -252,7 +252,7 @@ export function AIView() {
           <div className="space-y-2 min-w-[200px]">
             <div className="flex items-center gap-2">
               <Sparkles className="w-4 h-4 text-primary animate-spin" />
-              <span className="text-sm text-primary font-medium">Генерация изображения...</span>
+              <span className="text-sm text-primary font-medium">{t("imageGeneration")}</span>
             </div>
             <Progress value={imageProgress} className="h-2" />
             <p className="text-xs text-muted-foreground">{Math.round(imageProgress)}%</p>
@@ -264,7 +264,7 @@ export function AIView() {
               <div className="w-2 h-2 rounded-full bg-primary typing-dot" />
               <div className="w-2 h-2 rounded-full bg-primary typing-dot" />
             </div>
-            <span className="text-sm text-muted-foreground">Думаю...</span>
+            <span className="text-sm text-muted-foreground">{t("thinking")}</span>
           </div>
         )}
       </GlassCard>
@@ -276,12 +276,12 @@ export function AIView() {
       {/* Sidebar */}
       <div className={`absolute inset-y-0 left-0 z-30 w-72 transform transition-transform duration-300 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} bg-background/95 backdrop-blur-md border-r border-border`}>
         <div className="flex items-center justify-between p-4 border-b border-border">
-          <h3 className="font-semibold text-sm">История чатов</h3>
+          <h3 className="font-semibold text-sm">{t("chatHistory")}</h3>
           <button onClick={() => setSidebarOpen(false)} className="p-1 hover:bg-muted/50 rounded-lg"><X className="w-4 h-4" /></button>
         </div>
         <div className="p-2">
           <button onClick={createNewTopic} className="w-full flex items-center gap-2 p-3 rounded-lg hover:bg-muted/50 text-sm text-primary transition-colors">
-            <Plus className="w-4 h-4" /> Новый чат
+            <Plus className="w-4 h-4" /> {t("newChat")}
           </button>
         </div>
         <div className="overflow-y-auto flex-1 p-2 space-y-1" style={{ maxHeight: "calc(100% - 120px)" }}>
@@ -322,16 +322,16 @@ export function AIView() {
           {isLoadingHistory ? (
             <div className="text-center py-12">
               <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
-              <p className="text-muted-foreground mt-4">Загрузка...</p>
+              <p className="text-muted-foreground mt-4">{t("loading")}</p>
             </div>
           ) : messages.length === 0 && !isLoading ? (
             <div className="text-center py-12">
               <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center neon-glow animate-float">
                 <Sparkles className="w-10 h-10 text-primary-foreground" />
               </div>
-              <h3 className="text-xl font-bold mb-2 text-glow">Привет! Я FLAME AI</h3>
+              <h3 className="text-xl font-bold mb-2 text-glow">{t("helloFlame")}</h3>
               <p className="text-muted-foreground max-w-sm mx-auto mb-4">
-                Задайте мне вопрос, отправьте фото для анализа или попросите сгенерировать изображение!
+                {t("aiHint")}
               </p>
               <div className="flex flex-wrap gap-2 justify-center max-w-md mx-auto">
                 {["📷 Анализ фото", "🎨 Нарисуй картинку", "💡 Помоги с задачей"].map(hint => (
@@ -397,7 +397,7 @@ export function AIView() {
               <Image className="w-5 h-5" />
             </button>
             <FlameInput
-              placeholder="Спросите или попросите нарисовать..."
+              placeholder={t("askOrDraw")}
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={e => e.key === "Enter" && !e.shiftKey && sendMessage()}

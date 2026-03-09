@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Trash2, ShieldBan } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface ChatListContextMenuProps {
   children: React.ReactNode;
@@ -13,6 +14,7 @@ interface ChatListContextMenuProps {
 
 export function ChatListContextMenu({ children, partnerId, partnerUsername, onDeleted }: ChatListContextMenuProps) {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState({ x: 0, y: 0 });
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -40,21 +42,22 @@ export function ChatListContextMenu({ children, partnerId, partnerUsername, onDe
 
   const deleteConversation = async () => {
     if (!user) return;
+    setOpen(false);
+    // Immediately trigger UI removal before DB operation
+    onDeleted?.();
     await supabase.from("direct_messages").delete()
       .or(`and(sender_id.eq.${user.id},receiver_id.eq.${partnerId}),and(sender_id.eq.${partnerId},receiver_id.eq.${user.id})`);
-    toast({ title: "Чат удалён" });
-    onDeleted?.();
-    setOpen(false);
+    toast({ title: t("chatDeleted") });
   };
 
   const deleteAndBlock = async () => {
     if (!user) return;
+    setOpen(false);
+    onDeleted?.();
     await supabase.from("direct_messages").delete()
       .or(`and(sender_id.eq.${user.id},receiver_id.eq.${partnerId}),and(sender_id.eq.${partnerId},receiver_id.eq.${user.id})`);
     await supabase.from("blocked_users").insert({ blocker_id: user.id, blocked_id: partnerId });
-    toast({ title: `${partnerUsername || "Пользователь"} заблокирован` });
-    onDeleted?.();
-    setOpen(false);
+    toast({ title: `${partnerUsername || t("user")} ${t("userBlocked")}` });
   };
 
   return (
@@ -71,13 +74,13 @@ export function ChatListContextMenu({ children, partnerId, partnerUsername, onDe
               onClick={deleteConversation}
               className="flex w-full items-center gap-2 rounded-md px-3 py-2.5 text-sm hover:bg-muted/50 transition-colors"
             >
-              <Trash2 className="w-4 h-4" /> Удалить чат
+              <Trash2 className="w-4 h-4" /> {t("deleteChat")}
             </button>
             <button
               onClick={deleteAndBlock}
               className="flex w-full items-center gap-2 rounded-md px-3 py-2.5 text-sm text-destructive hover:bg-destructive/10 transition-colors"
             >
-              <ShieldBan className="w-4 h-4" /> Удалить и заблокировать
+              <ShieldBan className="w-4 h-4" /> {t("deleteAndBlock")}
             </button>
           </div>
         </>

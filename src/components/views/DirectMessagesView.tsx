@@ -8,7 +8,7 @@ import { UserAvatar } from "@/components/ui/UserAvatar";
 import { UserBadge } from "@/components/ui/UserBadge";
 import { MediaUpload } from "@/components/ui/MediaUpload";
 import { VoiceRecorder } from "@/components/ui/VoiceRecorder";
-import { VideoCircleRecorder } from "@/components/ui/VideoCircleRecorder";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { MessageContextMenu } from "@/components/ui/MessageContextMenu";
 import { ChatListContextMenu } from "@/components/ui/ChatListContextMenu";
 import { UploadingBubble } from "@/components/ui/UploadingBubble";
@@ -51,6 +51,7 @@ interface DirectMessagesViewProps {
 
 export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onViewProfile }: DirectMessagesViewProps) {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeChat, setActiveChat] = useState<{ id: string; username: string | null; avatarUrl: string | null } | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -349,17 +350,7 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
     startUpload(blob, "voice", async (url) => {
       await supabase.from("direct_messages").insert({
         sender_id: user.id, receiver_id: activeChat.id,
-        content: "🎤 Голосовое сообщение", media_url: url,
-      });
-    });
-  };
-
-  const handleVideoRecorded = (blob: Blob, _durationSec: number, _thumbnail: string) => {
-    if (!activeChat || !user) return;
-    startUpload(blob, "circle", async (url) => {
-      await supabase.from("direct_messages").insert({
-        sender_id: user.id, receiver_id: activeChat.id,
-        content: "🎥 Видео-кружок", media_url: url,
+        content: `🎤 ${t("voiceMessage")}`, media_url: url,
       });
     });
   };
@@ -492,7 +483,7 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
           ) : visibleMessages.length === 0 ? (
             <div className="text-center text-muted-foreground py-12">
               <MessageCircle className="w-12 h-12 mx-auto mb-3 opacity-50" />
-              <p>Начните разговор!</p>
+              <p>{t("startConversation")}</p>
             </div>
           ) : (
             visibleMessages.map(msg => (
@@ -561,9 +552,8 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
           <div className="flex items-end gap-2">
             <MediaUpload onUpload={setMediaUrl} />
             <VoiceRecorder onRecorded={handleVoiceRecorded} />
-            <VideoCircleRecorder onRecorded={handleVideoRecorded} />
             <FlameInput
-              placeholder="Написать сообщение..."
+              placeholder={t("writeMessage")}
               value={newMessage}
               onChange={e => { setNewMessage(e.target.value); broadcastTyping(); }}
               onKeyDown={e => e.key === "Enter" && sendMessage()}
@@ -578,12 +568,12 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
 
   return (
     <div className="p-4 space-y-4">
-      <h2 className="text-xl font-bold">Личные сообщения</h2>
+      <h2 className="text-xl font-bold">{t("directMessages")}</h2>
       {conversations.length === 0 ? (
         <GlassCard className="text-center py-12">
           <MessageCircle className="w-16 h-16 mx-auto mb-4 text-primary/50" />
-          <h3 className="text-lg font-semibold mb-2">Нет сообщений</h3>
-          <p className="text-muted-foreground">Найдите человека в поиске!</p>
+          <h3 className="text-lg font-semibold mb-2">{t("noMessages")}</h3>
+          <p className="text-muted-foreground">{t("findPeople")}</p>
         </GlassCard>
       ) : (
         <div className="space-y-3">
