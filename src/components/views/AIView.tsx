@@ -276,7 +276,7 @@ export function AIView() {
       {/* Sidebar */}
       <div className={`absolute inset-y-0 left-0 z-30 w-72 transform transition-transform duration-300 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} bg-background/95 backdrop-blur-md border-r border-border`}>
         <div className="flex items-center justify-between p-4 border-b border-border">
-          <h3 className="font-semibold text-sm">История чатов</h3>
+          <h3 className="font-semibold text-sm">{t("chatHistory")}</h3>
           <button onClick={() => setSidebarOpen(false)} className="p-1 hover:bg-muted/50 rounded-lg"><X className="w-4 h-4" /></button>
         </div>
         <div className="p-2">
