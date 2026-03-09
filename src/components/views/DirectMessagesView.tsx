@@ -552,7 +552,6 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
           <div className="flex items-end gap-2">
             <MediaUpload onUpload={setMediaUrl} />
             <VoiceRecorder onRecorded={handleVoiceRecorded} />
-            <VideoCircleRecorder onRecorded={handleVideoRecorded} />
             <FlameInput
               placeholder="Написать сообщение..."
               value={newMessage}
