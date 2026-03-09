@@ -322,7 +322,7 @@ export function AIView() {
           {isLoadingHistory ? (
             <div className="text-center py-12">
               <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
-              <p className="text-muted-foreground mt-4">Загрузка...</p>
+              <p className="text-muted-foreground mt-4">{t("loading")}</p>
             </div>
           ) : messages.length === 0 && !isLoading ? (
             <div className="text-center py-12">
