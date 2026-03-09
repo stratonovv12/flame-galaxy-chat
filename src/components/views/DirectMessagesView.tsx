@@ -553,7 +553,7 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
             <MediaUpload onUpload={setMediaUrl} />
             <VoiceRecorder onRecorded={handleVoiceRecorded} />
             <FlameInput
-              placeholder="Написать сообщение..."
+              placeholder={t("writeMessage")}
               value={newMessage}
               onChange={e => { setNewMessage(e.target.value); broadcastTyping(); }}
               onKeyDown={e => e.key === "Enter" && sendMessage()}
