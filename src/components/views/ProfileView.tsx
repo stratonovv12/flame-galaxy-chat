@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { FlameButton } from "@/components/ui/FlameButton";
 import { FlameInput } from "@/components/ui/FlameInput";
@@ -8,7 +9,7 @@ import { UserAvatar } from "@/components/ui/UserAvatar";
 import { UserBadge } from "@/components/ui/UserBadge";
 import { AvatarUpload } from "@/components/ui/AvatarUpload";
 import { AdminPanelView } from "@/components/views/AdminPanelView";
-import { LogOut, Settings, Mail, Shield, Wallet, Package, ArrowLeftRight } from "lucide-react";
+import { LogOut, Settings, Mail, Shield, Wallet, Package, ArrowLeftRight, Globe } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 interface ProfileViewProps {
@@ -17,6 +18,7 @@ interface ProfileViewProps {
 
 export function ProfileView({ onNavigate }: ProfileViewProps) {
   const { user, signOut, isAdmin } = useAuth();
+  const { t, lang, setLang } = useLanguage();
   const [displayName, setDisplayName] = useState("");
   const [username, setUsername] = useState("");
   const [bio, setBio] = useState("");
@@ -57,8 +59,8 @@ export function ProfileView({ onNavigate }: ProfileViewProps) {
       fields.username = cleanName;
     }
     const { error } = await supabase.from("profiles").update({ ...fields, updated_at: new Date().toISOString() }).eq("user_id", user.id);
-    if (error) toast({ title: "Ошибка", description: "Не удалось сохранить", variant: "destructive" });
-  }, [user]);
+    if (error) toast({ title: t("error"), description: t("sendFailed"), variant: "destructive" });
+  }, [user, t]);
 
   const debouncedSave = useCallback((fields: { username?: string; display_name?: string; bio?: string; avatar_url?: string; steam_trade_url?: string }) => {
     if (saveTimer.current) clearTimeout(saveTimer.current);
@@ -75,7 +77,7 @@ export function ProfileView({ onNavigate }: ProfileViewProps) {
     return (
       <div>
         <div className="p-4">
-          <button onClick={() => setShowAdmin(false)} className="text-sm text-primary hover:underline">← Назад к профилю</button>
+          <button onClick={() => setShowAdmin(false)} className="text-sm text-primary hover:underline">{t("backToProfile")}</button>
         </div>
         <AdminPanelView />
       </div>
@@ -84,7 +86,7 @@ export function ProfileView({ onNavigate }: ProfileViewProps) {
 
   return (
     <div className="p-4 space-y-6 max-w-2xl mx-auto">
-      <h2 className="text-xl font-bold">Профиль</h2>
+      <h2 className="text-xl font-bold">{t("profile")}</h2>
 
       <GlassCard className="p-6" glow>
         <div className="flex flex-col items-center mb-6">
@@ -102,23 +104,43 @@ export function ProfileView({ onNavigate }: ProfileViewProps) {
         </div>
 
         <div className="space-y-4">
-          <FlameInput label="Отображаемое имя" placeholder="Как вас зовут?" value={displayName} onChange={e => handleDisplayNameChange(e.target.value)} disabled={loading} />
-          <FlameInput label="@Username (уникальный)" placeholder="unique_handle" value={username} onChange={e => handleUsernameChange(e.target.value)} disabled={loading} error={usernameError} />
+          <FlameInput label={t("displayName")} placeholder={t("displayNamePlaceholder")} value={displayName} onChange={e => handleDisplayNameChange(e.target.value)} disabled={loading} />
+          <FlameInput label="@Username" placeholder="unique_handle" value={username} onChange={e => handleUsernameChange(e.target.value)} disabled={loading} error={usernameError} />
           <div className="w-full">
-            <label className="block text-sm font-medium text-foreground/80 mb-2">О себе</label>
-            <textarea className="w-full touch-target px-4 py-3 rounded-lg bg-input border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all duration-200 resize-none" placeholder="Расскажите о себе..." rows={3} value={bio} onChange={e => handleBioChange(e.target.value)} disabled={loading} />
+            <label className="block text-sm font-medium text-foreground/80 mb-2">{t("aboutMe")}</label>
+            <textarea className="w-full touch-target px-4 py-3 rounded-lg bg-input border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all duration-200 resize-none" placeholder={t("aboutMePlaceholder")} rows={3} value={bio} onChange={e => handleBioChange(e.target.value)} disabled={loading} />
           </div>
         </div>
       </GlassCard>
 
       <GlassCard className="p-6">
-        <h3 className="font-semibold mb-4 flex items-center gap-2"><Settings className="w-5 h-5" />Настройки</h3>
+        <h3 className="font-semibold mb-4 flex items-center gap-2"><Settings className="w-5 h-5" />{t("settings")}</h3>
         <div className="space-y-3">
           <div className="flex items-center justify-between py-3 border-b border-border/50">
-            <div><p className="font-medium">Email</p><p className="text-sm text-muted-foreground">{user?.email}</p></div>
+            <div><p className="font-medium">{t("email")}</p><p className="text-sm text-muted-foreground">{user?.email}</p></div>
           </div>
           <div className="flex items-center justify-between py-3 border-b border-border/50">
-            <div><p className="font-medium">Аккаунт создан</p><p className="text-sm text-muted-foreground">{user?.created_at ? new Date(user.created_at).toLocaleDateString("ru-RU") : "—"}</p></div>
+            <div><p className="font-medium">{t("accountCreated")}</p><p className="text-sm text-muted-foreground">{user?.created_at ? new Date(user.created_at).toLocaleDateString(lang === "ru" ? "ru-RU" : "en-US") : "—"}</p></div>
+          </div>
+          <div className="flex items-center justify-between py-3 border-b border-border/50">
+            <div className="flex items-center gap-2">
+              <Globe className="w-4 h-4 text-muted-foreground" />
+              <p className="font-medium">{t("language")}</p>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setLang("ru")}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${lang === "ru" ? "bg-primary text-primary-foreground" : "bg-muted/50 text-muted-foreground hover:text-foreground"}`}
+              >
+                {t("russian")}
+              </button>
+              <button
+                onClick={() => setLang("en")}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${lang === "en" ? "bg-primary text-primary-foreground" : "bg-muted/50 text-muted-foreground hover:text-foreground"}`}
+              >
+                {t("english")}
+              </button>
+            </div>
           </div>
         </div>
       </GlassCard>
@@ -126,19 +148,19 @@ export function ProfileView({ onNavigate }: ProfileViewProps) {
       {onNavigate && (
         <div className="grid grid-cols-3 gap-3">
           <FlameButton variant="outline" className="w-full" onClick={() => onNavigate("wallet")}>
-            <Wallet className="w-4 h-4 mr-2" /> Кошелёк
+            <Wallet className="w-4 h-4 mr-2" /> {t("wallet")}
           </FlameButton>
           <FlameButton variant="outline" className="w-full" onClick={() => onNavigate("inventory")}>
-            <Package className="w-4 h-4 mr-2" /> Инвентарь
+            <Package className="w-4 h-4 mr-2" /> {t("inventory")}
           </FlameButton>
           <FlameButton variant="outline" className="w-full" onClick={() => onNavigate("trades")}>
-            <ArrowLeftRight className="w-4 h-4 mr-2" /> Трейды
+            <ArrowLeftRight className="w-4 h-4 mr-2" /> {t("trades")}
           </FlameButton>
         </div>
       )}
 
       <GlassCard className="p-6">
-        <h3 className="font-semibold mb-4 flex items-center gap-2">🎮 Steam интеграция</h3>
+        <h3 className="font-semibold mb-4 flex items-center gap-2">🎮 {t("steamIntegration")}</h3>
         <FlameInput
           label="Steam Trade URL"
           placeholder="https://steamcommunity.com/tradeoffer/new/?..."
@@ -146,18 +168,18 @@ export function ProfileView({ onNavigate }: ProfileViewProps) {
           onChange={e => handleSteamUrlChange(e.target.value)}
           disabled={loading}
         />
-        <p className="text-xs text-muted-foreground mt-2">Необходим для покупки/продажи на маркетплейсе</p>
+        <p className="text-xs text-muted-foreground mt-2">{t("steamRequired")}</p>
       </GlassCard>
 
       {isAdmin && (
         <FlameButton onClick={() => setShowAdmin(true)} className="w-full" variant="outline">
           <Shield className="w-4 h-4 mr-2" />
-          Панель администратора
+          {t("adminPanel")}
         </FlameButton>
       )}
 
       <FlameButton variant="outline" className="w-full border-destructive/50 text-destructive hover:bg-destructive/10" onClick={signOut}>
-        <LogOut className="w-4 h-4 mr-2" />Выйти из аккаунта
+        <LogOut className="w-4 h-4 mr-2" />{t("logout")}
       </FlameButton>
     </div>
   );
