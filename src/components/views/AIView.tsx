@@ -281,7 +281,7 @@ export function AIView() {
         </div>
         <div className="p-2">
           <button onClick={createNewTopic} className="w-full flex items-center gap-2 p-3 rounded-lg hover:bg-muted/50 text-sm text-primary transition-colors">
-            <Plus className="w-4 h-4" /> Новый чат
+            <Plus className="w-4 h-4" /> {t("newChat")}
           </button>
         </div>
         <div className="overflow-y-auto flex-1 p-2 space-y-1" style={{ maxHeight: "calc(100% - 120px)" }}>
