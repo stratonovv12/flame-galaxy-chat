@@ -483,7 +483,7 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
           ) : visibleMessages.length === 0 ? (
             <div className="text-center text-muted-foreground py-12">
               <MessageCircle className="w-12 h-12 mx-auto mb-3 opacity-50" />
-              <p>Начните разговор!</p>
+              <p>{t("startConversation")}</p>
             </div>
           ) : (
             visibleMessages.map(msg => (
