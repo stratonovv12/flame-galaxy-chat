@@ -3,6 +3,7 @@ import { Hash, MessageCircle, Sparkles, Search, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 type TabType = "channels" | "groups" | "messages" | "search" | "ai";
 
@@ -11,17 +12,18 @@ interface BottomNavProps {
   onTabChange: (tab: TabType) => void;
 }
 
-const tabs = [
-  { id: "channels" as const, label: "Каналы", icon: Hash },
-  { id: "groups" as const, label: "Группы", icon: Users },
-  { id: "messages" as const, label: "Чаты", icon: MessageCircle },
-  { id: "search" as const, label: "Поиск", icon: Search },
-  { id: "ai" as const, label: "AI", icon: Sparkles },
-];
-
 export function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [unreadCount, setUnreadCount] = useState(0);
+
+  const tabs = [
+    { id: "channels" as const, label: t("channels"), icon: Hash },
+    { id: "groups" as const, label: t("groups"), icon: Users },
+    { id: "messages" as const, label: t("chats"), icon: MessageCircle },
+    { id: "search" as const, label: t("search"), icon: Search },
+    { id: "ai" as const, label: "AI", icon: Sparkles },
+  ];
 
   useEffect(() => {
     if (!user) return;
@@ -33,18 +35,15 @@ export function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
     return () => { supabase.removeChannel(channel); };
   }, [user]);
 
-  // Reset unread when switching to messages tab
   useEffect(() => {
     if (activeTab === "messages" && user) {
-      // Small delay to let the view mark messages as read
-      const t = setTimeout(fetchUnread, 1000);
-      return () => clearTimeout(t);
+      const tm = setTimeout(fetchUnread, 1000);
+      return () => clearTimeout(tm);
     }
   }, [activeTab, user]);
 
   const fetchUnread = async () => {
     if (!user) return;
-    // Count unique conversations with unread messages
     const { data } = await supabase
       .from("direct_messages")
       .select("sender_id")
