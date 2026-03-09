@@ -350,7 +350,7 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
     startUpload(blob, "voice", async (url) => {
       await supabase.from("direct_messages").insert({
         sender_id: user.id, receiver_id: activeChat.id,
-        content: "🎤 Голосовое сообщение", media_url: url,
+        content: `🎤 ${t("voiceMessage")}`, media_url: url,
       });
     });
   };
