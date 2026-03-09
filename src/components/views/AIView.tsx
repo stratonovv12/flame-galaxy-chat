@@ -70,9 +70,7 @@ export function AIView() {
       .from("ai_topics").select("*").eq("user_id", user.id)
       .order("updated_at", { ascending: false });
     setTopics(data || []);
-    if (data && data.length > 0 && !activeTopic) {
-      setActiveTopic(data[0]);
-    }
+    // Don't auto-select a topic on load — start fresh, history in sidebar
     setIsLoadingHistory(false);
   };
 
