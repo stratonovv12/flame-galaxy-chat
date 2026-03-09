@@ -355,16 +355,6 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
     });
   };
 
-  const handleVideoRecorded = (blob: Blob, _durationSec: number, _thumbnail: string) => {
-    if (!activeChat || !user) return;
-    startUpload(blob, "circle", async (url) => {
-      await supabase.from("direct_messages").insert({
-        sender_id: user.id, receiver_id: activeChat.id,
-        content: "🎥 Видео-кружок", media_url: url,
-      });
-    });
-  };
-
   const forwardMessage = async (targetUserId: string) => {
     if (!forwardMsg || !user) return;
     await supabase.from("direct_messages").insert({
