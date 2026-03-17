@@ -313,7 +313,7 @@ export function ChannelsView({ onViewProfile, initialChannelId, onClearInitial }
             </div>
             {transferTarget && (
               <FlameButton onClick={transferOwnership} className="w-full mt-3">
-                Подтвердить передачу
+                {t("confirmTransfer")}
               </FlameButton>
             )}
           </GlassCard>
