@@ -448,7 +448,7 @@ export function UserProfileView({ userId, onBack, onStartChat }: UserProfileView
             {/* Their item */}
             {inventoryAccessible && inventory.length > 0 && (
               <div>
-                <p className="text-sm font-medium mb-2">Предмет @{profile.username}:</p>
+                <p className="text-sm font-medium mb-2">{t("theirItem")} @{profile.username}:</p>
                 <div className="max-h-32 overflow-y-auto space-y-1">
                   {inventory.map((item) => (
                     <button key={item.id} onClick={() => setTradeTheirItem(tradeTheirItem === item.id ? null : item.id)}
