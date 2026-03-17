@@ -317,8 +317,8 @@ export function GroupsView({ onViewProfile, initialGroupId, onClearInitial }: Gr
           {isCreator && (
             <>
               <GlassCard className="p-4">
-                <h3 className="font-semibold mb-3 flex items-center gap-2"><Crown className="w-5 h-5 text-yellow-500" />Передача владения</h3>
-                <p className="text-sm text-muted-foreground mb-3">Выберите участника для передачи прав создателя</p>
+                <h3 className="font-semibold mb-3 flex items-center gap-2"><Crown className="w-5 h-5 text-yellow-500" />{t("transferOwnership")}</h3>
+                <p className="text-sm text-muted-foreground mb-3">{t("selectMemberTransfer")}</p>
                 <div className="space-y-2">
                   {members.filter(m => m.user_id !== user?.id).map(m => (
                     <div key={m.user_id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/30">
