@@ -365,7 +365,7 @@ export function ChannelsView({ onViewProfile, initialChannelId, onClearInitial }
             </div>
             <div className="flex items-center gap-1">
               {isCreator && (
-                <button onClick={openSettings} className="p-2 hover:bg-muted/50 rounded-lg transition-colors touch-target" title="Настройки">
+                <button onClick={openSettings} className="p-2 hover:bg-muted/50 rounded-lg transition-colors touch-target" title={t("settings")}>
                   <Settings className="w-5 h-5 text-muted-foreground" />
                 </button>
               )}
