@@ -537,11 +537,11 @@ export function GroupsView({ onViewProfile, initialGroupId, onClearInitial }: Gr
               <div className="flex justify-center">
                 <AvatarUpload currentUrl={newAvatar} onUpload={setNewAvatar} folder="groups" />
               </div>
-              <FlameInput label="Название" placeholder="Название группы" value={newName} onChange={e => setNewName(e.target.value)} />
-              <FlameInput label="@Хендл" placeholder="unique_handle" value={newHandle} onChange={e => setNewHandle(e.target.value)} />
-              <FlameInput label="Описание" placeholder="О чём группа?" value={newDesc} onChange={e => setNewDesc(e.target.value)} />
+              <FlameInput label={t("itemName")} placeholder={t("groupName")} value={newName} onChange={e => setNewName(e.target.value)} />
+              <FlameInput label={t("handle")} placeholder="unique_handle" value={newHandle} onChange={e => setNewHandle(e.target.value)} />
+              <FlameInput label={t("description")} placeholder={t("aboutGroup")} value={newDesc} onChange={e => setNewDesc(e.target.value)} />
               <FlameButton onClick={createGroup} className="w-full" disabled={!newName.trim() || loading}>
-                {loading ? "Создание..." : "Создать группу"}
+                {loading ? t("creating") : t("createGroup")}
               </FlameButton>
             </div>
           </GlassCard>
