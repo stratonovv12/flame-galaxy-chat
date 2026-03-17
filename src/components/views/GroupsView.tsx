@@ -188,7 +188,7 @@ export function GroupsView({ onViewProfile, initialGroupId, onClearInitial }: Gr
     await supabase.from("group_admins").delete().eq("group_id", selectedGroup.id).eq("user_id", userId);
     setMembers(prev => prev.filter(m => m.user_id !== userId));
     setGroupAdmins(prev => { const n = new Set(prev); n.delete(userId); return n; });
-    toast({ title: "Участник исключён" });
+    toast({ title: t("memberKicked") });
   };
 
   const transferOwnership = async () => {
