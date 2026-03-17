@@ -238,9 +238,9 @@ export function ChannelsView({ onViewProfile, initialChannelId, onClearInitial }
 
   const deleteChannel = async () => {
     if (!selectedChannel) return;
-    if (!confirm("Удалить канал навсегда? Это действие необратимо.")) return;
+    if (!confirm(t("deleteChannelConfirm"))) return;
     await supabase.from("channels").delete().eq("id", selectedChannel.id);
-    toast({ title: "Канал удалён" });
+    toast({ title: t("channelDeleted") });
     setSelectedChannel(null);
     setShowSettings(false);
     fetchMyChannels();
