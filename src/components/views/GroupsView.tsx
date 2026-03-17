@@ -55,6 +55,8 @@ interface GroupsViewProps {
 
 export function GroupsView({ onViewProfile, initialGroupId, onClearInitial }: GroupsViewProps) {
   const { user } = useAuth();
+  const { t, lang } = useLanguage();
+  const dateLocale = lang === "ru" ? ru : enUS;
   const [groups, setGroups] = useState<Group[]>([]);
   const [memberCounts, setMemberCounts] = useState<Record<string, number>>({});
   const [selectedGroup, setSelectedGroup] = useState<Group | null>(null);
