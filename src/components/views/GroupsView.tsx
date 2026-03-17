@@ -345,7 +345,7 @@ export function GroupsView({ onViewProfile, initialGroupId, onClearInitial }: Gr
                   {members.filter(m => m.user_id !== user?.id).map(m => (
                     <div key={m.user_id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/30">
                       <UserAvatar username={m.username} avatarUrl={m.avatar_url} size="sm" />
-                      <span className="flex-1 text-sm font-medium">{m.username || "Пользователь"}</span>
+                      <span className="flex-1 text-sm font-medium">{m.username || t("user")}</span>
                       <button onClick={() => toggleAdmin(m.user_id)}
                         className={`p-2 rounded-lg transition-colors ${groupAdmins.has(m.user_id) ? "bg-primary/20 text-primary" : "hover:bg-muted/50 text-muted-foreground"}`}
                         title={groupAdmins.has(m.user_id) ? "Снять админа" : "Назначить админом"}>
