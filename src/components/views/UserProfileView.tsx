@@ -198,9 +198,9 @@ export function UserProfileView({ userId, onBack, onStartChat }: UserProfileView
     });
     setBuyingId(null);
     if ((data as any)?.error) {
-      toast({ title: "Ошибка", description: (data as any).error, variant: "destructive" });
+      toast({ title: t("error"), description: (data as any).error, variant: "destructive" });
     } else {
-      toast({ title: "Куплено!", description: `${listing.title} — $${listing.price} (комиссия 5%)` });
+      toast({ title: t("bought"), description: `${listing.title} — $${listing.price} (${t("commission")} 5%)` });
       fetchUserData();
     }
   };
