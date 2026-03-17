@@ -258,7 +258,7 @@ export function UserProfileView({ userId, onBack, onStartChat }: UserProfileView
             {!hasSteamUrl && (
               <div className="flex items-center justify-center gap-2 text-xs text-yellow-400/80 mt-2">
                 <AlertTriangle className="w-3.5 h-3.5" />
-                <span>Укажите Steam Trade URL в профиле для торговли</span>
+                <span>{t("setSteamUrlForTrade")}</span>
               </div>
             )}
 
