@@ -339,8 +339,8 @@ export function GroupsView({ onViewProfile, initialGroupId, onClearInitial }: Gr
               </GlassCard>
 
               <GlassCard className="p-4">
-                <h3 className="font-semibold mb-3 flex items-center gap-2"><ShieldCheck className="w-5 h-5 text-primary" />Управление участниками</h3>
-                <p className="text-sm text-muted-foreground mb-3">Администраторы могут удалять сообщения</p>
+                <h3 className="font-semibold mb-3 flex items-center gap-2"><ShieldCheck className="w-5 h-5 text-primary" />{t("manageMembers")}</h3>
+                <p className="text-sm text-muted-foreground mb-3">{t("adminsCanDelete")}</p>
                 <div className="space-y-2">
                   {members.filter(m => m.user_id !== user?.id).map(m => (
                     <div key={m.user_id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/30">
