@@ -426,7 +426,7 @@ export function ChannelsView({ onViewProfile, initialChannelId, onClearInitial }
           <div className="p-4 glass-card rounded-none border-x-0 border-b-0 ipad-input">
             <div className="flex items-end gap-2">
               <MediaUpload onUpload={setMediaUrl} />
-              <FlameInput placeholder="Написать публикацию..." value={newPost}
+              <FlameInput placeholder={t("writePublication")} value={newPost}
                 onChange={(e) => setNewPost(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && sendPost()} className="flex-1" />
               <FlameButton onClick={sendPost} size="md"><Send className="w-5 h-5" /></FlameButton>
