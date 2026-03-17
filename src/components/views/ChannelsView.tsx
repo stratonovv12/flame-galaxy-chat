@@ -303,10 +303,10 @@ export function ChannelsView({ onViewProfile, initialChannelId, onClearInitial }
               {subscribers.filter(s => s.user_id !== user?.id).map(s => (
                 <div key={s.user_id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/30">
                   <UserAvatar username={s.username} avatarUrl={s.avatar_url} size="sm" />
-                  <span className="flex-1 text-sm font-medium">{s.username || "Пользователь"}</span>
+                  <span className="flex-1 text-sm font-medium">{s.username || t("user")}</span>
                   <FlameButton size="sm" variant={transferTarget === s.user_id ? "primary" : "outline"}
                     onClick={() => setTransferTarget(transferTarget === s.user_id ? null : s.user_id)}>
-                    Передать
+                    {t("transfer")}
                   </FlameButton>
                 </div>
               ))}
