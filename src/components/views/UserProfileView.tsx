@@ -421,7 +421,7 @@ export function UserProfileView({ userId, onBack, onStartChat }: UserProfileView
         <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4" onClick={() => setTradeOpen(false)}>
           <GlassCard className="w-full max-w-sm p-6 space-y-4 max-h-[85vh] overflow-y-auto" onClick={(e: React.MouseEvent) => e.stopPropagation()} glow>
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-bold flex items-center gap-2"><ArrowLeftRight className="w-5 h-5 text-primary" /> Предложить трейд</h3>
+              <h3 className="text-lg font-bold flex items-center gap-2"><ArrowLeftRight className="w-5 h-5 text-primary" /> {t("proposeTrade")}</h3>
               <button onClick={() => setTradeOpen(false)}><X className="w-5 h-5 text-muted-foreground" /></button>
             </div>
 
