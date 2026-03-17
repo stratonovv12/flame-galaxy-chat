@@ -6,6 +6,7 @@ import { FlameButton } from "@/components/ui/FlameButton";
 import { FlameInput } from "@/components/ui/FlameInput";
 import { UserAvatar } from "@/components/ui/UserAvatar";
 import { UserBadge } from "@/components/ui/UserBadge";
+import { useLanguage } from "@/contexts/LanguageContext";
 import {
   ArrowLeft, MessageCircle, Calendar, Hash, Package, Lock,
   Gift, ArrowLeftRight, ShoppingBag, AlertTriangle, DollarSign, X
@@ -58,6 +59,7 @@ interface UserProfileViewProps {
 
 export function UserProfileView({ userId, onBack, onStartChat }: UserProfileViewProps) {
   const { user } = useAuth();
+  const { t, lang } = useLanguage();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [myProfile, setMyProfile] = useState<Profile | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
@@ -152,9 +154,9 @@ export function UserProfileView({ userId, onBack, onStartChat }: UserProfileView
     });
     setGiftLoading(false);
     if ((data as any)?.error) {
-      toast({ title: "Ошибка", description: (data as any).error, variant: "destructive" });
+      toast({ title: t("error"), description: (data as any).error, variant: "destructive" });
     } else {
-      toast({ title: "Подарок отправлен!", description: `Предмет отправлен @${profile.username}` });
+      toast({ title: t("giftSent"), description: `${t("itemSentTo")} @${profile.username}` });
       setGiftOpen(false);
       setGiftItem(null);
       fetchUserData();
@@ -164,7 +166,7 @@ export function UserProfileView({ userId, onBack, onStartChat }: UserProfileView
   const handleTrade = async () => {
     if (!user || !profile) return;
     if (!tradeMyItem && !tradeTheirItem) {
-      toast({ title: "Ошибка", description: "Выберите хотя бы один предмет", variant: "destructive" });
+      toast({ title: t("error"), description: t("selectAtLeastOneItem"), variant: "destructive" });
       return;
     }
     setTradeLoading(true);
@@ -177,9 +179,9 @@ export function UserProfileView({ userId, onBack, onStartChat }: UserProfileView
     });
     setTradeLoading(false);
     if (error) {
-      toast({ title: "Ошибка", description: error.message, variant: "destructive" });
+      toast({ title: t("error"), description: error.message, variant: "destructive" });
     } else {
-      toast({ title: "Трейд отправлен!", description: "Ожидайте ответа" });
+      toast({ title: t("tradeSent"), description: t("awaitResponse") });
       setTradeOpen(false);
       setTradeMyItem(null);
       setTradeTheirItem(null);
@@ -196,9 +198,9 @@ export function UserProfileView({ userId, onBack, onStartChat }: UserProfileView
     });
     setBuyingId(null);
     if ((data as any)?.error) {
-      toast({ title: "Ошибка", description: (data as any).error, variant: "destructive" });
+      toast({ title: t("error"), description: (data as any).error, variant: "destructive" });
     } else {
-      toast({ title: "Куплено!", description: `${listing.title} — $${listing.price} (комиссия 5%)` });
+      toast({ title: t("bought"), description: `${listing.title} — $${listing.price} (${t("commission")} 5%)` });
       fetchUserData();
     }
   };
@@ -215,10 +217,10 @@ export function UserProfileView({ userId, onBack, onStartChat }: UserProfileView
     return (
       <div className="p-4">
         <button onClick={onBack} className="flex items-center gap-2 text-muted-foreground mb-4">
-          <ArrowLeft className="w-5 h-5" /> Назад
+          <ArrowLeft className="w-5 h-5" /> {t("back")}
         </button>
         <GlassCard className="text-center py-12">
-          <p className="text-muted-foreground">Профиль не найден</p>
+          <p className="text-muted-foreground">{t("profileNotFound")}</p>
         </GlassCard>
       </div>
     );
@@ -229,34 +231,34 @@ export function UserProfileView({ userId, onBack, onStartChat }: UserProfileView
   return (
     <div className="p-4 space-y-4 max-w-2xl mx-auto">
       <button onClick={onBack} className="flex items-center gap-2 text-muted-foreground">
-        <ArrowLeft className="w-5 h-5" /> Назад
+        <ArrowLeft className="w-5 h-5" /> {t("back")}
       </button>
 
       {/* Profile Card */}
       <GlassCard className="p-8 text-center" glow>
         <UserAvatar username={profile.username} avatarUrl={profile.avatar_url} size="xl" className="mx-auto mb-4 neon-glow" />
         <div className="flex items-center justify-center gap-1.5 mb-1">
-          <h2 className="text-xl font-bold">{profile.display_name || profile.username || "Без имени"}</h2>
+          <h2 className="text-xl font-bold">{profile.display_name || profile.username || t("noName")}</h2>
           <UserBadge userId={userId} />
         </div>
         {profile.username && <p className="text-sm text-primary/80 mb-2">@{profile.username.replace(/^@/, "")}</p>}
         {profile.bio && <p className="text-sm text-muted-foreground mb-4 max-w-md mx-auto">{profile.bio}</p>}
         <p className="text-sm text-muted-foreground flex items-center justify-center gap-2 mb-4">
           <Calendar className="w-4 h-4" />
-          В FLAME с {new Date(profile.created_at).toLocaleDateString("ru-RU")}
+          {t("inFlameSince")} {new Date(profile.created_at).toLocaleDateString(lang === "ru" ? "ru-RU" : "en-US")}
         </p>
 
         {/* Action buttons */}
         {!isOwnProfile && (
           <div className="space-y-2">
             <FlameButton onClick={() => onStartChat(userId)} className="w-full max-w-xs mx-auto">
-              <MessageCircle className="w-4 h-4 mr-2" /> Написать
+              <MessageCircle className="w-4 h-4 mr-2" /> {t("writeToUser")}
             </FlameButton>
 
             {!hasSteamUrl && (
               <div className="flex items-center justify-center gap-2 text-xs text-yellow-400/80 mt-2">
                 <AlertTriangle className="w-3.5 h-3.5" />
-                <span>Укажите Steam Trade URL в профиле для торговли</span>
+                <span>{t("setSteamUrlForTrade")}</span>
               </div>
             )}
 
@@ -268,7 +270,7 @@ export function UserProfileView({ userId, onBack, onStartChat }: UserProfileView
                 disabled={!hasSteamUrl}
                 onClick={() => setGiftOpen(true)}
               >
-                <Gift className="w-4 h-4 mr-1" /> Подарок
+                <Gift className="w-4 h-4 mr-1" /> {t("sendGift")}
               </FlameButton>
               <FlameButton
                 variant="outline"
@@ -277,7 +279,7 @@ export function UserProfileView({ userId, onBack, onStartChat }: UserProfileView
                 disabled={!hasSteamUrl}
                 onClick={() => setTradeOpen(true)}
               >
-                <ArrowLeftRight className="w-4 h-4 mr-1" /> Трейд
+                <ArrowLeftRight className="w-4 h-4 mr-1" /> {t("proposeTrade")}
               </FlameButton>
             </div>
           </div>
@@ -288,16 +290,16 @@ export function UserProfileView({ userId, onBack, onStartChat }: UserProfileView
       <div className="flex border-b border-border">
         <button onClick={() => setActiveTab("posts")}
           className={`flex-1 py-2.5 text-sm font-medium border-b-2 transition-colors ${activeTab === "posts" ? "border-primary text-primary" : "border-transparent text-muted-foreground"}`}>
-          Медиа ({posts.length})
+          {t("postsTab")} ({posts.length})
         </button>
         <button onClick={() => setActiveTab("inventory")}
           className={`flex-1 py-2.5 text-sm font-medium border-b-2 transition-colors ${activeTab === "inventory" ? "border-primary text-primary" : "border-transparent text-muted-foreground"}`}>
-          <span className="flex items-center justify-center gap-1.5"><Package className="w-4 h-4" /> Инвентарь</span>
+          <span className="flex items-center justify-center gap-1.5"><Package className="w-4 h-4" /> {t("inventoryTab")}</span>
         </button>
         {showShopTab && (
           <button onClick={() => setActiveTab("shop")}
             className={`flex-1 py-2.5 text-sm font-medium border-b-2 transition-colors ${activeTab === "shop" ? "border-primary text-primary" : "border-transparent text-muted-foreground"}`}>
-            <span className="flex items-center justify-center gap-1.5"><ShoppingBag className="w-4 h-4" /> В продаже</span>
+            <span className="flex items-center justify-center gap-1.5"><ShoppingBag className="w-4 h-4" /> {t("forSale")}</span>
           </button>
         )}
       </div>
@@ -306,7 +308,7 @@ export function UserProfileView({ userId, onBack, onStartChat }: UserProfileView
       {activeTab === "posts" && (
         <div>
           {posts.length === 0 ? (
-            <GlassCard className="text-center py-8"><p className="text-muted-foreground">Нет медиа-публикаций</p></GlassCard>
+            <GlassCard className="text-center py-8"><p className="text-muted-foreground">{t("noMediaPosts")}</p></GlassCard>
           ) : (
             <div className="grid grid-cols-2 gap-3">
               {posts.map((post) => (
@@ -334,12 +336,12 @@ export function UserProfileView({ userId, onBack, onStartChat }: UserProfileView
           {!inventoryAccessible ? (
             <GlassCard className="text-center py-12">
               <Lock className="w-12 h-12 mx-auto mb-3 text-muted-foreground/50" />
-              <p className="text-muted-foreground">Инвентарь скрыт владельцем</p>
+              <p className="text-muted-foreground">{t("inventoryHiddenByOwner")}</p>
             </GlassCard>
           ) : inventory.length === 0 ? (
             <GlassCard className="text-center py-8">
               <Package className="w-12 h-12 mx-auto mb-3 text-muted-foreground/50" />
-              <p className="text-muted-foreground">Инвентарь пуст</p>
+              <p className="text-muted-foreground">{t("inventoryEmpty")}</p>
             </GlassCard>
           ) : (
             <div className="grid grid-cols-2 gap-3">
@@ -372,7 +374,7 @@ export function UserProfileView({ userId, onBack, onStartChat }: UserProfileView
                   disabled={!hasSteamUrl || buyingId === listing.id}
                   onClick={() => handleBuy(listing)}
                 >
-                  {buyingId === listing.id ? "..." : <><ShoppingBag className="w-3 h-3 mr-1" /> Купить</>}
+                  {buyingId === listing.id ? "..." : <><ShoppingBag className="w-3 h-3 mr-1" /> {t("buy")}</>}
                 </FlameButton>
               </div>
             </GlassCard>
@@ -385,12 +387,12 @@ export function UserProfileView({ userId, onBack, onStartChat }: UserProfileView
         <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4" onClick={() => setGiftOpen(false)}>
           <GlassCard className="w-full max-w-sm p-6 space-y-4" onClick={(e: React.MouseEvent) => e.stopPropagation()} glow>
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-bold flex items-center gap-2"><Gift className="w-5 h-5 text-primary" /> Подарить скин</h3>
+              <h3 className="text-lg font-bold flex items-center gap-2"><Gift className="w-5 h-5 text-primary" /> {t("giftSkin")}</h3>
               <button onClick={() => setGiftOpen(false)}><X className="w-5 h-5 text-muted-foreground" /></button>
             </div>
-            <p className="text-sm text-muted-foreground">Выберите предмет для @{profile.username}</p>
+            <p className="text-sm text-muted-foreground">{t("selectItemFor")} @{profile.username}</p>
             {myInventory.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-4">Ваш инвентарь пуст</p>
+              <p className="text-sm text-muted-foreground text-center py-4">{t("yourInventoryEmpty")}</p>
             ) : (
               <div className="max-h-60 overflow-y-auto space-y-2">
                 {myInventory.map((item) => (
@@ -408,7 +410,7 @@ export function UserProfileView({ userId, onBack, onStartChat }: UserProfileView
               </div>
             )}
             <FlameButton onClick={handleGift} disabled={!giftItem || giftLoading} className="w-full">
-              {giftLoading ? "Отправка..." : "Подарить"}
+              {giftLoading ? t("sending") : t("giftBtn")}
             </FlameButton>
           </GlassCard>
         </div>
@@ -419,15 +421,15 @@ export function UserProfileView({ userId, onBack, onStartChat }: UserProfileView
         <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4" onClick={() => setTradeOpen(false)}>
           <GlassCard className="w-full max-w-sm p-6 space-y-4 max-h-[85vh] overflow-y-auto" onClick={(e: React.MouseEvent) => e.stopPropagation()} glow>
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-bold flex items-center gap-2"><ArrowLeftRight className="w-5 h-5 text-primary" /> Предложить трейд</h3>
+              <h3 className="text-lg font-bold flex items-center gap-2"><ArrowLeftRight className="w-5 h-5 text-primary" /> {t("proposeTrade")}</h3>
               <button onClick={() => setTradeOpen(false)}><X className="w-5 h-5 text-muted-foreground" /></button>
             </div>
 
             {/* My item */}
             <div>
-              <p className="text-sm font-medium mb-2">Ваш предмет:</p>
+              <p className="text-sm font-medium mb-2">{t("yourItem")}:</p>
               {myInventory.length === 0 ? (
-                <p className="text-xs text-muted-foreground">Инвентарь пуст</p>
+                <p className="text-xs text-muted-foreground">{t("inventoryEmpty")}</p>
               ) : (
                 <div className="max-h-32 overflow-y-auto space-y-1">
                   {myInventory.map((item) => (
@@ -446,7 +448,7 @@ export function UserProfileView({ userId, onBack, onStartChat }: UserProfileView
             {/* Their item */}
             {inventoryAccessible && inventory.length > 0 && (
               <div>
-                <p className="text-sm font-medium mb-2">Предмет @{profile.username}:</p>
+                <p className="text-sm font-medium mb-2">{t("theirItem")} @{profile.username}:</p>
                 <div className="max-h-32 overflow-y-auto space-y-1">
                   {inventory.map((item) => (
                     <button key={item.id} onClick={() => setTradeTheirItem(tradeTheirItem === item.id ? null : item.id)}
@@ -462,16 +464,9 @@ export function UserProfileView({ userId, onBack, onStartChat }: UserProfileView
             )}
 
             {/* Balance offer */}
-            <FlameInput
-              label="Доплата ($)"
-              placeholder="0.00"
-              type="number"
-              value={tradeBalance}
-              onChange={(e) => setTradeBalance(e.target.value)}
-            />
-
+            <FlameInput label={t("balanceExtra")} placeholder="0.00" type="number" value={tradeBalance} onChange={(e) => setTradeBalance(e.target.value)} />
             <FlameButton onClick={handleTrade} disabled={tradeLoading} className="w-full">
-              {tradeLoading ? "Отправка..." : "Отправить предложение"}
+              {tradeLoading ? t("sending") : t("sendOffer")}
             </FlameButton>
           </GlassCard>
         </div>

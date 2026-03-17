@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { FlameButton } from "@/components/ui/FlameButton";
 import { FlameInput } from "@/components/ui/FlameInput";
@@ -10,14 +11,13 @@ import { AvatarUpload } from "@/components/ui/AvatarUpload";
 import { MessageReactions } from "@/components/ui/MessageReactions";
 import { MediaUpload } from "@/components/ui/MediaUpload";
 import { VoiceRecorder } from "@/components/ui/VoiceRecorder";
-import { VideoCircleRecorder } from "@/components/ui/VideoCircleRecorder";
 import { MessageContextMenu } from "@/components/ui/MessageContextMenu";
 import { UploadingBubble } from "@/components/ui/UploadingBubble";
 import { useMediaUpload } from "@/hooks/useMediaUpload";
 import { Users, Plus, Send, X, ArrowLeft, LogOut, Reply, Settings, Trash2, Crown, ShieldCheck } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
-import { ru } from "date-fns/locale";
+import { ru, enUS } from "date-fns/locale";
 import { playNotificationSound, showBrowserNotification } from "@/lib/notifications";
 
 interface Group {
@@ -55,6 +55,8 @@ interface GroupsViewProps {
 
 export function GroupsView({ onViewProfile, initialGroupId, onClearInitial }: GroupsViewProps) {
   const { user } = useAuth();
+  const { t, lang } = useLanguage();
+  const dateLocale = lang === "ru" ? ru : enUS;
   const [groups, setGroups] = useState<Group[]>([]);
   const [memberCounts, setMemberCounts] = useState<Record<string, number>>({});
   const [selectedGroup, setSelectedGroup] = useState<Group | null>(null);
@@ -171,38 +173,38 @@ export function GroupsView({ onViewProfile, initialGroupId, onClearInitial }: Gr
     if (groupAdmins.has(userId)) {
       await supabase.from("group_admins").delete().eq("group_id", selectedGroup.id).eq("user_id", userId);
       setGroupAdmins(prev => { const n = new Set(prev); n.delete(userId); return n; });
-      toast({ title: "Права администратора сняты" });
+      toast({ title: t("adminRightsRemoved") });
     } else {
       await supabase.from("group_admins").insert({ group_id: selectedGroup.id, user_id: userId, appointed_by: user.id });
       setGroupAdmins(prev => new Set([...prev, userId]));
-      toast({ title: "Назначен администратором" });
+      toast({ title: t("appointedAdmin") });
     }
   };
 
   const kickMember = async (userId: string) => {
     if (!selectedGroup || !user) return;
-    if (!confirm("Исключить этого участника из группы?")) return;
+    if (!confirm(t("kickConfirm"))) return;
     await supabase.from("group_members").delete().eq("group_id", selectedGroup.id).eq("user_id", userId);
     await supabase.from("group_admins").delete().eq("group_id", selectedGroup.id).eq("user_id", userId);
     setMembers(prev => prev.filter(m => m.user_id !== userId));
     setGroupAdmins(prev => { const n = new Set(prev); n.delete(userId); return n; });
-    toast({ title: "Участник исключён" });
+    toast({ title: t("memberKicked") });
   };
 
   const transferOwnership = async () => {
     if (!selectedGroup || !transferTarget || !user) return;
-    if (!confirm("Вы уверены? Вы потеряете права создателя.")) return;
+    if (!confirm(t("transferConfirmMsg"))) return;
     await supabase.from("groups").update({ creator_id: transferTarget }).eq("id", selectedGroup.id);
     setSelectedGroup({ ...selectedGroup, creator_id: transferTarget });
     setTransferTarget(null);
-    toast({ title: "Владение передано" });
+    toast({ title: t("ownershipTransferred") });
   };
 
   const deleteGroup = async () => {
     if (!selectedGroup) return;
-    if (!confirm("Удалить группу навсегда? Это действие необратимо.")) return;
+    if (!confirm(t("deleteGroupConfirm"))) return;
     await supabase.from("groups").delete().eq("id", selectedGroup.id);
-    toast({ title: "Группа удалена" });
+    toast({ title: t("groupDeleted") });
     setSelectedGroup(null);
     setShowSettings(false);
     fetchMyGroups();
@@ -211,7 +213,7 @@ export function GroupsView({ onViewProfile, initialGroupId, onClearInitial }: Gr
   const leaveGroup = async () => {
     if (!user || !selectedGroup) return;
     await supabase.from("group_members").delete().eq("group_id", selectedGroup.id).eq("user_id", user.id);
-    toast({ title: "Вы покинули группу" });
+    toast({ title: t("leftGroup") });
     setSelectedGroup(null);
     fetchMyGroups();
   };
@@ -236,12 +238,12 @@ export function GroupsView({ onViewProfile, initialGroupId, onClearInitial }: Gr
       creator_id: user.id,
     }).select().single();
     if (error) {
-      toast({ title: "Ошибка", description: error.message?.includes("handle") ? "Этот хендл уже занят" : "Не удалось создать", variant: "destructive" });
+      toast({ title: t("error"), description: error.message?.includes("handle") ? t("handleTaken") : t("failedToCreate"), variant: "destructive" });
     } else {
       if (newGroup) {
         await supabase.from("group_members").upsert({ group_id: newGroup.id, user_id: user.id }, { onConflict: "group_id,user_id" });
       }
-      toast({ title: "Группа создана!" });
+      toast({ title: t("groupCreated") });
       setNewName(""); setNewDesc(""); setNewAvatar(""); setNewHandle(""); setShowCreate(false);
       fetchMyGroups();
     }
@@ -256,7 +258,7 @@ export function GroupsView({ onViewProfile, initialGroupId, onClearInitial }: Gr
       author_id: user.id, reply_to_id: replyTo?.id || null,
     });
     if (error) {
-      toast({ title: "Ошибка", description: "Не удалось отправить", variant: "destructive" });
+      toast({ title: t("error"), description: t("sendFailed"), variant: "destructive" });
     } else {
       setNewMessage(""); setMediaUrl(""); setReplyTo(null);
     }
@@ -272,15 +274,7 @@ export function GroupsView({ onViewProfile, initialGroupId, onClearInitial }: Gr
     });
   };
 
-  const handleVideoRecorded = (blob: Blob, _durationSec: number, _thumbnail: string) => {
-    if (!selectedGroup || !user) return;
-    startUpload(blob, "circle", async (url) => {
-      await supabase.from("group_messages").insert({
-        content: "🎥 Видео-кружок", media_url: url,
-        group_id: selectedGroup.id, author_id: user.id,
-      });
-    });
-  };
+  // Removed video recorder
 
   const getReplyPreview = (replyId: string) => {
     const msg = messages.find(m => m.id === replyId);
@@ -311,7 +305,7 @@ export function GroupsView({ onViewProfile, initialGroupId, onClearInitial }: Gr
             <button onClick={() => setShowSettings(false)} className="p-2 hover:bg-muted/50 rounded-lg touch-target">
               <ArrowLeft className="w-5 h-5" />
             </button>
-            <h2 className="font-semibold">Настройки группы</h2>
+            <h2 className="font-semibold">{t("groupSettings")}</h2>
           </div>
         </GlassCard>
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -323,43 +317,43 @@ export function GroupsView({ onViewProfile, initialGroupId, onClearInitial }: Gr
           {isCreator && (
             <>
               <GlassCard className="p-4">
-                <h3 className="font-semibold mb-3 flex items-center gap-2"><Crown className="w-5 h-5 text-yellow-500" />Передача владения</h3>
-                <p className="text-sm text-muted-foreground mb-3">Выберите участника для передачи прав создателя</p>
+                <h3 className="font-semibold mb-3 flex items-center gap-2"><Crown className="w-5 h-5 text-yellow-500" />{t("transferOwnership")}</h3>
+                <p className="text-sm text-muted-foreground mb-3">{t("selectMemberTransfer")}</p>
                 <div className="space-y-2">
                   {members.filter(m => m.user_id !== user?.id).map(m => (
                     <div key={m.user_id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/30">
                       <UserAvatar username={m.username} avatarUrl={m.avatar_url} size="sm" />
-                      <span className="flex-1 text-sm font-medium">{m.username || "Пользователь"}</span>
+                      <span className="flex-1 text-sm font-medium">{m.username || t("user")}</span>
                       <FlameButton size="sm" variant={transferTarget === m.user_id ? "primary" : "outline"}
                         onClick={() => setTransferTarget(transferTarget === m.user_id ? null : m.user_id)}>
-                        Передать
+                        {t("transfer")}
                       </FlameButton>
                     </div>
                   ))}
                 </div>
                 {transferTarget && (
                   <FlameButton onClick={transferOwnership} className="w-full mt-3">
-                    Подтвердить передачу
+                    {t("confirmTransfer")}
                   </FlameButton>
                 )}
               </GlassCard>
 
               <GlassCard className="p-4">
-                <h3 className="font-semibold mb-3 flex items-center gap-2"><ShieldCheck className="w-5 h-5 text-primary" />Управление участниками</h3>
-                <p className="text-sm text-muted-foreground mb-3">Администраторы могут удалять сообщения</p>
+                <h3 className="font-semibold mb-3 flex items-center gap-2"><ShieldCheck className="w-5 h-5 text-primary" />{t("manageMembers")}</h3>
+                <p className="text-sm text-muted-foreground mb-3">{t("adminsCanDelete")}</p>
                 <div className="space-y-2">
                   {members.filter(m => m.user_id !== user?.id).map(m => (
                     <div key={m.user_id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/30">
                       <UserAvatar username={m.username} avatarUrl={m.avatar_url} size="sm" />
-                      <span className="flex-1 text-sm font-medium">{m.username || "Пользователь"}</span>
+                      <span className="flex-1 text-sm font-medium">{m.username || t("user")}</span>
                       <button onClick={() => toggleAdmin(m.user_id)}
                         className={`p-2 rounded-lg transition-colors ${groupAdmins.has(m.user_id) ? "bg-primary/20 text-primary" : "hover:bg-muted/50 text-muted-foreground"}`}
-                        title={groupAdmins.has(m.user_id) ? "Снять админа" : "Назначить админом"}>
+                        title={groupAdmins.has(m.user_id) ? t("removeAdmin") : t("appointAdmin")}>
                         <ShieldCheck className="w-4 h-4" />
                       </button>
                       <button onClick={() => kickMember(m.user_id)}
                         className="p-2 rounded-lg transition-colors hover:bg-destructive/20 text-muted-foreground hover:text-destructive"
-                        title="Исключить">
+                        title={t("kickMember")}>
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
@@ -368,7 +362,7 @@ export function GroupsView({ onViewProfile, initialGroupId, onClearInitial }: Gr
               </GlassCard>
 
               <FlameButton onClick={deleteGroup} variant="outline" className="w-full border-destructive/50 text-destructive hover:bg-destructive/10">
-                <Trash2 className="w-4 h-4 mr-2" /> Удалить группу
+                <Trash2 className="w-4 h-4 mr-2" /> {t("deleteGroup")}
               </FlameButton>
             </>
           )}
@@ -398,16 +392,16 @@ export function GroupsView({ onViewProfile, initialGroupId, onClearInitial }: Gr
               <h2 className="font-semibold">{selectedGroup.name}</h2>
               <p className="text-xs text-muted-foreground">
                 {selectedGroup.handle && <span className="text-primary/70">@{selectedGroup.handle} · </span>}
-                {memberCounts[selectedGroup.id] || 0} участников
+                {memberCounts[selectedGroup.id] || 0} {t("members")}
               </p>
             </div>
             <div className="flex items-center gap-1">
               {isCreator && (
-                <button onClick={openSettings} className="p-2 hover:bg-muted/50 rounded-lg transition-colors touch-target" title="Настройки">
+                <button onClick={openSettings} className="p-2 hover:bg-muted/50 rounded-lg transition-colors touch-target" title={t("settings")}>
                   <Settings className="w-5 h-5 text-muted-foreground" />
                 </button>
               )}
-              <button onClick={leaveGroup} className="p-2 hover:bg-destructive/10 rounded-lg transition-colors touch-target" title="Покинуть группу">
+              <button onClick={leaveGroup} className="p-2 hover:bg-destructive/10 rounded-lg transition-colors touch-target" title={t("leaveGroup")}>
                 <LogOut className="w-5 h-5 text-destructive" />
               </button>
             </div>
@@ -418,7 +412,7 @@ export function GroupsView({ onViewProfile, initialGroupId, onClearInitial }: Gr
           {visibleMessages.length === 0 ? (
             <div className="text-center text-muted-foreground py-12">
               <Users className="w-12 h-12 mx-auto mb-3 opacity-50" />
-              <p>Сообщений пока нет</p>
+              <p>{t("noMessagesYet")}</p>
             </div>
           ) : (
             visibleMessages.map(msg => (
@@ -429,18 +423,18 @@ export function GroupsView({ onViewProfile, initialGroupId, onClearInitial }: Gr
                   </button>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5">
-                      <span className="font-medium text-sm">{msg.profiles?.username || "Пользователь"}</span>
+                      <span className="font-medium text-sm">{msg.profiles?.username || t("user")}</span>
                       <UserBadge userId={msg.author_id} />
                       <span className="text-xs text-muted-foreground">
-                        {formatDistanceToNow(new Date(msg.created_at), { addSuffix: true, locale: ru })}
+                        {formatDistanceToNow(new Date(msg.created_at), { addSuffix: true, locale: dateLocale })}
                       </span>
                     </div>
                     {msg.forwarded_from && (
-                      <p className="text-xs text-primary/70 mt-1">↪ Переслано от {msg.forwarded_from}</p>
+                      <p className="text-xs text-primary/70 mt-1">↪ {t("forwardedFrom")} {msg.forwarded_from}</p>
                     )}
                     {msg.reply_to_id && (
                       <div className="mt-1 pl-2 border-l-2 border-primary/50 text-xs text-muted-foreground">
-                        {getReplyPreview(msg.reply_to_id) || "Сообщение"}
+                        {getReplyPreview(msg.reply_to_id) || t("message")}
                       </div>
                     )}
                     {msg.media_url && renderMedia(msg.media_url)}
@@ -469,7 +463,7 @@ export function GroupsView({ onViewProfile, initialGroupId, onClearInitial }: Gr
           <div className="px-4 py-2 border-t border-border bg-muted/30 flex items-center gap-2">
             <Reply className="w-4 h-4 text-primary shrink-0" />
             <div className="flex-1 pl-2 border-l-2 border-primary">
-              <p className="text-xs text-primary font-medium">{replyTo.profiles?.username || "Пользователь"}</p>
+              <p className="text-xs text-primary font-medium">{replyTo.profiles?.username || t("user")}</p>
               <p className="text-xs text-muted-foreground truncate">{replyTo.content}</p>
             </div>
             <button onClick={() => setReplyTo(null)} className="p-1 hover:bg-muted/50 rounded"><X className="w-4 h-4" /></button>
@@ -480,8 +474,7 @@ export function GroupsView({ onViewProfile, initialGroupId, onClearInitial }: Gr
           <div className="flex items-end gap-2">
             <MediaUpload onUpload={setMediaUrl} />
             <VoiceRecorder onRecorded={handleVoiceRecorded} />
-            <VideoCircleRecorder onRecorded={handleVideoRecorded} />
-            <FlameInput placeholder="Написать сообщение..." value={newMessage}
+            <FlameInput placeholder={t("writeMessage")} value={newMessage}
               onChange={e => setNewMessage(e.target.value)}
               onKeyDown={e => e.key === "Enter" && sendMessage()} className="flex-1" />
             <FlameButton onClick={sendMessage} size="md"><Send className="w-5 h-5" /></FlameButton>
@@ -494,18 +487,18 @@ export function GroupsView({ onViewProfile, initialGroupId, onClearInitial }: Gr
   return (
     <div className="p-4 space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold">Группы</h2>
+        <h2 className="text-xl font-bold">{t("groups")}</h2>
         <FlameButton onClick={() => setShowCreate(true)} size="sm">
-          <Plus className="w-4 h-4 mr-2" /> Создать
+          <Plus className="w-4 h-4 mr-2" /> {t("create")}
         </FlameButton>
       </div>
 
       {groups.length === 0 ? (
         <GlassCard className="text-center py-12">
           <Users className="w-16 h-16 mx-auto mb-4 text-accent/50" />
-          <h3 className="text-lg font-semibold mb-2">Нет групп</h3>
-          <p className="text-muted-foreground mb-4">Найдите группы через поиск или создайте!</p>
-          <FlameButton onClick={() => setShowCreate(true)}><Plus className="w-4 h-4 mr-2" /> Создать группу</FlameButton>
+          <h3 className="text-lg font-semibold mb-2">{t("noGroups")}</h3>
+          <p className="text-muted-foreground mb-4">{t("findGroupsHint")}</p>
+          <FlameButton onClick={() => setShowCreate(true)}><Plus className="w-4 h-4 mr-2" /> {t("createGroup")}</FlameButton>
         </GlassCard>
       ) : (
         <div className="space-y-3">
@@ -523,7 +516,7 @@ export function GroupsView({ onViewProfile, initialGroupId, onClearInitial }: Gr
                   <h3 className="font-semibold">{g.name}</h3>
                   <p className="text-xs text-muted-foreground">
                     {g.handle && <span className="text-primary/70">@{g.handle} · </span>}
-                    {memberCounts[g.id] || 0} участников
+                    {memberCounts[g.id] || 0} {t("members")}
                   </p>
                   {g.description && <p className="text-sm text-muted-foreground truncate">{g.description}</p>}
                 </div>
@@ -537,18 +530,18 @@ export function GroupsView({ onViewProfile, initialGroupId, onClearInitial }: Gr
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
           <GlassCard className="w-full max-w-md p-6" glow>
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-semibold">Создать группу</h3>
+              <h3 className="text-lg font-semibold">{t("createGroup")}</h3>
               <button onClick={() => setShowCreate(false)} className="p-2 hover:bg-muted/50 rounded-lg"><X className="w-5 h-5" /></button>
             </div>
             <div className="space-y-4">
               <div className="flex justify-center">
                 <AvatarUpload currentUrl={newAvatar} onUpload={setNewAvatar} folder="groups" />
               </div>
-              <FlameInput label="Название" placeholder="Название группы" value={newName} onChange={e => setNewName(e.target.value)} />
-              <FlameInput label="@Хендл" placeholder="unique_handle" value={newHandle} onChange={e => setNewHandle(e.target.value)} />
-              <FlameInput label="Описание" placeholder="О чём группа?" value={newDesc} onChange={e => setNewDesc(e.target.value)} />
+              <FlameInput label={t("itemName")} placeholder={t("groupName")} value={newName} onChange={e => setNewName(e.target.value)} />
+              <FlameInput label={t("handle")} placeholder="unique_handle" value={newHandle} onChange={e => setNewHandle(e.target.value)} />
+              <FlameInput label={t("description")} placeholder={t("aboutGroup")} value={newDesc} onChange={e => setNewDesc(e.target.value)} />
               <FlameButton onClick={createGroup} className="w-full" disabled={!newName.trim() || loading}>
-                {loading ? "Создание..." : "Создать группу"}
+                {loading ? t("creating") : t("createGroup")}
               </FlameButton>
             </div>
           </GlassCard>
