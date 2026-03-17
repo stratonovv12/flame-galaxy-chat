@@ -294,7 +294,7 @@ export function UserProfileView({ userId, onBack, onStartChat }: UserProfileView
         </button>
         <button onClick={() => setActiveTab("inventory")}
           className={`flex-1 py-2.5 text-sm font-medium border-b-2 transition-colors ${activeTab === "inventory" ? "border-primary text-primary" : "border-transparent text-muted-foreground"}`}>
-          <span className="flex items-center justify-center gap-1.5"><Package className="w-4 h-4" /> Инвентарь</span>
+          <span className="flex items-center justify-center gap-1.5"><Package className="w-4 h-4" /> {t("inventoryTab")}</span>
         </button>
         {showShopTab && (
           <button onClick={() => setActiveTab("shop")}
