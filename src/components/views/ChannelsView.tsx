@@ -382,7 +382,7 @@ export function ChannelsView({ onViewProfile, initialChannelId, onClearInitial }
           {visiblePosts.length === 0 ? (
             <div className="text-center text-muted-foreground py-12">
               <Hash className="w-12 h-12 mx-auto mb-3 opacity-50" />
-              <p>Публикаций пока нет</p>
+              <p>{t("noPostsYet")}</p>
             </div>
           ) : (
             visiblePosts.map((post) => (
