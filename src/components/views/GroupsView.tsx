@@ -177,7 +177,7 @@ export function GroupsView({ onViewProfile, initialGroupId, onClearInitial }: Gr
     } else {
       await supabase.from("group_admins").insert({ group_id: selectedGroup.id, user_id: userId, appointed_by: user.id });
       setGroupAdmins(prev => new Set([...prev, userId]));
-      toast({ title: "Назначен администратором" });
+      toast({ title: t("appointedAdmin") });
     }
   };
 
