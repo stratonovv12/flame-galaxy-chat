@@ -434,7 +434,7 @@ export function GroupsView({ onViewProfile, initialGroupId, onClearInitial }: Gr
                     )}
                     {msg.reply_to_id && (
                       <div className="mt-1 pl-2 border-l-2 border-primary/50 text-xs text-muted-foreground">
-                        {getReplyPreview(msg.reply_to_id) || "Сообщение"}
+                        {getReplyPreview(msg.reply_to_id) || t("message")}
                       </div>
                     )}
                     {msg.media_url && renderMedia(msg.media_url)}
