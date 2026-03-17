@@ -171,9 +171,9 @@ export function ChannelsView({ onViewProfile, initialChannelId, onClearInitial }
       creator_id: user.id,
     });
     if (error) {
-      toast({ title: "Ошибка", description: error.message?.includes("handle") ? "Этот хендл уже занят" : "Не удалось создать", variant: "destructive" });
+      toast({ title: t("error"), description: error.message?.includes("handle") ? t("handleTaken") : t("failedToCreate"), variant: "destructive" });
     } else {
-      toast({ title: "Канал создан!" });
+      toast({ title: t("channelCreated") });
       setNewChannelName(""); setNewChannelDesc(""); setNewChannelAvatar(""); setNewChannelHandle(""); setShowCreateModal(false);
       fetchMyChannels();
     }
