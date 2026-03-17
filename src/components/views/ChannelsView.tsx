@@ -297,8 +297,8 @@ export function ChannelsView({ onViewProfile, initialChannelId, onClearInitial }
           </GlassCard>
 
           <GlassCard className="p-4">
-            <h3 className="font-semibold mb-3 flex items-center gap-2"><Crown className="w-5 h-5 text-yellow-500" />Передача владения</h3>
-            <p className="text-sm text-muted-foreground mb-3">Выберите подписчика для передачи прав</p>
+            <h3 className="font-semibold mb-3 flex items-center gap-2"><Crown className="w-5 h-5 text-yellow-500" />{t("transferOwnership")}</h3>
+            <p className="text-sm text-muted-foreground mb-3">{t("selectSubTransfer")}</p>
             <div className="space-y-2 max-h-48 overflow-y-auto">
               {subscribers.filter(s => s.user_id !== user?.id).map(s => (
                 <div key={s.user_id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/30">
