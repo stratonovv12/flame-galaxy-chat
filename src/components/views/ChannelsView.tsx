@@ -324,7 +324,7 @@ export function ChannelsView({ onViewProfile, initialChannelId, onClearInitial }
               {subscribers.filter(s => s.user_id !== user?.id).map(s => (
                 <div key={s.user_id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/30">
                   <UserAvatar username={s.username} avatarUrl={s.avatar_url} size="sm" />
-                  <span className="flex-1 text-sm font-medium">{s.username || "Пользователь"}</span>
+                  <span className="flex-1 text-sm font-medium">{s.username || t("user")}</span>
                   <button onClick={() => toggleAdmin(s.user_id)}
                     className={`p-2 rounded-lg transition-colors ${channelAdmins.has(s.user_id) ? "bg-primary/20 text-primary" : "hover:bg-muted/50 text-muted-foreground"}`}>
                     <ShieldCheck className="w-4 h-4" />
