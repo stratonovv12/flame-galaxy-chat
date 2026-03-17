@@ -299,7 +299,7 @@ export function UserProfileView({ userId, onBack, onStartChat }: UserProfileView
         {showShopTab && (
           <button onClick={() => setActiveTab("shop")}
             className={`flex-1 py-2.5 text-sm font-medium border-b-2 transition-colors ${activeTab === "shop" ? "border-primary text-primary" : "border-transparent text-muted-foreground"}`}>
-            <span className="flex items-center justify-center gap-1.5"><ShoppingBag className="w-4 h-4" /> В продаже</span>
+            <span className="flex items-center justify-center gap-1.5"><ShoppingBag className="w-4 h-4" /> {t("forSale")}</span>
           </button>
         )}
       </div>
