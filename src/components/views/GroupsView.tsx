@@ -423,7 +423,7 @@ export function GroupsView({ onViewProfile, initialGroupId, onClearInitial }: Gr
                   </button>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5">
-                      <span className="font-medium text-sm">{msg.profiles?.username || "Пользователь"}</span>
+                      <span className="font-medium text-sm">{msg.profiles?.username || t("user")}</span>
                       <UserBadge userId={msg.author_id} />
                       <span className="text-xs text-muted-foreground">
                         {formatDistanceToNow(new Date(msg.created_at), { addSuffix: true, locale: ru })}
