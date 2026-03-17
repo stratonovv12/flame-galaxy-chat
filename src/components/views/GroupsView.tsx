@@ -243,7 +243,7 @@ export function GroupsView({ onViewProfile, initialGroupId, onClearInitial }: Gr
       if (newGroup) {
         await supabase.from("group_members").upsert({ group_id: newGroup.id, user_id: user.id }, { onConflict: "group_id,user_id" });
       }
-      toast({ title: "Группа создана!" });
+      toast({ title: t("groupCreated") });
       setNewName(""); setNewDesc(""); setNewAvatar(""); setNewHandle(""); setShowCreate(false);
       fetchMyGroups();
     }
