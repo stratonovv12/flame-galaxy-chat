@@ -487,9 +487,9 @@ export function GroupsView({ onViewProfile, initialGroupId, onClearInitial }: Gr
   return (
     <div className="p-4 space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold">Группы</h2>
+        <h2 className="text-xl font-bold">{t("groups")}</h2>
         <FlameButton onClick={() => setShowCreate(true)} size="sm">
-          <Plus className="w-4 h-4 mr-2" /> Создать
+          <Plus className="w-4 h-4 mr-2" /> {t("create")}
         </FlameButton>
       </div>
 
