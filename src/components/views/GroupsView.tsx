@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { FlameButton } from "@/components/ui/FlameButton";
 import { FlameInput } from "@/components/ui/FlameInput";
@@ -10,14 +11,13 @@ import { AvatarUpload } from "@/components/ui/AvatarUpload";
 import { MessageReactions } from "@/components/ui/MessageReactions";
 import { MediaUpload } from "@/components/ui/MediaUpload";
 import { VoiceRecorder } from "@/components/ui/VoiceRecorder";
-import { VideoCircleRecorder } from "@/components/ui/VideoCircleRecorder";
 import { MessageContextMenu } from "@/components/ui/MessageContextMenu";
 import { UploadingBubble } from "@/components/ui/UploadingBubble";
 import { useMediaUpload } from "@/hooks/useMediaUpload";
 import { Users, Plus, Send, X, ArrowLeft, LogOut, Reply, Settings, Trash2, Crown, ShieldCheck } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
-import { ru } from "date-fns/locale";
+import { ru, enUS } from "date-fns/locale";
 import { playNotificationSound, showBrowserNotification } from "@/lib/notifications";
 
 interface Group {
