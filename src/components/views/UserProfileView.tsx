@@ -166,7 +166,7 @@ export function UserProfileView({ userId, onBack, onStartChat }: UserProfileView
   const handleTrade = async () => {
     if (!user || !profile) return;
     if (!tradeMyItem && !tradeTheirItem) {
-      toast({ title: "Ошибка", description: "Выберите хотя бы один предмет", variant: "destructive" });
+      toast({ title: t("error"), description: t("selectAtLeastOneItem"), variant: "destructive" });
       return;
     }
     setTradeLoading(true);
