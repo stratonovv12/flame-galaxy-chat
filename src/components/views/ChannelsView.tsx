@@ -440,9 +440,9 @@ export function ChannelsView({ onViewProfile, initialChannelId, onClearInitial }
   return (
     <div className="p-4 space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold">Каналы</h2>
+        <h2 className="text-xl font-bold">{t("channels")}</h2>
         <FlameButton onClick={() => setShowCreateModal(true)} size="sm">
-          <Plus className="w-4 h-4 mr-2" /> Создать
+          <Plus className="w-4 h-4 mr-2" /> {t("create")}
         </FlameButton>
       </div>
 
