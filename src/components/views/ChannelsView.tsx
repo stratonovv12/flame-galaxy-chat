@@ -319,7 +319,7 @@ export function ChannelsView({ onViewProfile, initialChannelId, onClearInitial }
           </GlassCard>
 
           <GlassCard className="p-4">
-            <h3 className="font-semibold mb-3 flex items-center gap-2"><ShieldCheck className="w-5 h-5 text-primary" />Администраторы</h3>
+            <h3 className="font-semibold mb-3 flex items-center gap-2"><ShieldCheck className="w-5 h-5 text-primary" />{t("administrators")}</h3>
             <div className="space-y-2 max-h-48 overflow-y-auto">
               {subscribers.filter(s => s.user_id !== user?.id).map(s => (
                 <div key={s.user_id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/30">
