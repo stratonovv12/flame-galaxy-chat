@@ -353,7 +353,7 @@ export function GroupsView({ onViewProfile, initialGroupId, onClearInitial }: Gr
                       </button>
                       <button onClick={() => kickMember(m.user_id)}
                         className="p-2 rounded-lg transition-colors hover:bg-destructive/20 text-muted-foreground hover:text-destructive"
-                        title="Исключить">
+                        title={t("kickMember")}>
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
