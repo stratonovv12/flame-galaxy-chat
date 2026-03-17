@@ -341,7 +341,7 @@ export function UserProfileView({ userId, onBack, onStartChat }: UserProfileView
           ) : inventory.length === 0 ? (
             <GlassCard className="text-center py-8">
               <Package className="w-12 h-12 mx-auto mb-3 text-muted-foreground/50" />
-              <p className="text-muted-foreground">Инвентарь пуст</p>
+              <p className="text-muted-foreground">{t("inventoryEmpty")}</p>
             </GlassCard>
           ) : (
             <div className="grid grid-cols-2 gap-3">
