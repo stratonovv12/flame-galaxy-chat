@@ -290,7 +290,7 @@ export function UserProfileView({ userId, onBack, onStartChat }: UserProfileView
       <div className="flex border-b border-border">
         <button onClick={() => setActiveTab("posts")}
           className={`flex-1 py-2.5 text-sm font-medium border-b-2 transition-colors ${activeTab === "posts" ? "border-primary text-primary" : "border-transparent text-muted-foreground"}`}>
-          Медиа ({posts.length})
+          {t("postsTab")} ({posts.length})
         </button>
         <button onClick={() => setActiveTab("inventory")}
           className={`flex-1 py-2.5 text-sm font-medium border-b-2 transition-colors ${activeTab === "inventory" ? "border-primary text-primary" : "border-transparent text-muted-foreground"}`}>
