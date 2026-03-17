@@ -219,7 +219,7 @@ export function ChannelsView({ onViewProfile, initialChannelId, onClearInitial }
     if (channelAdmins.has(userId)) {
       await supabase.from("channel_admins").delete().eq("channel_id", selectedChannel.id).eq("user_id", userId);
       setChannelAdmins(prev => { const n = new Set(prev); n.delete(userId); return n; });
-      toast({ title: "Права администратора сняты" });
+      toast({ title: t("adminRightsRemoved") });
     } else {
       await supabase.from("channel_admins").insert({ channel_id: selectedChannel.id, user_id: userId, appointed_by: user.id });
       setChannelAdmins(prev => new Set([...prev, userId]));
