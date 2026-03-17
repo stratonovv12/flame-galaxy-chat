@@ -223,7 +223,7 @@ export function ChannelsView({ onViewProfile, initialChannelId, onClearInitial }
     } else {
       await supabase.from("channel_admins").insert({ channel_id: selectedChannel.id, user_id: userId, appointed_by: user.id });
       setChannelAdmins(prev => new Set([...prev, userId]));
-      toast({ title: "Назначен администратором" });
+      toast({ title: t("appointedAdmin") });
     }
   };
 
