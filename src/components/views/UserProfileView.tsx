@@ -59,6 +59,7 @@ interface UserProfileViewProps {
 
 export function UserProfileView({ userId, onBack, onStartChat }: UserProfileViewProps) {
   const { user } = useAuth();
+  const { t, lang } = useLanguage();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [myProfile, setMyProfile] = useState<Profile | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
