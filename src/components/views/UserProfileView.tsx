@@ -217,10 +217,10 @@ export function UserProfileView({ userId, onBack, onStartChat }: UserProfileView
     return (
       <div className="p-4">
         <button onClick={onBack} className="flex items-center gap-2 text-muted-foreground mb-4">
-          <ArrowLeft className="w-5 h-5" /> Назад
+          <ArrowLeft className="w-5 h-5" /> {t("back")}
         </button>
         <GlassCard className="text-center py-12">
-          <p className="text-muted-foreground">Профиль не найден</p>
+          <p className="text-muted-foreground">{t("profileNotFound")}</p>
         </GlassCard>
       </div>
     );
