@@ -274,15 +274,7 @@ export function GroupsView({ onViewProfile, initialGroupId, onClearInitial }: Gr
     });
   };
 
-  const handleVideoRecorded = (blob: Blob, _durationSec: number, _thumbnail: string) => {
-    if (!selectedGroup || !user) return;
-    startUpload(blob, "circle", async (url) => {
-      await supabase.from("group_messages").insert({
-        content: "🎥 Видео-кружок", media_url: url,
-        group_id: selectedGroup.id, author_id: user.id,
-      });
-    });
-  };
+  // Removed video recorder
 
   const getReplyPreview = (replyId: string) => {
     const msg = messages.find(m => m.id === replyId);
