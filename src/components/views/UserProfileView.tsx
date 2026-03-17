@@ -336,7 +336,7 @@ export function UserProfileView({ userId, onBack, onStartChat }: UserProfileView
           {!inventoryAccessible ? (
             <GlassCard className="text-center py-12">
               <Lock className="w-12 h-12 mx-auto mb-3 text-muted-foreground/50" />
-              <p className="text-muted-foreground">Инвентарь скрыт владельцем</p>
+              <p className="text-muted-foreground">{t("inventoryHiddenByOwner")}</p>
             </GlassCard>
           ) : inventory.length === 0 ? (
             <GlassCard className="text-center py-8">
