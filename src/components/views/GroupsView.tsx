@@ -197,7 +197,7 @@ export function GroupsView({ onViewProfile, initialGroupId, onClearInitial }: Gr
     await supabase.from("groups").update({ creator_id: transferTarget }).eq("id", selectedGroup.id);
     setSelectedGroup({ ...selectedGroup, creator_id: transferTarget });
     setTransferTarget(null);
-    toast({ title: "Владение передано" });
+    toast({ title: t("ownershipTransferred") });
   };
 
   const deleteGroup = async () => {
