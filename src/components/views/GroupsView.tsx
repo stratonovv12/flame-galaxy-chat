@@ -516,7 +516,7 @@ export function GroupsView({ onViewProfile, initialGroupId, onClearInitial }: Gr
                   <h3 className="font-semibold">{g.name}</h3>
                   <p className="text-xs text-muted-foreground">
                     {g.handle && <span className="text-primary/70">@{g.handle} · </span>}
-                    {memberCounts[g.id] || 0} участников
+                    {memberCounts[g.id] || 0} {t("members")}
                   </p>
                   {g.description && <p className="text-sm text-muted-foreground truncate">{g.description}</p>}
                 </div>
