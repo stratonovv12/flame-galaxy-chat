@@ -270,7 +270,7 @@ export function UserProfileView({ userId, onBack, onStartChat }: UserProfileView
                 disabled={!hasSteamUrl}
                 onClick={() => setGiftOpen(true)}
               >
-                <Gift className="w-4 h-4 mr-1" /> Подарок
+                <Gift className="w-4 h-4 mr-1" /> {t("sendGift")}
               </FlameButton>
               <FlameButton
                 variant="outline"
