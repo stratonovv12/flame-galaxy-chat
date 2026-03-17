@@ -390,9 +390,9 @@ export function UserProfileView({ userId, onBack, onStartChat }: UserProfileView
               <h3 className="text-lg font-bold flex items-center gap-2"><Gift className="w-5 h-5 text-primary" /> {t("giftSkin")}</h3>
               <button onClick={() => setGiftOpen(false)}><X className="w-5 h-5 text-muted-foreground" /></button>
             </div>
-            <p className="text-sm text-muted-foreground">Выберите предмет для @{profile.username}</p>
+            <p className="text-sm text-muted-foreground">{t("selectItemFor")} @{profile.username}</p>
             {myInventory.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-4">Ваш инвентарь пуст</p>
+              <p className="text-sm text-muted-foreground text-center py-4">{t("yourInventoryEmpty")}</p>
             ) : (
               <div className="max-h-60 overflow-y-auto space-y-2">
                 {myInventory.map((item) => (
