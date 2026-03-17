@@ -430,7 +430,7 @@ export function GroupsView({ onViewProfile, initialGroupId, onClearInitial }: Gr
                       </span>
                     </div>
                     {msg.forwarded_from && (
-                      <p className="text-xs text-primary/70 mt-1">↪ Переслано от {msg.forwarded_from}</p>
+                      <p className="text-xs text-primary/70 mt-1">↪ {t("forwardedFrom")} {msg.forwarded_from}</p>
                     )}
                     {msg.reply_to_id && (
                       <div className="mt-1 pl-2 border-l-2 border-primary/50 text-xs text-muted-foreground">
