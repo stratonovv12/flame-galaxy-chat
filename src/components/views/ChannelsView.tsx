@@ -360,7 +360,7 @@ export function ChannelsView({ onViewProfile, initialChannelId, onClearInitial }
               </h2>
               <p className="text-xs text-muted-foreground">
                 {selectedChannel.handle && <span className="text-primary/70">@{selectedChannel.handle} · </span>}
-                {subscriberCounts[selectedChannel.id] || 0} подписчиков
+                {subscriberCounts[selectedChannel.id] || 0} {t("subscribers")}
               </p>
             </div>
             <div className="flex items-center gap-1">
