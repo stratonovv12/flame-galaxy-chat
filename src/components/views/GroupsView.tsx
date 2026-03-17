@@ -193,7 +193,7 @@ export function GroupsView({ onViewProfile, initialGroupId, onClearInitial }: Gr
 
   const transferOwnership = async () => {
     if (!selectedGroup || !transferTarget || !user) return;
-    if (!confirm("Вы уверены? Вы потеряете права создателя.")) return;
+    if (!confirm(t("transferConfirmMsg"))) return;
     await supabase.from("groups").update({ creator_id: transferTarget }).eq("id", selectedGroup.id);
     setSelectedGroup({ ...selectedGroup, creator_id: transferTarget });
     setTransferTarget(null);
