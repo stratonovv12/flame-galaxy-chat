@@ -231,7 +231,7 @@ export function UserProfileView({ userId, onBack, onStartChat }: UserProfileView
   return (
     <div className="p-4 space-y-4 max-w-2xl mx-auto">
       <button onClick={onBack} className="flex items-center gap-2 text-muted-foreground">
-        <ArrowLeft className="w-5 h-5" /> Назад
+        <ArrowLeft className="w-5 h-5" /> {t("back")}
       </button>
 
       {/* Profile Card */}
