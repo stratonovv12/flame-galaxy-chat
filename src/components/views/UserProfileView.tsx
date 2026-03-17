@@ -308,7 +308,7 @@ export function UserProfileView({ userId, onBack, onStartChat }: UserProfileView
       {activeTab === "posts" && (
         <div>
           {posts.length === 0 ? (
-            <GlassCard className="text-center py-8"><p className="text-muted-foreground">Нет медиа-публикаций</p></GlassCard>
+            <GlassCard className="text-center py-8"><p className="text-muted-foreground">{t("noMediaPosts")}</p></GlassCard>
           ) : (
             <div className="grid grid-cols-2 gap-3">
               {posts.map((post) => (
