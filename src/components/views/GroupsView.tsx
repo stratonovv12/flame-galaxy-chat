@@ -496,9 +496,9 @@ export function GroupsView({ onViewProfile, initialGroupId, onClearInitial }: Gr
       {groups.length === 0 ? (
         <GlassCard className="text-center py-12">
           <Users className="w-16 h-16 mx-auto mb-4 text-accent/50" />
-          <h3 className="text-lg font-semibold mb-2">Нет групп</h3>
-          <p className="text-muted-foreground mb-4">Найдите группы через поиск или создайте!</p>
-          <FlameButton onClick={() => setShowCreate(true)}><Plus className="w-4 h-4 mr-2" /> Создать группу</FlameButton>
+          <h3 className="text-lg font-semibold mb-2">{t("noGroups")}</h3>
+          <p className="text-muted-foreground mb-4">{t("findGroupsHint")}</p>
+          <FlameButton onClick={() => setShowCreate(true)}><Plus className="w-4 h-4 mr-2" /> {t("createGroup")}</FlameButton>
         </GlassCard>
       ) : (
         <div className="space-y-3">
