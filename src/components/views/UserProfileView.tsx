@@ -410,7 +410,7 @@ export function UserProfileView({ userId, onBack, onStartChat }: UserProfileView
               </div>
             )}
             <FlameButton onClick={handleGift} disabled={!giftItem || giftLoading} className="w-full">
-              {giftLoading ? "Отправка..." : "Подарить"}
+              {giftLoading ? t("sending") : t("giftBtn")}
             </FlameButton>
           </GlassCard>
         </div>
