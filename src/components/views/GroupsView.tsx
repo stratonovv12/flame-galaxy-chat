@@ -183,7 +183,7 @@ export function GroupsView({ onViewProfile, initialGroupId, onClearInitial }: Gr
 
   const kickMember = async (userId: string) => {
     if (!selectedGroup || !user) return;
-    if (!confirm("Исключить этого участника из группы?")) return;
+    if (!confirm(t("kickConfirm"))) return;
     await supabase.from("group_members").delete().eq("group_id", selectedGroup.id).eq("user_id", userId);
     await supabase.from("group_admins").delete().eq("group_id", selectedGroup.id).eq("user_id", userId);
     setMembers(prev => prev.filter(m => m.user_id !== userId));
