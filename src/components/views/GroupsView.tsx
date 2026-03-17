@@ -213,7 +213,7 @@ export function GroupsView({ onViewProfile, initialGroupId, onClearInitial }: Gr
   const leaveGroup = async () => {
     if (!user || !selectedGroup) return;
     await supabase.from("group_members").delete().eq("group_id", selectedGroup.id).eq("user_id", user.id);
-    toast({ title: "Вы покинули группу" });
+    toast({ title: t("leftGroup") });
     setSelectedGroup(null);
     fetchMyGroups();
   };
