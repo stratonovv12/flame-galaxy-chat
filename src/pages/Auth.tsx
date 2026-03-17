@@ -110,7 +110,8 @@ const Auth = () => {
       toast({ title: t("passwordUpdated"), description: t("passwordUpdatedDesc") });
       setShowReset(false);
       window.location.hash = "";
-      navigate("/");
+      await supabase.auth.signOut();
+      navigate("/auth");
     }
     setLoading(false);
   };

@@ -464,16 +464,9 @@ export function UserProfileView({ userId, onBack, onStartChat }: UserProfileView
             )}
 
             {/* Balance offer */}
-            <FlameInput
-              label="Доплата ($)"
-              placeholder="0.00"
-              type="number"
-              value={tradeBalance}
-              onChange={(e) => setTradeBalance(e.target.value)}
-            />
-
+            <FlameInput label={t("balanceExtra")} placeholder="0.00" type="number" value={tradeBalance} onChange={(e) => setTradeBalance(e.target.value)} />
             <FlameButton onClick={handleTrade} disabled={tradeLoading} className="w-full">
-              {tradeLoading ? "Отправка..." : "Отправить предложение"}
+              {tradeLoading ? t("sending") : t("sendOffer")}
             </FlameButton>
           </GlassCard>
         </div>
