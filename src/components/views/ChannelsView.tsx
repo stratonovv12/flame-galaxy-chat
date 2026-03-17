@@ -449,9 +449,9 @@ export function ChannelsView({ onViewProfile, initialChannelId, onClearInitial }
       {channels.length === 0 ? (
         <GlassCard className="text-center py-12">
           <Hash className="w-16 h-16 mx-auto mb-4 text-primary/50" />
-          <h3 className="text-lg font-semibold mb-2">Нет подписок</h3>
-          <p className="text-muted-foreground mb-4">Найдите каналы через поиск или создайте!</p>
-          <FlameButton onClick={() => setShowCreateModal(true)}><Plus className="w-4 h-4 mr-2" /> Создать канал</FlameButton>
+          <h3 className="text-lg font-semibold mb-2">{t("noSubscriptions")}</h3>
+          <p className="text-muted-foreground mb-4">{t("findChannelsHint")}</p>
+          <FlameButton onClick={() => setShowCreateModal(true)}><Plus className="w-4 h-4 mr-2" /> {t("createChannel")}</FlameButton>
         </GlassCard>
       ) : (
         <div className="space-y-3">
