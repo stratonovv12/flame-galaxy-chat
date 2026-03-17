@@ -426,7 +426,7 @@ export function GroupsView({ onViewProfile, initialGroupId, onClearInitial }: Gr
                       <span className="font-medium text-sm">{msg.profiles?.username || t("user")}</span>
                       <UserBadge userId={msg.author_id} />
                       <span className="text-xs text-muted-foreground">
-                        {formatDistanceToNow(new Date(msg.created_at), { addSuffix: true, locale: ru })}
+                        {formatDistanceToNow(new Date(msg.created_at), { addSuffix: true, locale: dateLocale })}
                       </span>
                     </div>
                     {msg.forwarded_from && (
