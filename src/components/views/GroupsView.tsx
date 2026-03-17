@@ -258,7 +258,7 @@ export function GroupsView({ onViewProfile, initialGroupId, onClearInitial }: Gr
       author_id: user.id, reply_to_id: replyTo?.id || null,
     });
     if (error) {
-      toast({ title: "Ошибка", description: "Не удалось отправить", variant: "destructive" });
+      toast({ title: t("error"), description: t("sendFailed"), variant: "destructive" });
     } else {
       setNewMessage(""); setMediaUrl(""); setReplyTo(null);
     }
