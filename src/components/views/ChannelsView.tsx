@@ -480,18 +480,18 @@ export function ChannelsView({ onViewProfile, initialChannelId, onClearInitial }
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
           <GlassCard className="w-full max-w-md p-6" glow>
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-semibold">Создать канал</h3>
+              <h3 className="text-lg font-semibold">{t("createChannel")}</h3>
               <button onClick={() => setShowCreateModal(false)} className="p-2 hover:bg-muted/50 rounded-lg"><X className="w-5 h-5" /></button>
             </div>
             <div className="space-y-4">
               <div className="flex justify-center">
                 <AvatarUpload currentUrl={newChannelAvatar} onUpload={setNewChannelAvatar} folder="channels" />
               </div>
-              <FlameInput label="Название" placeholder="Например: Общение" value={newChannelName} onChange={(e) => setNewChannelName(e.target.value)} />
-              <FlameInput label="@Хендл" placeholder="unique_handle" value={newChannelHandle} onChange={(e) => setNewChannelHandle(e.target.value)} />
-              <FlameInput label="Описание" placeholder="О чём этот канал?" value={newChannelDesc} onChange={(e) => setNewChannelDesc(e.target.value)} />
+              <FlameInput label={t("itemName")} placeholder={t("channelName")} value={newChannelName} onChange={(e) => setNewChannelName(e.target.value)} />
+              <FlameInput label={t("handle")} placeholder="unique_handle" value={newChannelHandle} onChange={(e) => setNewChannelHandle(e.target.value)} />
+              <FlameInput label={t("description")} placeholder={t("aboutGroup")} value={newChannelDesc} onChange={(e) => setNewChannelDesc(e.target.value)} />
               <FlameButton onClick={createChannel} className="w-full" disabled={!newChannelName.trim() || loading}>
-                {loading ? "Создание..." : "Создать канал"}
+                {loading ? t("creating") : t("createChannel")}
               </FlameButton>
             </div>
           </GlassCard>
