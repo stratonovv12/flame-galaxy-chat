@@ -144,7 +144,7 @@ export function ChannelsView({ onViewProfile, initialChannelId, onClearInitial }
   const leaveChannel = async () => {
     if (!user || !selectedChannel) return;
     await supabase.from("channel_subscribers").delete().eq("channel_id", selectedChannel.id).eq("user_id", user.id);
-    toast({ title: "Вы отписались от канала" });
+    toast({ title: t("unsubscribed") });
     setSelectedChannel(null);
     fetchMyChannels();
   };
