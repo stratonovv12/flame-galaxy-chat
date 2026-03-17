@@ -238,7 +238,7 @@ export function GroupsView({ onViewProfile, initialGroupId, onClearInitial }: Gr
       creator_id: user.id,
     }).select().single();
     if (error) {
-      toast({ title: "Ошибка", description: error.message?.includes("handle") ? "Этот хендл уже занят" : "Не удалось создать", variant: "destructive" });
+      toast({ title: t("error"), description: error.message?.includes("handle") ? t("handleTaken") : t("failedToCreate"), variant: "destructive" });
     } else {
       if (newGroup) {
         await supabase.from("group_members").upsert({ group_id: newGroup.id, user_id: user.id }, { onConflict: "group_id,user_id" });
