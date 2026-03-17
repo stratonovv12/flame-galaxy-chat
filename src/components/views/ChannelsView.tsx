@@ -396,7 +396,7 @@ export function ChannelsView({ onViewProfile, initialChannelId, onClearInitial }
                       <span className="font-medium text-sm">{post.profiles?.username || t("user")}</span>
                       <UserBadge userId={post.author_id} />
                       <span className="text-xs text-muted-foreground">
-                        {formatDistanceToNow(new Date(post.created_at), { addSuffix: true, locale: ru })}
+                        {formatDistanceToNow(new Date(post.created_at), { addSuffix: true, locale: dateLocale })}
                       </span>
                     </div>
                     {post.media_url && (
