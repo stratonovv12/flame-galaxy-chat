@@ -474,8 +474,7 @@ export function GroupsView({ onViewProfile, initialGroupId, onClearInitial }: Gr
           <div className="flex items-end gap-2">
             <MediaUpload onUpload={setMediaUrl} />
             <VoiceRecorder onRecorded={handleVoiceRecorded} />
-            <VideoCircleRecorder onRecorded={handleVideoRecorded} />
-            <FlameInput placeholder="Написать сообщение..." value={newMessage}
+            <FlameInput placeholder={t("writeMessage")} value={newMessage}
               onChange={e => setNewMessage(e.target.value)}
               onKeyDown={e => e.key === "Enter" && sendMessage()} className="flex-1" />
             <FlameButton onClick={sendMessage} size="md"><Send className="w-5 h-5" /></FlameButton>
