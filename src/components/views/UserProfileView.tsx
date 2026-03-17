@@ -427,9 +427,9 @@ export function UserProfileView({ userId, onBack, onStartChat }: UserProfileView
 
             {/* My item */}
             <div>
-              <p className="text-sm font-medium mb-2">Ваш предмет:</p>
+              <p className="text-sm font-medium mb-2">{t("yourItem")}:</p>
               {myInventory.length === 0 ? (
-                <p className="text-xs text-muted-foreground">Инвентарь пуст</p>
+                <p className="text-xs text-muted-foreground">{t("inventoryEmpty")}</p>
               ) : (
                 <div className="max-h-32 overflow-y-auto space-y-1">
                   {myInventory.map((item) => (
