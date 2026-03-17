@@ -154,9 +154,9 @@ export function UserProfileView({ userId, onBack, onStartChat }: UserProfileView
     });
     setGiftLoading(false);
     if ((data as any)?.error) {
-      toast({ title: "Ошибка", description: (data as any).error, variant: "destructive" });
+      toast({ title: t("error"), description: (data as any).error, variant: "destructive" });
     } else {
-      toast({ title: "Подарок отправлен!", description: `Предмет отправлен @${profile.username}` });
+      toast({ title: t("giftSent"), description: `${t("itemSentTo")} @${profile.username}` });
       setGiftOpen(false);
       setGiftItem(null);
       fetchUserData();
