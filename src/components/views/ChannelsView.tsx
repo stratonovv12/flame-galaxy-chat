@@ -49,6 +49,8 @@ interface ChannelsViewProps {
 
 export function ChannelsView({ onViewProfile, initialChannelId, onClearInitial }: ChannelsViewProps) {
   const { user } = useAuth();
+  const { t, lang } = useLanguage();
+  const dateLocale = lang === "ru" ? ru : enUS;
   const [channels, setChannels] = useState<Channel[]>([]);
   const [subscriberCounts, setSubscriberCounts] = useState<Record<string, number>>({});
   const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null);
