@@ -238,7 +238,7 @@ export function UserProfileView({ userId, onBack, onStartChat }: UserProfileView
       <GlassCard className="p-8 text-center" glow>
         <UserAvatar username={profile.username} avatarUrl={profile.avatar_url} size="xl" className="mx-auto mb-4 neon-glow" />
         <div className="flex items-center justify-center gap-1.5 mb-1">
-          <h2 className="text-xl font-bold">{profile.display_name || profile.username || "Без имени"}</h2>
+          <h2 className="text-xl font-bold">{profile.display_name || profile.username || t("noName")}</h2>
           <UserBadge userId={userId} />
         </div>
         {profile.username && <p className="text-sm text-primary/80 mb-2">@{profile.username.replace(/^@/, "")}</p>}
