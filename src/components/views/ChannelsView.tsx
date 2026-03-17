@@ -191,7 +191,7 @@ export function ChannelsView({ onViewProfile, initialChannelId, onClearInitial }
       media_url: mediaUrl || null, channel_id: selectedChannel.id, author_id: user.id,
     });
     if (error) {
-      toast({ title: "Ошибка", description: "Не удалось отправить", variant: "destructive" });
+      toast({ title: t("error"), description: t("sendFailed"), variant: "destructive" });
     } else {
       setNewPost(""); setMediaUrl("");
     }
