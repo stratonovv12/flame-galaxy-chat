@@ -229,11 +229,11 @@ export function ChannelsView({ onViewProfile, initialChannelId, onClearInitial }
 
   const transferOwnership = async () => {
     if (!selectedChannel || !transferTarget || !user) return;
-    if (!confirm("Вы уверены? Вы потеряете права создателя.")) return;
+    if (!confirm(t("transferConfirmMsg"))) return;
     await supabase.from("channels").update({ creator_id: transferTarget }).eq("id", selectedChannel.id);
     setSelectedChannel({ ...selectedChannel, creator_id: transferTarget });
     setTransferTarget(null);
-    toast({ title: "Владение передано" });
+    toast({ title: t("ownershipTransferred") });
   };
 
   const deleteChannel = async () => {
