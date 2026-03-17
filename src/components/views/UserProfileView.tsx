@@ -179,9 +179,9 @@ export function UserProfileView({ userId, onBack, onStartChat }: UserProfileView
     });
     setTradeLoading(false);
     if (error) {
-      toast({ title: "Ошибка", description: error.message, variant: "destructive" });
+      toast({ title: t("error"), description: error.message, variant: "destructive" });
     } else {
-      toast({ title: "Трейд отправлен!", description: "Ожидайте ответа" });
+      toast({ title: t("tradeSent"), description: t("awaitResponse") });
       setTradeOpen(false);
       setTradeMyItem(null);
       setTradeTheirItem(null);
