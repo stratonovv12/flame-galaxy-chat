@@ -362,7 +362,7 @@ export function GroupsView({ onViewProfile, initialGroupId, onClearInitial }: Gr
               </GlassCard>
 
               <FlameButton onClick={deleteGroup} variant="outline" className="w-full border-destructive/50 text-destructive hover:bg-destructive/10">
-                <Trash2 className="w-4 h-4 mr-2" /> Удалить группу
+                <Trash2 className="w-4 h-4 mr-2" /> {t("deleteGroup")}
               </FlameButton>
             </>
           )}
