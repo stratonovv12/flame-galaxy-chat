@@ -333,7 +333,7 @@ export function GroupsView({ onViewProfile, initialGroupId, onClearInitial }: Gr
                 </div>
                 {transferTarget && (
                   <FlameButton onClick={transferOwnership} className="w-full mt-3">
-                    Подтвердить передачу
+                    {t("confirmTransfer")}
                   </FlameButton>
                 )}
               </GlassCard>
