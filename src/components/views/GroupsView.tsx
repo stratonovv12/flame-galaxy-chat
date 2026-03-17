@@ -401,7 +401,7 @@ export function GroupsView({ onViewProfile, initialGroupId, onClearInitial }: Gr
                   <Settings className="w-5 h-5 text-muted-foreground" />
                 </button>
               )}
-              <button onClick={leaveGroup} className="p-2 hover:bg-destructive/10 rounded-lg transition-colors touch-target" title="Покинуть группу">
+              <button onClick={leaveGroup} className="p-2 hover:bg-destructive/10 rounded-lg transition-colors touch-target" title={t("leaveGroup")}>
                 <LogOut className="w-5 h-5 text-destructive" />
               </button>
             </div>
