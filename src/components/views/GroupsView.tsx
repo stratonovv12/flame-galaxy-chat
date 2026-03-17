@@ -463,7 +463,7 @@ export function GroupsView({ onViewProfile, initialGroupId, onClearInitial }: Gr
           <div className="px-4 py-2 border-t border-border bg-muted/30 flex items-center gap-2">
             <Reply className="w-4 h-4 text-primary shrink-0" />
             <div className="flex-1 pl-2 border-l-2 border-primary">
-              <p className="text-xs text-primary font-medium">{replyTo.profiles?.username || "Пользователь"}</p>
+              <p className="text-xs text-primary font-medium">{replyTo.profiles?.username || t("user")}</p>
               <p className="text-xs text-muted-foreground truncate">{replyTo.content}</p>
             </div>
             <button onClick={() => setReplyTo(null)} className="p-1 hover:bg-muted/50 rounded"><X className="w-4 h-4" /></button>
