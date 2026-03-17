@@ -530,7 +530,7 @@ export function GroupsView({ onViewProfile, initialGroupId, onClearInitial }: Gr
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
           <GlassCard className="w-full max-w-md p-6" glow>
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-semibold">Создать группу</h3>
+              <h3 className="text-lg font-semibold">{t("createGroup")}</h3>
               <button onClick={() => setShowCreate(false)} className="p-2 hover:bg-muted/50 rounded-lg"><X className="w-5 h-5" /></button>
             </div>
             <div className="space-y-4">
