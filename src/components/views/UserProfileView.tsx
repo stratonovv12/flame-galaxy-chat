@@ -374,7 +374,7 @@ export function UserProfileView({ userId, onBack, onStartChat }: UserProfileView
                   disabled={!hasSteamUrl || buyingId === listing.id}
                   onClick={() => handleBuy(listing)}
                 >
-                  {buyingId === listing.id ? "..." : <><ShoppingBag className="w-3 h-3 mr-1" /> Купить</>}
+                  {buyingId === listing.id ? "..." : <><ShoppingBag className="w-3 h-3 mr-1" /> {t("buy")}</>}
                 </FlameButton>
               </div>
             </GlassCard>
