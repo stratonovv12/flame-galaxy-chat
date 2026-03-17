@@ -335,7 +335,7 @@ export function ChannelsView({ onViewProfile, initialChannelId, onClearInitial }
           </GlassCard>
 
           <FlameButton onClick={deleteChannel} variant="outline" className="w-full border-destructive/50 text-destructive hover:bg-destructive/10">
-            <Trash2 className="w-4 h-4 mr-2" /> Удалить канал
+            <Trash2 className="w-4 h-4 mr-2" /> {t("deleteChannel")}
           </FlameButton>
         </div>
       </div>
