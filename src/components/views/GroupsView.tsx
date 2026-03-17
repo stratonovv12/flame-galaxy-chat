@@ -202,9 +202,9 @@ export function GroupsView({ onViewProfile, initialGroupId, onClearInitial }: Gr
 
   const deleteGroup = async () => {
     if (!selectedGroup) return;
-    if (!confirm("Удалить группу навсегда? Это действие необратимо.")) return;
+    if (!confirm(t("deleteGroupConfirm"))) return;
     await supabase.from("groups").delete().eq("id", selectedGroup.id);
-    toast({ title: "Группа удалена" });
+    toast({ title: t("groupDeleted") });
     setSelectedGroup(null);
     setShowSettings(false);
     fetchMyGroups();
