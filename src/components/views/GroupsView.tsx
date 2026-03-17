@@ -323,10 +323,10 @@ export function GroupsView({ onViewProfile, initialGroupId, onClearInitial }: Gr
                   {members.filter(m => m.user_id !== user?.id).map(m => (
                     <div key={m.user_id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/30">
                       <UserAvatar username={m.username} avatarUrl={m.avatar_url} size="sm" />
-                      <span className="flex-1 text-sm font-medium">{m.username || "Пользователь"}</span>
+                      <span className="flex-1 text-sm font-medium">{m.username || t("user")}</span>
                       <FlameButton size="sm" variant={transferTarget === m.user_id ? "primary" : "outline"}
                         onClick={() => setTransferTarget(transferTarget === m.user_id ? null : m.user_id)}>
-                        Передать
+                        {t("transfer")}
                       </FlameButton>
                     </div>
                   ))}
