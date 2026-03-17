@@ -393,7 +393,7 @@ export function ChannelsView({ onViewProfile, initialChannelId, onClearInitial }
                   </button>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5">
-                      <span className="font-medium text-sm">{post.profiles?.username || "Пользователь"}</span>
+                      <span className="font-medium text-sm">{post.profiles?.username || t("user")}</span>
                       <UserBadge userId={post.author_id} />
                       <span className="text-xs text-muted-foreground">
                         {formatDistanceToNow(new Date(post.created_at), { addSuffix: true, locale: ru })}
