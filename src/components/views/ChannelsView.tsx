@@ -370,7 +370,7 @@ export function ChannelsView({ onViewProfile, initialChannelId, onClearInitial }
                 </button>
               )}
               {!isCreator && (
-                <button onClick={leaveChannel} className="p-2 hover:bg-destructive/10 rounded-lg transition-colors touch-target" title="Отписаться">
+                <button onClick={leaveChannel} className="p-2 hover:bg-destructive/10 rounded-lg transition-colors touch-target" title={t("unsubscribe")}>
                   <LogOut className="w-5 h-5 text-destructive" />
                 </button>
               )}
