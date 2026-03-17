@@ -392,7 +392,7 @@ export function GroupsView({ onViewProfile, initialGroupId, onClearInitial }: Gr
               <h2 className="font-semibold">{selectedGroup.name}</h2>
               <p className="text-xs text-muted-foreground">
                 {selectedGroup.handle && <span className="text-primary/70">@{selectedGroup.handle} · </span>}
-                {memberCounts[selectedGroup.id] || 0} участников
+                {memberCounts[selectedGroup.id] || 0} {t("members")}
               </p>
             </div>
             <div className="flex items-center gap-1">
