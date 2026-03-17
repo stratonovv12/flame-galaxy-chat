@@ -183,7 +183,7 @@ export function ChannelsView({ onViewProfile, initialChannelId, onClearInitial }
   const sendPost = async () => {
     if ((!newPost.trim() && !mediaUrl) || !selectedChannel || !user) return;
     if (selectedChannel.creator_id !== user.id) {
-      toast({ title: "Ограничение", description: "Только создатель канала может публиковать", variant: "destructive" });
+      toast({ title: t("restriction"), description: t("onlyCreatorCanPost"), variant: "destructive" });
       return;
     }
     const { error } = await supabase.from("posts").insert({
