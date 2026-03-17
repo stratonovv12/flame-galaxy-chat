@@ -466,7 +466,7 @@ export function ChannelsView({ onViewProfile, initialChannelId, onClearInitial }
                   </h3>
                   <p className="text-xs text-muted-foreground">
                     {channel.handle && <span className="text-primary/70">@{channel.handle} · </span>}
-                    {subscriberCounts[channel.id] || 0} подписчиков
+                    {subscriberCounts[channel.id] || 0} {t("subscribers")}
                   </p>
                   {channel.description && <p className="text-sm text-muted-foreground truncate">{channel.description}</p>}
                 </div>
