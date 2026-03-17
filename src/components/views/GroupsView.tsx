@@ -348,7 +348,7 @@ export function GroupsView({ onViewProfile, initialGroupId, onClearInitial }: Gr
                       <span className="flex-1 text-sm font-medium">{m.username || t("user")}</span>
                       <button onClick={() => toggleAdmin(m.user_id)}
                         className={`p-2 rounded-lg transition-colors ${groupAdmins.has(m.user_id) ? "bg-primary/20 text-primary" : "hover:bg-muted/50 text-muted-foreground"}`}
-                        title={groupAdmins.has(m.user_id) ? "Снять админа" : "Назначить админом"}>
+                        title={groupAdmins.has(m.user_id) ? t("removeAdmin") : t("appointAdmin")}>
                         <ShieldCheck className="w-4 h-4" />
                       </button>
                       <button onClick={() => kickMember(m.user_id)}
