@@ -6,6 +6,7 @@ import { FlameButton } from "@/components/ui/FlameButton";
 import { FlameInput } from "@/components/ui/FlameInput";
 import { UserAvatar } from "@/components/ui/UserAvatar";
 import { UserBadge } from "@/components/ui/UserBadge";
+import { useLanguage } from "@/contexts/LanguageContext";
 import {
   ArrowLeft, MessageCircle, Calendar, Hash, Package, Lock,
   Gift, ArrowLeftRight, ShoppingBag, AlertTriangle, DollarSign, X
