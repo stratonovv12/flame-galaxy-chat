@@ -252,7 +252,7 @@ export function UserProfileView({ userId, onBack, onStartChat }: UserProfileView
         {!isOwnProfile && (
           <div className="space-y-2">
             <FlameButton onClick={() => onStartChat(userId)} className="w-full max-w-xs mx-auto">
-              <MessageCircle className="w-4 h-4 mr-2" /> Написать
+              <MessageCircle className="w-4 h-4 mr-2" /> {t("writeToUser")}
             </FlameButton>
 
             {!hasSteamUrl && (
