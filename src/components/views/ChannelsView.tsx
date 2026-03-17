@@ -287,7 +287,7 @@ export function ChannelsView({ onViewProfile, initialChannelId, onClearInitial }
             <button onClick={() => setShowSettings(false)} className="p-2 hover:bg-muted/50 rounded-lg touch-target">
               <ArrowLeft className="w-5 h-5" />
             </button>
-            <h2 className="font-semibold">Настройки канала</h2>
+            <h2 className="font-semibold">{t("channelSettings")}</h2>
           </div>
         </GlassCard>
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
