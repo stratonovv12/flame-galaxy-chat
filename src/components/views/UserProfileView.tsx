@@ -279,7 +279,7 @@ export function UserProfileView({ userId, onBack, onStartChat }: UserProfileView
                 disabled={!hasSteamUrl}
                 onClick={() => setTradeOpen(true)}
               >
-                <ArrowLeftRight className="w-4 h-4 mr-1" /> Трейд
+                <ArrowLeftRight className="w-4 h-4 mr-1" /> {t("proposeTrade")}
               </FlameButton>
             </div>
           </div>
