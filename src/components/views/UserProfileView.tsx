@@ -245,7 +245,7 @@ export function UserProfileView({ userId, onBack, onStartChat }: UserProfileView
         {profile.bio && <p className="text-sm text-muted-foreground mb-4 max-w-md mx-auto">{profile.bio}</p>}
         <p className="text-sm text-muted-foreground flex items-center justify-center gap-2 mb-4">
           <Calendar className="w-4 h-4" />
-          В FLAME с {new Date(profile.created_at).toLocaleDateString("ru-RU")}
+          {t("inFlameSince")} {new Date(profile.created_at).toLocaleDateString(lang === "ru" ? "ru-RU" : "en-US")}
         </p>
 
         {/* Action buttons */}
