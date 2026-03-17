@@ -412,7 +412,7 @@ export function GroupsView({ onViewProfile, initialGroupId, onClearInitial }: Gr
           {visibleMessages.length === 0 ? (
             <div className="text-center text-muted-foreground py-12">
               <Users className="w-12 h-12 mx-auto mb-3 opacity-50" />
-              <p>Сообщений пока нет</p>
+              <p>{t("noMessagesYet")}</p>
             </div>
           ) : (
             visibleMessages.map(msg => (
