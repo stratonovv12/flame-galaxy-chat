@@ -7,10 +7,11 @@ import { FlameButton } from "@/components/ui/FlameButton";
 import { FlameInput } from "@/components/ui/FlameInput";
 import {
   Wallet, ArrowDownToLine, ArrowUpFromLine, Copy, CheckCircle,
-  ArrowLeftRight, TrendingUp, TrendingDown, ChevronLeft, Shield
+  ArrowLeftRight, TrendingUp, TrendingDown, ChevronLeft, Shield, QrCode
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
+import { QRCodeSVG } from "qrcode.react";
 
 const MIN_DEPOSIT = 0.5;
 const MIN_WITHDRAWAL = 1.0;
@@ -59,6 +60,8 @@ export function WalletView() {
   const { user } = useAuth();
   const { t } = useLanguage();
   const [balance, setBalance] = useState(0);
+  const [myWalletAddress, setMyWalletAddress] = useState<string>("");
+  const [showQR, setShowQR] = useState(false);
   const [mode, setMode] = useState<ViewMode>("main");
   const [amount, setAmount] = useState("");
   const [walletAddress, setWalletAddress] = useState("");
@@ -102,9 +105,15 @@ export function WalletView() {
 
   const fetchBalance = async () => {
     if (!user) return;
-    const { data } = await supabase.from("wallets").select("balance").eq("user_id", user.id).maybeSingle();
-    if (data) setBalance(Number(data.balance));
-    else { await supabase.from("wallets").insert({ user_id: user.id, balance: 0 }); setBalance(0); }
+    const { data } = await supabase.from("wallets").select("balance, wallet_address").eq("user_id", user.id).maybeSingle();
+    if (data) {
+      setBalance(Number(data.balance));
+      setMyWalletAddress((data as any).wallet_address || "");
+    } else {
+      const { data: created } = await supabase.from("wallets").insert({ user_id: user.id, balance: 0 }).select("balance, wallet_address").maybeSingle();
+      setBalance(0);
+      setMyWalletAddress((created as any)?.wallet_address || "");
+    }
   };
 
   const portfolioUsd = balance;
