@@ -34,6 +34,14 @@ interface Post {
   channel_name?: string;
 }
 
+interface SocialPost {
+  id: string;
+  caption: string | null;
+  image_url: string | null;
+  created_at: string;
+  likes_count: number;
+}
+
 interface InventoryItem {
   id: string;
   title: string;
