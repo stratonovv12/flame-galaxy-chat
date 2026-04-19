@@ -9,7 +9,7 @@ import { UserBadge } from "@/components/ui/UserBadge";
 import { useLanguage } from "@/contexts/LanguageContext";
 import {
   ArrowLeft, MessageCircle, Calendar, Hash, Package, Lock,
-  Gift, ArrowLeftRight, ShoppingBag, AlertTriangle, DollarSign, X
+  Gift, ArrowLeftRight, ShoppingBag, AlertTriangle, DollarSign, X, Heart, Image as ImageIcon
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
@@ -317,9 +317,13 @@ export function UserProfileView({ userId, onBack, onStartChat }: UserProfileView
 
       {/* Tabs */}
       <div className="flex border-b border-border">
+        <button onClick={() => setActiveTab("social")}
+          className={`flex-1 py-2.5 text-sm font-medium border-b-2 transition-colors ${activeTab === "social" ? "border-primary text-primary" : "border-transparent text-muted-foreground"}`}>
+          <span className="flex items-center justify-center gap-1.5"><ImageIcon className="w-4 h-4" /> {socialPosts.length}</span>
+        </button>
         <button onClick={() => setActiveTab("posts")}
           className={`flex-1 py-2.5 text-sm font-medium border-b-2 transition-colors ${activeTab === "posts" ? "border-primary text-primary" : "border-transparent text-muted-foreground"}`}>
-          {t("postsTab")} ({posts.length})
+          <span className="flex items-center justify-center gap-1.5"><Hash className="w-4 h-4" /> {posts.length}</span>
         </button>
         <button onClick={() => setActiveTab("inventory")}
           className={`flex-1 py-2.5 text-sm font-medium border-b-2 transition-colors ${activeTab === "inventory" ? "border-primary text-primary" : "border-transparent text-muted-foreground"}`}>
@@ -332,6 +336,34 @@ export function UserProfileView({ userId, onBack, onStartChat }: UserProfileView
           </button>
         )}
       </div>
+
+      {/* Social feed (Instagram-style profile_posts) */}
+      {activeTab === "social" && (
+        <div>
+          {socialPosts.length === 0 ? (
+            <GlassCard className="text-center py-8">
+              <ImageIcon className="w-12 h-12 mx-auto mb-3 text-muted-foreground/50" />
+              <p className="text-muted-foreground">{lang === "ru" ? "Пока нет постов" : "No posts yet"}</p>
+            </GlassCard>
+          ) : (
+            <div className="grid grid-cols-3 gap-1.5">
+              {socialPosts.map((post) => (
+                <div key={post.id} className="relative aspect-square overflow-hidden rounded-md bg-muted/30 cursor-pointer group"
+                  onClick={() => post.image_url && window.open(post.image_url, "_blank")}>
+                  {post.image_url && (
+                    <img src={post.image_url} alt={post.caption || ""} className="w-full h-full object-cover transition-transform group-hover:scale-105" />
+                  )}
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center">
+                    <div className="flex items-center gap-1 text-white opacity-0 group-hover:opacity-100 transition-opacity text-sm font-semibold">
+                      <Heart className="w-4 h-4 fill-white" /> {post.likes_count}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Posts tab */}
       {activeTab === "posts" && (
