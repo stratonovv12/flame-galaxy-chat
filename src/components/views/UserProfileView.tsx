@@ -112,7 +112,7 @@ export function UserProfileView({ userId, onBack, onStartChat }: UserProfileView
       setMyProfile(mp as Profile | null);
     }
 
-    // Posts
+    // Channel posts
     const { data: postsData } = await supabase.from("posts").select("id, content, media_url, created_at, channel_id")
       .eq("author_id", userId).not("media_url", "is", null)
       .order("created_at", { ascending: false }).limit(20);
@@ -124,6 +124,26 @@ export function UserProfileView({ userId, onBack, onStartChat }: UserProfileView
       setPosts(postsData.map((p) => ({ ...p, channel_name: channelMap.get(p.channel_id) || "Канал" })));
     } else {
       setPosts([]);
+    }
+
+    // Social feed (Instagram-style profile_posts) — visible to everyone
+    const { data: socialData } = await supabase
+      .from("profile_posts")
+      .select("id, caption, image_url, created_at")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false });
+
+    if (socialData && socialData.length > 0) {
+      const postIds = socialData.map(p => p.id);
+      const { data: likesData } = await supabase
+        .from("post_likes")
+        .select("post_id")
+        .in("post_id", postIds);
+      const likeCountMap = new Map<string, number>();
+      (likesData || []).forEach(l => likeCountMap.set(l.post_id, (likeCountMap.get(l.post_id) || 0) + 1));
+      setSocialPosts(socialData.map(p => ({ ...p, likes_count: likeCountMap.get(p.id) || 0 })));
+    } else {
+      setSocialPosts([]);
     }
 
     // Listings
