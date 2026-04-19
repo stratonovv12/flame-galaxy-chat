@@ -75,8 +75,9 @@ export function UserProfileView({ userId, onBack, onStartChat }: UserProfileView
   const [myInventory, setMyInventory] = useState<InventoryItem[]>([]);
   const [listings, setListings] = useState<MarketListing[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"posts" | "inventory" | "shop">("posts");
+  const [activeTab, setActiveTab] = useState<"posts" | "social" | "inventory" | "shop">("social");
   const [inventoryAccessible, setInventoryAccessible] = useState(false);
+  const [socialPosts, setSocialPosts] = useState<SocialPost[]>([]);
 
   // Gift modal
   const [giftOpen, setGiftOpen] = useState(false);
