@@ -98,7 +98,14 @@ const Index = () => {
           {renderView()}
         </div>
       </main>
-      <BottomNav activeTab={activeTab === "market" || activeTab === "inventory" || activeTab === "wallet" || activeTab === "trades" || activeTab === "profile" ? "channels" : activeTab} onTabChange={setActiveTab} />
+      <BottomNav
+        activeTab={activeTab === "market" || activeTab === "inventory" || activeTab === "wallet" || activeTab === "trades" || activeTab === "profile" ? "channels" : activeTab}
+        onTabChange={(tab) => {
+          // Always exit any open user profile when switching main tabs
+          setViewingProfileUserId(null);
+          setActiveTab(tab);
+        }}
+      />
     </div>
   );
 };

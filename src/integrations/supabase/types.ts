@@ -958,6 +958,7 @@ export type Database = {
           id: string
           updated_at: string
           user_id: string
+          wallet_address: string | null
         }
         Insert: {
           balance?: number
@@ -965,6 +966,7 @@ export type Database = {
           id?: string
           updated_at?: string
           user_id: string
+          wallet_address?: string | null
         }
         Update: {
           balance?: number
@@ -972,6 +974,7 @@ export type Database = {
           id?: string
           updated_at?: string
           user_id?: string
+          wallet_address?: string | null
         }
         Relationships: []
       }
@@ -1006,6 +1009,7 @@ export type Database = {
         Returns: Json
       }
       check_user_banned: { Args: { _user_id: string }; Returns: boolean }
+      generate_wallet_address: { Args: never; Returns: string }
       gift_item: {
         Args: { _from_user: string; _item_id: string; _to_username: string }
         Returns: Json
