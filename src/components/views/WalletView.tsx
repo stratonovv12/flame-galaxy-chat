@@ -58,7 +58,7 @@ type ViewMode = "main" | "coin" | "deposit" | "withdraw" | "swap";
 
 export function WalletView() {
   const { user } = useAuth();
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const [balance, setBalance] = useState(0);
   const [myWalletAddress, setMyWalletAddress] = useState<string>("");
   const [showQR, setShowQR] = useState(false);
