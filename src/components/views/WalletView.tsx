@@ -344,6 +344,37 @@ export function WalletView() {
         <p className="text-3xl font-bold text-primary">${portfolioUsd.toFixed(2)}</p>
         <p className="text-[10px] text-muted-foreground mt-1">{t("updateEvery10s")}</p>
       </GlassCard>
+
+      {/* Unique permanent wallet address with QR */}
+      {myWalletAddress && (
+        <GlassCard className="p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <QrCode className="w-4 h-4 text-primary" />
+              <h3 className="text-sm font-semibold">{lang === "ru" ? "Мой адрес кошелька" : "My Wallet Address"}</h3>
+            </div>
+            <button onClick={() => setShowQR(s => !s)} className="text-xs text-primary hover:underline">
+              {showQR ? (lang === "ru" ? "Скрыть QR" : "Hide QR") : (lang === "ru" ? "Показать QR" : "Show QR")}
+            </button>
+          </div>
+          <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/30 border border-border">
+            <code className="text-[11px] flex-1 break-all text-primary font-mono">{myWalletAddress}</code>
+            <button onClick={() => copyAddress(myWalletAddress)} className="shrink-0 p-1.5 hover:bg-muted rounded">
+              {copied ? <CheckCircle className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4 text-muted-foreground" />}
+            </button>
+          </div>
+          {showQR && (
+            <div className="flex flex-col items-center gap-2 pt-2">
+              <div className="p-3 bg-white rounded-lg">
+                <QRCodeSVG value={myWalletAddress} size={160} level="H" includeMargin={false} />
+              </div>
+              <p className="text-[10px] text-muted-foreground text-center">
+                {lang === "ru" ? "Уникальный QR — содержит только ваш адрес" : "Unique QR — encodes only your address"}
+              </p>
+            </div>
+          )}
+        </GlassCard>
+      )}
       <div className="grid grid-cols-3 gap-2">
         <FlameButton onClick={() => setMode("deposit")} className="w-full text-xs"><ArrowDownToLine className="w-4 h-4 mr-1" /> {t("deposit")}</FlameButton>
         <FlameButton onClick={() => setMode("withdraw")} variant="outline" className="w-full text-xs"><ArrowUpFromLine className="w-4 h-4 mr-1" /> {t("withdraw")}</FlameButton>
