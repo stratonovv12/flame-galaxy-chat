@@ -148,6 +148,36 @@ export type Database = {
         }
         Relationships: []
       }
+      deposit_requests: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          status: string
+          type: string
+          user_id: string
+          wallet_address: string | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          status?: string
+          type: string
+          user_id: string
+          wallet_address?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          status?: string
+          type?: string
+          user_id?: string
+          wallet_address?: string | null
+        }
+        Relationships: []
+      }
       direct_messages: {
         Row: {
           content: string
