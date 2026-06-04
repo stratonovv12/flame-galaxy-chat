@@ -7,92 +7,38 @@ import { FlameInput } from "@/components/ui/FlameInput";
 import { FlameButton } from "@/components/ui/FlameButton";
 import { UserAvatar } from "@/components/ui/UserAvatar";
 import { UserBadge } from "@/components/ui/UserBadge";
-import { Search, Hash, MessageCircle, User, Users, ChevronRight, UserPlus, LogIn, Eye } from "lucide-react";
-import { toast } from "@/hooks/use-toast";
+import { Search, MessageCircle, User, ChevronRight } from "lucide-react";
 
-interface Channel { id: string; name: string; description: string | null; handle: string | null; avatar_url: string | null; }
-interface Group { id: string; name: string; description: string | null; handle: string | null; avatar_url: string | null; }
 interface Profile { id: string; username: string | null; display_name: string | null; user_id: string; avatar_url: string | null; }
 
 interface SearchViewProps {
   searchQuery: string;
-  onSearchChange: (query: string) => void;
+  onSearchChange: (q: string) => void;
   onStartChat?: (userId: string) => void;
   onViewProfile?: (userId: string) => void;
-  onJoinGroup?: (groupId: string) => void;
-  onSubscribeChannel?: (channelId: string) => void;
-  onOpenChannel?: (channelId: string) => void;
-  onOpenGroup?: (groupId: string) => void;
 }
 
-export function SearchView({ searchQuery, onSearchChange, onStartChat, onViewProfile, onOpenChannel, onOpenGroup }: SearchViewProps) {
+export function SearchView({ searchQuery, onSearchChange, onStartChat, onViewProfile }: SearchViewProps) {
   const { user } = useAuth();
   const { t } = useLanguage();
-  const [channels, setChannels] = useState<Channel[]>([]);
-  const [groups, setGroups] = useState<Group[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
-  const [myGroups, setMyGroups] = useState<Set<string>>(new Set());
-  const [myChannels, setMyChannels] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => { if (user) fetchMemberships(); }, [user]);
-  useEffect(() => { if (searchQuery.trim()) performSearch(searchQuery); else { setChannels([]); setGroups([]); setProfiles([]); } }, [searchQuery]);
+  useEffect(() => {
+    if (searchQuery.trim()) performSearch(searchQuery);
+    else setProfiles([]);
+  }, [searchQuery]);
 
-  const fetchMemberships = async () => {
-    if (!user) return;
-    const [{ data: gm }, { data: cs }] = await Promise.all([
-      supabase.from("group_members").select("group_id").eq("user_id", user.id),
-      supabase.from("channel_subscribers").select("channel_id").eq("user_id", user.id),
-    ]);
-    setMyGroups(new Set(gm?.map(m => m.group_id) || []));
-    setMyChannels(new Set(cs?.map(s => s.channel_id) || []));
-  };
-
-  const escapePattern = (str: string) => str.replace(/[%_\\]/g, '\\$&');
+  const escapePattern = (str: string) => str.replace(/[%_\\]/g, "\\$&");
 
   const performSearch = async (query: string) => {
     setLoading(true);
-    const cleanQuery = escapePattern(query.replace(/^@/, ""));
-    if (cleanQuery.length < 2) { setChannels([]); setGroups([]); setProfiles([]); setLoading(false); return; }
-    const [channelsResult, groupsResult, profilesResult] = await Promise.all([
-      supabase.from("channels").select("id, name, description, handle, avatar_url").or(`name.ilike.%${cleanQuery}%,handle.ilike.%${cleanQuery}%`).limit(10),
-      supabase.from("groups").select("id, name, description, handle, avatar_url").or(`name.ilike.%${cleanQuery}%,handle.ilike.%${cleanQuery}%`).limit(10),
-      supabase.from("profiles").select("id, username, display_name, user_id, avatar_url").or(`username.ilike.%${cleanQuery}%,display_name.ilike.%${cleanQuery}%`).limit(10),
-    ]);
-    setChannels(channelsResult.data || []);
-    setGroups(groupsResult.data || []);
-    setProfiles(profilesResult.data || []);
+    const q = escapePattern(query.replace(/^@/, ""));
+    if (q.length < 2) { setProfiles([]); setLoading(false); return; }
+    const { data } = await supabase.from("profiles").select("id, username, display_name, user_id, avatar_url")
+      .or(`username.ilike.%${q}%,display_name.ilike.%${q}%`).limit(25);
+    setProfiles(data || []);
     setLoading(false);
-  };
-
-  const handleJoinGroup = async (groupId: string) => {
-    if (!user) return;
-    await supabase.from("group_members").upsert({ group_id: groupId, user_id: user.id }, { onConflict: "group_id,user_id" });
-    setMyGroups(prev => new Set([...prev, groupId]));
-    toast({ title: t("joinedGroup") });
-  };
-
-  const handleSubscribeChannel = async (channelId: string) => {
-    if (!user) return;
-    await supabase.from("channel_subscribers").upsert({ channel_id: channelId, user_id: user.id }, { onConflict: "channel_id,user_id" });
-    setMyChannels(prev => new Set([...prev, channelId]));
-    toast({ title: t("subscribedChannel") });
-  };
-
-  const handleOpenChannelClick = async (channel: Channel) => {
-    if (!myChannels.has(channel.id) && user) {
-      await supabase.from("channel_subscribers").upsert({ channel_id: channel.id, user_id: user.id }, { onConflict: "channel_id,user_id" });
-      setMyChannels(prev => new Set([...prev, channel.id]));
-    }
-    onOpenChannel?.(channel.id);
-  };
-
-  const handleOpenGroupClick = async (group: Group) => {
-    if (!myGroups.has(group.id) && user) {
-      await supabase.from("group_members").upsert({ group_id: group.id, user_id: user.id }, { onConflict: "group_id,user_id" });
-      setMyGroups(prev => new Set([...prev, group.id]));
-    }
-    onOpenGroup?.(group.id);
   };
 
   return (
@@ -110,90 +56,35 @@ export function SearchView({ searchQuery, onSearchChange, onStartChat, onViewPro
         </GlassCard>
       ) : loading ? (
         <div className="text-center py-12"><div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto" /></div>
+      ) : profiles.length === 0 ? (
+        <GlassCard className="text-center py-12">
+          <Search className="w-12 h-12 mx-auto mb-4 text-muted-foreground/50" />
+          <h3 className="text-lg font-semibold mb-2">{t("nothingFound")}</h3>
+        </GlassCard>
       ) : (
-        <>
-          {channels.length > 0 && (
-            <div>
-              <h3 className="text-sm font-semibold text-muted-foreground mb-3 flex items-center gap-2"><Hash className="w-4 h-4" /> {t("channels")}</h3>
-              <div className="space-y-2">
-                {channels.map(channel => (
-                  <GlassCard key={channel.id} className="p-4 hover:border-primary/50 transition-colors">
-                    <div className="flex items-center gap-3">
-                      {channel.avatar_url ? <img src={channel.avatar_url} alt={channel.name} className="w-10 h-10 rounded-xl object-cover" /> : <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center"><Hash className="w-5 h-5 text-primary" /></div>}
-                      <div className="flex-1">
-                        <h4 className="font-medium">{channel.name}</h4>
-                        {channel.handle && <p className="text-xs text-primary/70">@{channel.handle}</p>}
-                        {channel.description && <p className="text-sm text-muted-foreground truncate">{channel.description}</p>}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <FlameButton size="sm" variant="outline" onClick={() => handleOpenChannelClick(channel)}><Eye className="w-4 h-4 mr-1" /> {t("open")}</FlameButton>
-                        {!myChannels.has(channel.id) && <FlameButton size="sm" onClick={() => handleSubscribeChannel(channel.id)}><LogIn className="w-4 h-4" /></FlameButton>}
-                      </div>
+        <div>
+          <h3 className="text-sm font-semibold text-muted-foreground mb-3 flex items-center gap-2"><User className="w-4 h-4" /> {t("people")}</h3>
+          <div className="space-y-2">
+            {profiles.filter(p => p.user_id !== user?.id).map(profile => (
+              <GlassCard key={profile.id} className="p-4 cursor-pointer hover:border-primary/50 transition-colors" onClick={() => onViewProfile?.(profile.user_id)}>
+                <div className="flex items-center gap-3">
+                  <UserAvatar username={profile.display_name || profile.username} avatarUrl={profile.avatar_url} size="md" />
+                  <div className="flex-1">
+                    <div className="flex items-center gap-1.5">
+                      <h4 className="font-medium">{profile.display_name || profile.username || t("noName")}</h4>
+                      <UserBadge userId={profile.user_id} />
                     </div>
-                  </GlassCard>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {groups.length > 0 && (
-            <div>
-              <h3 className="text-sm font-semibold text-muted-foreground mb-3 flex items-center gap-2"><Users className="w-4 h-4" /> {t("groups")}</h3>
-              <div className="space-y-2">
-                {groups.map(group => (
-                  <GlassCard key={group.id} className="p-4 hover:border-primary/50 transition-colors">
-                    <div className="flex items-center gap-3">
-                      {group.avatar_url ? <img src={group.avatar_url} alt={group.name} className="w-10 h-10 rounded-xl object-cover" /> : <div className="w-10 h-10 rounded-xl bg-accent/20 flex items-center justify-center"><Users className="w-5 h-5 text-accent" /></div>}
-                      <div className="flex-1">
-                        <h4 className="font-medium">{group.name}</h4>
-                        {group.handle && <p className="text-xs text-primary/70">@{group.handle}</p>}
-                        {group.description && <p className="text-sm text-muted-foreground truncate">{group.description}</p>}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <FlameButton size="sm" variant="outline" onClick={() => handleOpenGroupClick(group)}><Eye className="w-4 h-4 mr-1" /> {t("open")}</FlameButton>
-                        {!myGroups.has(group.id) && <FlameButton size="sm" onClick={() => handleJoinGroup(group.id)}><UserPlus className="w-4 h-4" /></FlameButton>}
-                      </div>
-                    </div>
-                  </GlassCard>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {profiles.length > 0 && (
-            <div>
-              <h3 className="text-sm font-semibold text-muted-foreground mb-3 flex items-center gap-2"><User className="w-4 h-4" /> {t("people")}</h3>
-              <div className="space-y-2">
-                {profiles.filter(p => p.user_id !== user?.id).map(profile => (
-                  <GlassCard key={profile.id} className="p-4 cursor-pointer hover:border-primary/50 transition-colors" onClick={() => onViewProfile?.(profile.user_id)}>
-                    <div className="flex items-center gap-3">
-                      <UserAvatar username={profile.display_name || profile.username} avatarUrl={profile.avatar_url} size="md" />
-                      <div className="flex-1">
-                        <div className="flex items-center gap-1.5">
-                          <h4 className="font-medium">{profile.display_name || profile.username || t("noName")}</h4>
-                          <UserBadge userId={profile.user_id} />
-                        </div>
-                        {profile.username && <p className="text-xs text-primary/70">@{profile.username.replace(/^@/, "")}</p>}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {onStartChat && <FlameButton size="sm" onClick={e => { e.stopPropagation(); onStartChat(profile.user_id); }}><MessageCircle className="w-4 h-4" /></FlameButton>}
-                        <ChevronRight className="w-5 h-5 text-muted-foreground" />
-                      </div>
-                    </div>
-                  </GlassCard>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {channels.length === 0 && groups.length === 0 && profiles.length === 0 && (
-            <GlassCard className="text-center py-12">
-              <Search className="w-12 h-12 mx-auto mb-4 text-muted-foreground/50" />
-              <h3 className="text-lg font-semibold mb-2">{t("nothingFound")}</h3>
-              <p className="text-muted-foreground">{t("tryDifferent")}</p>
-            </GlassCard>
-          )}
-        </>
+                    {profile.username && <p className="text-xs text-primary/70">@{profile.username.replace(/^@/, "")}</p>}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {onStartChat && <FlameButton size="sm" onClick={e => { e.stopPropagation(); onStartChat(profile.user_id); }}><MessageCircle className="w-4 h-4" /></FlameButton>}
+                    <ChevronRight className="w-5 h-5 text-muted-foreground" />
+                  </div>
+                </div>
+              </GlassCard>
+            ))}
+          </div>
+        </div>
       )}
     </div>
   );
