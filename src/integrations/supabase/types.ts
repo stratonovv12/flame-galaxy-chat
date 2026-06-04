@@ -148,127 +148,6 @@ export type Database = {
         }
         Relationships: []
       }
-      channel_admins: {
-        Row: {
-          appointed_by: string
-          channel_id: string
-          created_at: string
-          id: string
-          user_id: string
-        }
-        Insert: {
-          appointed_by: string
-          channel_id: string
-          created_at?: string
-          id?: string
-          user_id: string
-        }
-        Update: {
-          appointed_by?: string
-          channel_id?: string
-          created_at?: string
-          id?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "channel_admins_channel_id_fkey"
-            columns: ["channel_id"]
-            isOneToOne: false
-            referencedRelation: "channels"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      channel_subscribers: {
-        Row: {
-          channel_id: string
-          id: string
-          subscribed_at: string
-          user_id: string
-        }
-        Insert: {
-          channel_id: string
-          id?: string
-          subscribed_at?: string
-          user_id: string
-        }
-        Update: {
-          channel_id?: string
-          id?: string
-          subscribed_at?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "channel_subscribers_channel_id_fkey"
-            columns: ["channel_id"]
-            isOneToOne: false
-            referencedRelation: "channels"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      channels: {
-        Row: {
-          avatar_url: string | null
-          created_at: string
-          creator_id: string
-          description: string | null
-          handle: string | null
-          id: string
-          name: string
-        }
-        Insert: {
-          avatar_url?: string | null
-          created_at?: string
-          creator_id: string
-          description?: string | null
-          handle?: string | null
-          id?: string
-          name: string
-        }
-        Update: {
-          avatar_url?: string | null
-          created_at?: string
-          creator_id?: string
-          description?: string | null
-          handle?: string | null
-          id?: string
-          name?: string
-        }
-        Relationships: []
-      }
-      deposit_requests: {
-        Row: {
-          amount: number
-          created_at: string
-          id: string
-          status: string
-          type: string
-          user_id: string
-          wallet_address: string | null
-        }
-        Insert: {
-          amount: number
-          created_at?: string
-          id?: string
-          status?: string
-          type?: string
-          user_id: string
-          wallet_address?: string | null
-        }
-        Update: {
-          amount?: number
-          created_at?: string
-          id?: string
-          status?: string
-          type?: string
-          user_id?: string
-          wallet_address?: string | null
-        }
-        Relationships: []
-      }
       direct_messages: {
         Row: {
           content: string
@@ -313,142 +192,88 @@ export type Database = {
           },
         ]
       }
-      group_admins: {
+      feed_comments: {
         Row: {
-          appointed_by: string
-          created_at: string
-          group_id: string
-          id: string
-          user_id: string
-        }
-        Insert: {
-          appointed_by: string
-          created_at?: string
-          group_id: string
-          id?: string
-          user_id: string
-        }
-        Update: {
-          appointed_by?: string
-          created_at?: string
-          group_id?: string
-          id?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "group_admins_group_id_fkey"
-            columns: ["group_id"]
-            isOneToOne: false
-            referencedRelation: "groups"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      group_members: {
-        Row: {
-          group_id: string
-          id: string
-          joined_at: string
-          user_id: string
-        }
-        Insert: {
-          group_id: string
-          id?: string
-          joined_at?: string
-          user_id: string
-        }
-        Update: {
-          group_id?: string
-          id?: string
-          joined_at?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "group_members_group_id_fkey"
-            columns: ["group_id"]
-            isOneToOne: false
-            referencedRelation: "groups"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      group_messages: {
-        Row: {
-          author_id: string
           content: string
           created_at: string
-          forwarded_from: string | null
-          group_id: string
           id: string
+          post_id: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          post_id: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          post_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feed_comments_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "feed_posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      feed_likes: {
+        Row: {
+          created_at: string
+          post_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          post_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          post_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feed_likes_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "feed_posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      feed_posts: {
+        Row: {
+          author_id: string
+          content: string | null
+          created_at: string
+          id: string
+          media_type: string | null
           media_url: string | null
-          reply_to_id: string | null
         }
         Insert: {
           author_id: string
-          content: string
+          content?: string | null
           created_at?: string
-          forwarded_from?: string | null
-          group_id: string
           id?: string
+          media_type?: string | null
           media_url?: string | null
-          reply_to_id?: string | null
         }
         Update: {
           author_id?: string
-          content?: string
+          content?: string | null
           created_at?: string
-          forwarded_from?: string | null
-          group_id?: string
           id?: string
+          media_type?: string | null
           media_url?: string | null
-          reply_to_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "group_messages_group_id_fkey"
-            columns: ["group_id"]
-            isOneToOne: false
-            referencedRelation: "groups"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "group_messages_reply_to_id_fkey"
-            columns: ["reply_to_id"]
-            isOneToOne: false
-            referencedRelation: "group_messages"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      groups: {
-        Row: {
-          avatar_url: string | null
-          created_at: string
-          creator_id: string
-          description: string | null
-          handle: string | null
-          id: string
-          name: string
-        }
-        Insert: {
-          avatar_url?: string | null
-          created_at?: string
-          creator_id: string
-          description?: string | null
-          handle?: string | null
-          id?: string
-          name: string
-        }
-        Update: {
-          avatar_url?: string | null
-          created_at?: string
-          creator_id?: string
-          description?: string | null
-          handle?: string | null
-          id?: string
-          name?: string
         }
         Relationships: []
       }
@@ -476,42 +301,6 @@ export type Database = {
         }
         Relationships: []
       }
-      marketplace_listings: {
-        Row: {
-          category: string | null
-          created_at: string
-          description: string | null
-          id: string
-          image_url: string | null
-          price: number
-          seller_id: string
-          status: string
-          title: string
-        }
-        Insert: {
-          category?: string | null
-          created_at?: string
-          description?: string | null
-          id?: string
-          image_url?: string | null
-          price: number
-          seller_id: string
-          status?: string
-          title: string
-        }
-        Update: {
-          category?: string | null
-          created_at?: string
-          description?: string | null
-          id?: string
-          image_url?: string | null
-          price?: number
-          seller_id?: string
-          status?: string
-          title?: string
-        }
-        Relationships: []
-      }
       message_reactions: {
         Row: {
           created_at: string
@@ -534,134 +323,6 @@ export type Database = {
           post_id?: string
           user_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "message_reactions_post_id_fkey"
-            columns: ["post_id"]
-            isOneToOne: false
-            referencedRelation: "posts"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      post_comments: {
-        Row: {
-          content: string
-          created_at: string
-          id: string
-          post_id: string
-          user_id: string
-        }
-        Insert: {
-          content: string
-          created_at?: string
-          id?: string
-          post_id: string
-          user_id: string
-        }
-        Update: {
-          content?: string
-          created_at?: string
-          id?: string
-          post_id?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "post_comments_post_id_fkey"
-            columns: ["post_id"]
-            isOneToOne: false
-            referencedRelation: "profile_posts"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      post_likes: {
-        Row: {
-          created_at: string
-          id: string
-          post_id: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          post_id: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          post_id?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "post_likes_post_id_fkey"
-            columns: ["post_id"]
-            isOneToOne: false
-            referencedRelation: "profile_posts"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      posts: {
-        Row: {
-          author_id: string
-          channel_id: string
-          content: string
-          created_at: string
-          id: string
-          media_url: string | null
-        }
-        Insert: {
-          author_id: string
-          channel_id: string
-          content: string
-          created_at?: string
-          id?: string
-          media_url?: string | null
-        }
-        Update: {
-          author_id?: string
-          channel_id?: string
-          content?: string
-          created_at?: string
-          id?: string
-          media_url?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "posts_channel_id_fkey"
-            columns: ["channel_id"]
-            isOneToOne: false
-            referencedRelation: "channels"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      profile_posts: {
-        Row: {
-          caption: string | null
-          created_at: string
-          id: string
-          image_url: string | null
-          user_id: string
-        }
-        Insert: {
-          caption?: string | null
-          created_at?: string
-          id?: string
-          image_url?: string | null
-          user_id: string
-        }
-        Update: {
-          caption?: string | null
-          created_at?: string
-          id?: string
-          image_url?: string | null
-          user_id?: string
-        }
         Relationships: []
       }
       profiles: {
@@ -671,8 +332,7 @@ export type Database = {
           created_at: string
           display_name: string | null
           id: string
-          inventory_visibility: string
-          steam_trade_url: string | null
+          messages_privacy: string
           updated_at: string
           user_id: string
           username: string | null
@@ -683,8 +343,7 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           id?: string
-          inventory_visibility?: string
-          steam_trade_url?: string | null
+          messages_privacy?: string
           updated_at?: string
           user_id: string
           username?: string | null
@@ -695,146 +354,30 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           id?: string
-          inventory_visibility?: string
-          steam_trade_url?: string | null
+          messages_privacy?: string
           updated_at?: string
           user_id?: string
           username?: string | null
         }
         Relationships: []
       }
-      trade_offers: {
+      user_follows: {
         Row: {
           created_at: string
-          id: string
-          receiver_id: string
-          receiver_item_id: string | null
-          sender_balance_offer: number
-          sender_id: string
-          sender_item_id: string | null
-          status: string
-          updated_at: string
+          follower_id: string
+          following_id: string
         }
         Insert: {
           created_at?: string
-          id?: string
-          receiver_id: string
-          receiver_item_id?: string | null
-          sender_balance_offer?: number
-          sender_id: string
-          sender_item_id?: string | null
-          status?: string
-          updated_at?: string
+          follower_id: string
+          following_id: string
         }
         Update: {
           created_at?: string
-          id?: string
-          receiver_id?: string
-          receiver_item_id?: string | null
-          sender_balance_offer?: number
-          sender_id?: string
-          sender_item_id?: string | null
-          status?: string
-          updated_at?: string
+          follower_id?: string
+          following_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "trade_offers_receiver_item_id_fkey"
-            columns: ["receiver_item_id"]
-            isOneToOne: false
-            referencedRelation: "user_inventory"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "trade_offers_sender_item_id_fkey"
-            columns: ["sender_item_id"]
-            isOneToOne: false
-            referencedRelation: "user_inventory"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      transactions: {
-        Row: {
-          amount: number
-          buyer_id: string
-          commission: number
-          created_at: string
-          id: string
-          listing_id: string | null
-          seller_id: string
-          status: string
-        }
-        Insert: {
-          amount: number
-          buyer_id: string
-          commission: number
-          created_at?: string
-          id?: string
-          listing_id?: string | null
-          seller_id: string
-          status?: string
-        }
-        Update: {
-          amount?: number
-          buyer_id?: string
-          commission?: number
-          created_at?: string
-          id?: string
-          listing_id?: string | null
-          seller_id?: string
-          status?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "transactions_listing_id_fkey"
-            columns: ["listing_id"]
-            isOneToOne: false
-            referencedRelation: "marketplace_listings"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      user_inventory: {
-        Row: {
-          acquired_at: string
-          description: string | null
-          id: string
-          image_url: string | null
-          is_hidden: boolean
-          listing_id: string | null
-          owner_id: string
-          title: string
-        }
-        Insert: {
-          acquired_at?: string
-          description?: string | null
-          id?: string
-          image_url?: string | null
-          is_hidden?: boolean
-          listing_id?: string | null
-          owner_id: string
-          title: string
-        }
-        Update: {
-          acquired_at?: string
-          description?: string | null
-          id?: string
-          image_url?: string | null
-          is_hidden?: boolean
-          listing_id?: string | null
-          owner_id?: string
-          title?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "user_inventory_listing_id_fkey"
-            columns: ["listing_id"]
-            isOneToOne: false
-            referencedRelation: "marketplace_listings"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       user_presence: {
         Row: {
@@ -871,64 +414,6 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
-      }
-      verified_channels: {
-        Row: {
-          channel_id: string
-          created_at: string
-          id: string
-          verified_by: string
-        }
-        Insert: {
-          channel_id: string
-          created_at?: string
-          id?: string
-          verified_by: string
-        }
-        Update: {
-          channel_id?: string
-          created_at?: string
-          id?: string
-          verified_by?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "verified_channels_channel_id_fkey"
-            columns: ["channel_id"]
-            isOneToOne: true
-            referencedRelation: "channels"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      verified_groups: {
-        Row: {
-          created_at: string
-          group_id: string
-          id: string
-          verified_by: string
-        }
-        Insert: {
-          created_at?: string
-          group_id: string
-          id?: string
-          verified_by: string
-        }
-        Update: {
-          created_at?: string
-          group_id?: string
-          id?: string
-          verified_by?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "verified_groups_group_id_fkey"
-            columns: ["group_id"]
-            isOneToOne: true
-            referencedRelation: "groups"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       verified_users: {
         Row: {
@@ -1000,20 +485,8 @@ export type Database = {
       }
     }
     Functions: {
-      accept_trade: {
-        Args: { _accepter: string; _offer_id: string }
-        Returns: Json
-      }
-      buy_listing: {
-        Args: { _buyer_id: string; _listing_id: string }
-        Returns: Json
-      }
       check_user_banned: { Args: { _user_id: string }; Returns: boolean }
       generate_wallet_address: { Args: never; Returns: string }
-      gift_item: {
-        Args: { _from_user: string; _item_id: string; _to_username: string }
-        Returns: Json
-      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -1021,6 +494,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_mutual_follow: { Args: { _a: string; _b: string }; Returns: boolean }
     }
     Enums: {
       app_role: "admin" | "moderator" | "user"
