@@ -17,11 +17,11 @@ import { IncomingCallUI } from "@/components/ui/IncomingCallUI";
 import { OnlineIndicator } from "@/components/ui/OnlineIndicator";
 import { useMediaUpload } from "@/hooks/useMediaUpload";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
-import { MessageCircle, Send, ArrowLeft, Phone, ShieldBan, ShieldCheck, X, Forward } from "lucide-react";
+import { MessageCircle, Send, ArrowLeft, Phone, ShieldBan, ShieldCheck, X, Forward, Ghost } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ru } from "date-fns/locale";
 import { toast } from "@/hooks/use-toast";
-import { playNotificationSound, showBrowserNotification, requestNotificationPermission } from "@/lib/notifications";
+import { playNotificationSound, showBrowserNotification, requestNotificationPermission, setActiveChatPartner } from "@/lib/notifications";
 
 interface Conversation {
   partnerId: string;
