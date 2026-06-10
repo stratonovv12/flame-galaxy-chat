@@ -791,6 +791,23 @@ const translations = {
     deleteGroupConfirmAdmin: "Delete group permanently?",
     bannedList: "Banned",
     noBannedUsers: "No banned users",
+
+    // New features
+    ghostMode: "Ghost Mode",
+    ghostActive: "Ghost active",
+    ghostHint: "Messages vanish in 10 seconds",
+    flameMoments: "Flame Moments",
+    yourMoment: "Your moment",
+    addMoment: "Add",
+    generateImage: "Generate",
+    aiDrawing: "AI Drawing Engine running...",
+    enhanceQuality: "Enhance Quality",
+    changeStyle: "Change Style",
+    cyberpunkFilter: "Cyberpunk Filter",
+    soundVolume: "Notification Volume",
+    privacyPublic: "Public Profile",
+    privacyFriendsOnly: "Friends Only",
+    openSettings: "Open Settings",
   },
 } as const;
 
