@@ -388,6 +388,23 @@ const translations = {
     deleteGroupConfirmAdmin: "Удалить группу навсегда?",
     bannedList: "Забаненные",
     noBannedUsers: "Нет забаненных пользователей",
+
+    // New features
+    ghostMode: "Режим Призрака",
+    ghostActive: "Призрак активен",
+    ghostHint: "Сообщения исчезнут через 10 секунд",
+    flameMoments: "Flame Moments",
+    yourMoment: "Ваш момент",
+    addMoment: "Добавить",
+    generateImage: "Сгенерировать",
+    aiDrawing: "AI Drawing Engine работает...",
+    enhanceQuality: "Улучшить качество",
+    changeStyle: "Сменить стиль",
+    cyberpunkFilter: "Cyberpunk фильтр",
+    soundVolume: "Громкость уведомлений",
+    privacyPublic: "Публичный профиль",
+    privacyFriendsOnly: "Только друзья",
+    openSettings: "Открыть настройки",
   },
   en: {
     // Nav & global
@@ -774,6 +791,23 @@ const translations = {
     deleteGroupConfirmAdmin: "Delete group permanently?",
     bannedList: "Banned",
     noBannedUsers: "No banned users",
+
+    // New features
+    ghostMode: "Ghost Mode",
+    ghostActive: "Ghost active",
+    ghostHint: "Messages vanish in 10 seconds",
+    flameMoments: "Flame Moments",
+    yourMoment: "Your moment",
+    addMoment: "Add",
+    generateImage: "Generate",
+    aiDrawing: "AI Drawing Engine running...",
+    enhanceQuality: "Enhance Quality",
+    changeStyle: "Change Style",
+    cyberpunkFilter: "Cyberpunk Filter",
+    soundVolume: "Notification Volume",
+    privacyPublic: "Public Profile",
+    privacyFriendsOnly: "Friends Only",
+    openSettings: "Open Settings",
   },
 } as const;
 

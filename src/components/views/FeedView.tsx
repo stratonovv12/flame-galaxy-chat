@@ -8,6 +8,7 @@ import { FlameInput } from "@/components/ui/FlameInput";
 import { UserAvatar } from "@/components/ui/UserAvatar";
 import { UserBadge } from "@/components/ui/UserBadge";
 import { Heart, MessageCircle, Trash2, Plus, Image as ImageIcon, Video as VideoIcon, X, Filter, Send } from "lucide-react";
+import { FlameMoments } from "@/components/ui/FlameMoments";
 import { formatDistanceToNow } from "date-fns";
 import { ru, enUS } from "date-fns/locale";
 import { toast } from "@/hooks/use-toast";
@@ -237,6 +238,13 @@ export function FeedView({ onViewProfile }: FeedViewProps) {
 
   return (
     <div className="p-4 space-y-4 max-w-2xl mx-auto">
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-sm font-semibold text-foreground/80">{t("flameMoments")}</h3>
+        </div>
+        <FlameMoments />
+      </div>
+
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-bold">{t("feed")}</h2>
         <div className="flex gap-2">

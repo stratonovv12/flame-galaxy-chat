@@ -252,7 +252,7 @@ export function AIView() {
           <div className="space-y-2 min-w-[200px]">
             <div className="flex items-center gap-2">
               <Sparkles className="w-4 h-4 text-primary animate-spin" />
-              <span className="text-sm text-primary font-medium">{t("imageGeneration")}</span>
+              <span className="text-sm text-primary font-medium">{t("aiDrawing")}</span>
             </div>
             <Progress value={imageProgress} className="h-2" />
             <p className="text-xs text-muted-foreground">{Math.round(imageProgress)}%</p>
@@ -355,7 +355,20 @@ export function AIView() {
                     )}
                     <GlassCard className={`max-w-[80%] p-3 ${message.role === "user" ? "bg-primary/20 border-primary/30" : ""}`}>
                       {message.imageUrl && (
-                        <img src={message.imageUrl} alt="" className="max-h-64 rounded-lg object-cover mb-2" />
+                        <>
+                          <img src={message.imageUrl} alt="" className="max-h-64 rounded-lg object-cover mb-2" />
+                          {message.role === "assistant" && (
+                            <div className="flex flex-wrap gap-1.5 mb-2">
+                              {[t("enhanceQuality"), t("changeStyle"), t("cyberpunkFilter")].map(tag => (
+                                <button key={tag}
+                                  onClick={() => { setInput(`${tag}: ${message.content.slice(0, 60)}`); }}
+                                  className="px-2.5 py-1 rounded-full text-[11px] bg-primary/15 hover:bg-primary/25 border border-primary/30 text-primary transition-colors">
+                                  {tag}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </>
                       )}
                       {message.role === "assistant" ? (
                         <div className="prose prose-sm prose-invert max-w-none">
@@ -393,8 +406,19 @@ export function AIView() {
         <div className="p-4 glass-card rounded-none border-x-0 border-b-0 ipad-input">
           <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageAttach} className="hidden" />
           <div className="flex gap-2 items-end">
-            <button onClick={() => fileInputRef.current?.click()} className="p-2 hover:bg-muted/50 rounded-lg transition-colors text-muted-foreground hover:text-foreground touch-target">
+            <button onClick={() => fileInputRef.current?.click()} className="p-2 hover:bg-muted/50 rounded-lg transition-colors text-muted-foreground hover:text-foreground touch-target" title={t("ai")}>
               <Image className="w-5 h-5" />
+            </button>
+            <button
+              onClick={() => {
+                const prefix = "Generate image: ";
+                if (!input.toLowerCase().startsWith("generate")) setInput(prefix + input);
+                setTimeout(() => sendMessage(), 0);
+              }}
+              disabled={isLoading || !input.trim()}
+              title={t("generateImage")}
+              className="p-2 rounded-lg bg-gradient-to-br from-primary/30 to-accent/30 hover:from-primary/50 hover:to-accent/50 border border-primary/40 text-primary disabled:opacity-40 transition-all touch-target shadow-[0_0_10px_rgba(127,90,240,0.3)]">
+              <Sparkles className="w-5 h-5" />
             </button>
             <FlameInput
               placeholder={t("askOrDraw")}
