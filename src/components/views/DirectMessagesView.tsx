@@ -169,8 +169,8 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
             }
           }
           if (newMsg.sender_id !== user.id) {
-            playNotificationSound();
-            showBrowserNotification("Новое сообщение", newMsg.content);
+            playNotificationSound({ messageId: newMsg.id, senderId: newMsg.sender_id });
+            showBrowserNotification("Новое сообщение", newMsg.content, { messageId: newMsg.id, senderId: newMsg.sender_id });
           }
           fetchConversations();
         }
