@@ -404,7 +404,6 @@ const translations = {
     soundVolume: "Громкость уведомлений",
     privacyPublic: "Публичный профиль",
     privacyFriendsOnly: "Только друзья",
-    backToProfile: "Вернуться в профиль",
     openSettings: "Открыть настройки",
   },
   en: {
