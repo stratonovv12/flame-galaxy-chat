@@ -388,6 +388,24 @@ const translations = {
     deleteGroupConfirmAdmin: "Удалить группу навсегда?",
     bannedList: "Забаненные",
     noBannedUsers: "Нет забаненных пользователей",
+
+    // New features
+    ghostMode: "Режим Призрака",
+    ghostActive: "Призрак активен",
+    ghostHint: "Сообщения исчезнут через 10 секунд",
+    flameMoments: "Flame Moments",
+    yourMoment: "Ваш момент",
+    addMoment: "Добавить",
+    generateImage: "Сгенерировать",
+    aiDrawing: "AI Drawing Engine работает...",
+    enhanceQuality: "Улучшить качество",
+    changeStyle: "Сменить стиль",
+    cyberpunkFilter: "Cyberpunk фильтр",
+    soundVolume: "Громкость уведомлений",
+    privacyPublic: "Публичный профиль",
+    privacyFriendsOnly: "Только друзья",
+    backToProfile: "Вернуться в профиль",
+    openSettings: "Открыть настройки",
   },
   en: {
     // Nav & global
