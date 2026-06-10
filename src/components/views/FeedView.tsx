@@ -8,6 +8,7 @@ import { FlameInput } from "@/components/ui/FlameInput";
 import { UserAvatar } from "@/components/ui/UserAvatar";
 import { UserBadge } from "@/components/ui/UserBadge";
 import { Heart, MessageCircle, Trash2, Plus, Image as ImageIcon, Video as VideoIcon, X, Filter, Send } from "lucide-react";
+import { FlameMoments } from "@/components/ui/FlameMoments";
 import { formatDistanceToNow } from "date-fns";
 import { ru, enUS } from "date-fns/locale";
 import { toast } from "@/hooks/use-toast";
