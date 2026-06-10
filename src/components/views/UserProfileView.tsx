@@ -153,7 +153,7 @@ export function UserProfileView({ userId, onBack, onStartChat }: UserProfileView
 
         {!isOwnProfile && (
           <div className="flex gap-2 max-w-xs mx-auto">
-            <FlameButton onClick={toggleFollow} disabled={followBusy} variant={isFollowing ? "outline" : "default"} className="flex-1">
+            <FlameButton onClick={toggleFollow} disabled={followBusy} variant={isFollowing ? "outline" : "primary"} className="flex-1">
               {isFollowing ? <><UserMinus className="w-4 h-4 mr-1" /> {t("unfollow")}</> : <><UserPlus className="w-4 h-4 mr-1" /> {t("follow")}</>}
             </FlameButton>
             <FlameButton onClick={handleMessage} variant="outline" className="flex-1">
