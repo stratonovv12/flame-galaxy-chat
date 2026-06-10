@@ -480,8 +480,8 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
     const visibleMessages = messages.filter(m => !hiddenIds.has(m.id));
 
     return (
-      <div className="flex flex-col h-full">
-        <GlassCard className="rounded-none border-x-0 border-t-0 p-4 sticky top-0 z-20 shrink-0 backdrop-blur-xl bg-background/80">
+      <div className={`flex flex-col h-full transition-colors duration-300 ${ghostMode ? "bg-black text-white" : ""}`}>
+        <GlassCard className={`rounded-none border-x-0 border-t-0 p-4 sticky top-0 z-20 shrink-0 backdrop-blur-xl ${ghostMode ? "bg-black/90 border-white/10" : "bg-background/80"}`}>
           <div className="flex items-center gap-3">
             <button onClick={closeChat} className="p-2 hover:bg-muted/50 rounded-lg transition-colors touch-target">
               <ArrowLeft className="w-5 h-5" />
@@ -494,9 +494,19 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
                 <h2 className="font-semibold">{activeChat.username || "Пользователь"}</h2>
                 <UserBadge userId={activeChat.id} />
               </div>
-              <OnlineIndicator userId={activeChat.id} showText />
+              {ghostMode ? (
+                <p className="text-xs text-primary flex items-center gap-1"><Ghost className="w-3 h-3" /> {t("ghostActive")}</p>
+              ) : (
+                <OnlineIndicator userId={activeChat.id} showText />
+              )}
             </div>
             <div className="flex items-center gap-1">
+              <button
+                onClick={() => setGhostMode(g => !g)}
+                title={t("ghostMode")}
+                className={`p-2 rounded-lg transition-colors touch-target ${ghostMode ? "bg-primary/20 text-primary shadow-[0_0_12px_rgba(127,90,240,0.5)]" : "hover:bg-muted/50 text-muted-foreground"}`}>
+                <Ghost className="w-5 h-5" />
+              </button>
               <button onClick={startCall} className="p-2 hover:bg-muted/50 rounded-lg transition-colors touch-target">
                 <Phone className="w-5 h-5 text-primary" />
               </button>
@@ -505,9 +515,10 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
               </button>
             </div>
           </div>
+          {ghostMode && <p className="text-[10px] text-muted-foreground mt-2 text-center">{t("ghostHint")}</p>}
         </GlassCard>
 
-        <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
+        <div className={`flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar ${ghostMode ? "bg-black" : ""}`}>
           {loading ? (
             <div className="text-center py-12">
               <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
@@ -518,10 +529,13 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
               <p>{t("startConversation")}</p>
             </div>
           ) : (
-            visibleMessages.map(msg => (
-              <div key={msg.id} className={`flex group ${msg.sender_id === user?.id ? "justify-end" : "justify-start"}`}>
+            visibleMessages.map(msg => {
+              const isGhostFading = ghostMode && ghostHiddenIds.has(msg.id);
+              return (
+              <div key={msg.id}
+                className={`flex group ${msg.sender_id === user?.id ? "justify-end" : "justify-start"} transition-opacity duration-700 ${isGhostFading ? "opacity-0 pointer-events-none h-0 overflow-hidden" : "opacity-100"}`}>
                 <div className="flex items-start gap-1 max-w-[80%]">
-                  <GlassCard className={`p-3 ${msg.sender_id === user?.id ? "bg-primary/20 border-primary/30" : ""}`}>
+                  <GlassCard className={`p-3 ${msg.sender_id === user?.id ? (ghostMode ? "bg-primary/30 border-primary/40" : "bg-primary/20 border-primary/30") : (ghostMode ? "bg-white/5 border-white/10" : "")}`}>
                     {msg.forwarded_from && (
                       <p className="text-xs text-primary/70 mb-1 flex items-center gap-1">
                         <Forward className="w-3 h-3" /> Переслано от {msg.forwarded_from}
@@ -550,7 +564,8 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
                   />
                 </div>
               </div>
-            ))
+              );
+            })
           )}
           {pendingUploads.map(upload => (
             <UploadingBubble key={upload.id} upload={upload} onCancel={cancelUpload} />
