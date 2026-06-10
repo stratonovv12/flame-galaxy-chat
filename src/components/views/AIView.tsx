@@ -355,7 +355,20 @@ export function AIView() {
                     )}
                     <GlassCard className={`max-w-[80%] p-3 ${message.role === "user" ? "bg-primary/20 border-primary/30" : ""}`}>
                       {message.imageUrl && (
-                        <img src={message.imageUrl} alt="" className="max-h-64 rounded-lg object-cover mb-2" />
+                        <>
+                          <img src={message.imageUrl} alt="" className="max-h-64 rounded-lg object-cover mb-2" />
+                          {message.role === "assistant" && (
+                            <div className="flex flex-wrap gap-1.5 mb-2">
+                              {[t("enhanceQuality"), t("changeStyle"), t("cyberpunkFilter")].map(tag => (
+                                <button key={tag}
+                                  onClick={() => { setInput(`${tag}: ${message.content.slice(0, 60)}`); }}
+                                  className="px-2.5 py-1 rounded-full text-[11px] bg-primary/15 hover:bg-primary/25 border border-primary/30 text-primary transition-colors">
+                                  {tag}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </>
                       )}
                       {message.role === "assistant" ? (
                         <div className="prose prose-sm prose-invert max-w-none">
