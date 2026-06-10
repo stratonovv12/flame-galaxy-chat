@@ -406,8 +406,19 @@ export function AIView() {
         <div className="p-4 glass-card rounded-none border-x-0 border-b-0 ipad-input">
           <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageAttach} className="hidden" />
           <div className="flex gap-2 items-end">
-            <button onClick={() => fileInputRef.current?.click()} className="p-2 hover:bg-muted/50 rounded-lg transition-colors text-muted-foreground hover:text-foreground touch-target">
+            <button onClick={() => fileInputRef.current?.click()} className="p-2 hover:bg-muted/50 rounded-lg transition-colors text-muted-foreground hover:text-foreground touch-target" title={t("ai")}>
               <Image className="w-5 h-5" />
+            </button>
+            <button
+              onClick={() => {
+                const prefix = "Generate image: ";
+                if (!input.toLowerCase().startsWith("generate")) setInput(prefix + input);
+                setTimeout(() => sendMessage(), 0);
+              }}
+              disabled={isLoading || !input.trim()}
+              title={t("generateImage")}
+              className="p-2 rounded-lg bg-gradient-to-br from-primary/30 to-accent/30 hover:from-primary/50 hover:to-accent/50 border border-primary/40 text-primary disabled:opacity-40 transition-all touch-target shadow-[0_0_10px_rgba(127,90,240,0.3)]">
+              <Sparkles className="w-5 h-5" />
             </button>
             <FlameInput
               placeholder={t("askOrDraw")}
