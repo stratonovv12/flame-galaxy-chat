@@ -129,28 +129,22 @@ export function ProfileView({ onNavigate }: ProfileViewProps) {
         </div>
       </GlassCard>
 
-      <GlassCard className="p-6">
-        <h3 className="font-semibold mb-4 flex items-center gap-2"><Settings className="w-5 h-5" />{t("settings")}</h3>
-        <div className="space-y-3">
-          <div className="flex items-center justify-between py-3 border-b border-border/50">
-            <div><p className="font-medium">{t("email")}</p><p className="text-sm text-muted-foreground">{user?.email}</p></div>
-          </div>
-          <div className="flex items-center justify-between py-3 border-b border-border/50">
-            <div className="flex items-center gap-2"><Globe className="w-4 h-4 text-muted-foreground" /><p className="font-medium">{t("language")}</p></div>
-            <div className="flex gap-2">
-              <button onClick={() => setLang("ru")} className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${lang === "ru" ? "bg-primary text-primary-foreground" : "bg-muted/50 text-muted-foreground hover:text-foreground"}`}>{t("russian")}</button>
-              <button onClick={() => setLang("en")} className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${lang === "en" ? "bg-primary text-primary-foreground" : "bg-muted/50 text-muted-foreground hover:text-foreground"}`}>{t("english")}</button>
+      <button
+        onClick={() => setSettingsOpen(true)}
+        className="w-full group relative overflow-hidden rounded-xl p-[2px] bg-gradient-to-r from-[#a87cff] via-[#7f5af0] to-[#5b3fe0] shadow-[0_0_18px_rgba(127,90,240,0.45)] hover:shadow-[0_0_28px_rgba(127,90,240,0.65)] transition-all">
+        <div className="flex items-center justify-between bg-background/90 hover:bg-background/80 rounded-[10px] px-5 py-4 transition-colors">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary/30 to-accent/30 flex items-center justify-center">
+              <Settings className="w-5 h-5 text-primary group-hover:rotate-90 transition-transform duration-500" />
+            </div>
+            <div className="text-left">
+              <p className="font-semibold">{t("settings")}</p>
+              <p className="text-xs text-muted-foreground">{t("openSettings")}</p>
             </div>
           </div>
-          <div className="py-3">
-            <div className="flex items-center gap-2 mb-2"><UsersIcon className="w-4 h-4 text-muted-foreground" /><p className="font-medium">{t("messagesPrivacy")}</p></div>
-            <div className="flex gap-2">
-              <button onClick={() => updatePrivacy("everyone")} className={`flex-1 px-3 py-2 rounded-lg text-sm transition-colors ${messagesPrivacy === "everyone" ? "bg-primary text-primary-foreground" : "bg-muted/50 text-muted-foreground hover:text-foreground"}`}>{t("privacyEveryone")}</button>
-              <button onClick={() => updatePrivacy("followers")} className={`flex-1 px-3 py-2 rounded-lg text-sm transition-colors ${messagesPrivacy === "followers" ? "bg-primary text-primary-foreground" : "bg-muted/50 text-muted-foreground hover:text-foreground"}`}>{t("privacyFollowers")}</button>
-            </div>
-          </div>
+          <span className="text-primary text-xl">›</span>
         </div>
-      </GlassCard>
+      </button>
 
       {onNavigate && (
         <FlameButton variant="outline" className="w-full" onClick={() => onNavigate("wallet")}>
@@ -165,6 +159,60 @@ export function ProfileView({ onNavigate }: ProfileViewProps) {
       <FlameButton variant="outline" className="w-full border-destructive/50 text-destructive hover:bg-destructive/10" onClick={signOut}>
         <LogOut className="w-4 h-4 mr-2" />{t("logout")}
       </FlameButton>
+
+      <Sheet open={settingsOpen} onOpenChange={setSettingsOpen}>
+        <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto bg-background/95 backdrop-blur-xl border-l border-primary/20">
+          <SheetHeader>
+            <button onClick={() => setSettingsOpen(false)} className="flex items-center gap-2 text-sm text-primary hover:underline mb-2 self-start">
+              <ArrowLeft className="w-4 h-4" /> {t("backToProfile")}
+            </button>
+            <SheetTitle className="flex items-center gap-2"><Settings className="w-5 h-5" />{t("settings")}</SheetTitle>
+          </SheetHeader>
+
+          <div className="space-y-5 mt-6">
+            <div className="py-2 border-b border-border/50">
+              <p className="font-medium text-sm">{t("email")}</p>
+              <p className="text-xs text-muted-foreground">{user?.email}</p>
+            </div>
+
+            <div className="py-2">
+              <div className="flex items-center gap-2 mb-2"><Globe className="w-4 h-4 text-muted-foreground" /><p className="font-medium text-sm">{t("language")}</p></div>
+              <select
+                value={lang}
+                onChange={e => setLang(e.target.value as any)}
+                className="w-full px-3 py-2 rounded-lg bg-input border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm">
+                <option value="ru">{t("russian")}</option>
+                <option value="en">{t("english")}</option>
+              </select>
+            </div>
+
+            <div className="py-2">
+              <div className="flex items-center gap-2 mb-2"><UsersIcon className="w-4 h-4 text-muted-foreground" /><p className="font-medium text-sm">{t("messagesPrivacy")}</p></div>
+              <div className="flex gap-2">
+                <button onClick={() => updatePrivacy("everyone")} className={`flex-1 px-3 py-2 rounded-lg text-sm transition-colors ${messagesPrivacy === "everyone" ? "bg-primary text-primary-foreground" : "bg-muted/50 text-muted-foreground hover:text-foreground"}`}>{t("privacyPublic")}</button>
+                <button onClick={() => updatePrivacy("followers")} className={`flex-1 px-3 py-2 rounded-lg text-sm transition-colors ${messagesPrivacy === "followers" ? "bg-primary text-primary-foreground" : "bg-muted/50 text-muted-foreground hover:text-foreground"}`}>{t("privacyFriendsOnly")}</button>
+              </div>
+            </div>
+
+            <div className="py-2">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2"><Volume2 className="w-4 h-4 text-muted-foreground" /><p className="font-medium text-sm">{t("soundVolume")}</p></div>
+                <span className="text-xs text-muted-foreground">{Math.round(volume * 100)}%</span>
+              </div>
+              <Slider
+                value={[volume * 100]}
+                min={0} max={100} step={1}
+                onValueChange={(v) => { const nv = v[0] / 100; setVolumeState(nv); persistVolume(nv); }}
+                onValueCommit={() => playNotificationSound()}
+              />
+            </div>
+
+            <FlameButton variant="outline" className="w-full mt-6" onClick={() => setSettingsOpen(false)}>
+              <ArrowLeft className="w-4 h-4 mr-2" />{t("backToProfile")}
+            </FlameButton>
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
