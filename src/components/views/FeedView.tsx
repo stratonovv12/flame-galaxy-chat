@@ -238,6 +238,13 @@ export function FeedView({ onViewProfile }: FeedViewProps) {
 
   return (
     <div className="p-4 space-y-4 max-w-2xl mx-auto">
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-sm font-semibold text-foreground/80">{t("flameMoments")}</h3>
+        </div>
+        <FlameMoments />
+      </div>
+
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-bold">{t("feed")}</h2>
         <div className="flex gap-2">
