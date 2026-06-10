@@ -76,6 +76,38 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
 
   const partnerPresence = useOnlineStatus(activeChat?.id);
 
+  // Ghost mode (per-chat ephemeral)
+  const [ghostMode, setGhostMode] = useState(false);
+  const [ghostHiddenIds, setGhostHiddenIds] = useState<Set<string>>(new Set());
+  const ghostTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+
+  // Tell the notifications system which chat is open (suppresses sound for that partner)
+  useEffect(() => {
+    setActiveChatPartner(activeChat?.id || null);
+    return () => setActiveChatPartner(null);
+  }, [activeChat]);
+
+  // Reset ghost state when switching chats
+  useEffect(() => {
+    setGhostMode(false);
+    setGhostHiddenIds(new Set());
+    ghostTimers.current.forEach(t => clearTimeout(t));
+    ghostTimers.current.clear();
+  }, [activeChat?.id]);
+
+  // Schedule fade for new messages while ghost mode is on
+  useEffect(() => {
+    if (!ghostMode) return;
+    messages.forEach(m => {
+      if (ghostHiddenIds.has(m.id) || ghostTimers.current.has(m.id)) return;
+      const timer = setTimeout(() => {
+        setGhostHiddenIds(prev => new Set([...prev, m.id]));
+        ghostTimers.current.delete(m.id);
+      }, 10000);
+      ghostTimers.current.set(m.id, timer);
+    });
+  }, [messages, ghostMode, ghostHiddenIds]);
+
   useEffect(() => {
     if (user) { fetchConversations(); requestNotificationPermission(); }
   }, [user]);
