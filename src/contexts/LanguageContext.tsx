@@ -21,7 +21,7 @@ const translations = {
     error: "Ошибка",
     save: "Сохранить",
     cancel: "Отмена",
-    deleteForEveryone: "Удалить для всех",
+    delete: "Удалить",
     newMessage: "Новое сообщение",
     uploadError: "Ошибка загрузки",
     onlyImages: "Только изображения",
