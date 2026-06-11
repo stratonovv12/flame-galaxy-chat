@@ -116,7 +116,7 @@ export function AIView() {
     const file = e.target.files?.[0];
     if (!file) return;
     if (!file.type.startsWith("image/")) {
-      toast({ title: "Ошибка", description: "Только изображения", variant: "destructive" });
+      toast({ title: "Error", description: "Images only", variant: "destructive" });
       return;
     }
     const reader = new FileReader();
@@ -233,7 +233,7 @@ export function AIView() {
         if (assistantContent) await saveMessage("assistant", assistantContent, topic.id);
       }
     } catch (error) {
-      toast({ title: "Ошибка AI", description: error instanceof Error ? error.message : "Неизвестная ошибка", variant: "destructive" });
+      toast({ title: "AI Error", description: error instanceof Error ? error.message : "Unknown error", variant: "destructive" });
       setMessages(prev => prev.filter(m => m.id !== tempAssistantId));
     } finally {
       setIsLoading(false);

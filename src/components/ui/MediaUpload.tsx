@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Image, X } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface MediaUploadProps {
   onUpload: (url: string) => void;
@@ -11,6 +12,7 @@ interface MediaUploadProps {
 
 export function MediaUpload({ onUpload, className }: MediaUploadProps) {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [uploading, setUploading] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -24,13 +26,13 @@ export function MediaUpload({ onUpload, className }: MediaUploadProps) {
     const isImage = ALLOWED_IMAGE_TYPES.includes(file.type);
     const isVideo = ALLOWED_VIDEO_TYPES.includes(file.type);
     if (!isImage && !isVideo) {
-      toast({ title: "Ошибка", description: "Поддерживаются: JPEG, PNG, GIF, WebP, MP4, WebM", variant: "destructive" });
+      toast({ title: t("error"), description: "JPEG, PNG, GIF, WebP, MP4, WebM", variant: "destructive" });
       return;
     }
 
     const maxSize = isVideo ? 50 * 1024 * 1024 : 10 * 1024 * 1024;
     if (file.size > maxSize) {
-      toast({ title: "Ошибка", description: `Максимальный размер: ${isVideo ? "50MB" : "10MB"}`, variant: "destructive" });
+      toast({ title: t("error"), description: `${t("fileTooLarge")}: ${isVideo ? "50MB" : "10MB"}`, variant: "destructive" });
       return;
     }
 
@@ -57,11 +59,10 @@ export function MediaUpload({ onUpload, className }: MediaUploadProps) {
       const { data: urlData } = supabase.storage.from("media").getPublicUrl(filePath);
       if (urlData?.publicUrl) {
         onUpload(urlData.publicUrl);
-        toast({ title: "Файл загружен" });
       }
     } catch (error: any) {
       console.error("Upload error:", error);
-      toast({ title: "Ошибка загрузки", description: error.message, variant: "destructive" });
+      toast({ title: t("uploadError"), description: error.message, variant: "destructive" });
       setPreview(null);
     } finally {
       setUploading(false);
@@ -86,7 +87,7 @@ export function MediaUpload({ onUpload, className }: MediaUploadProps) {
       )}
       {preview === "video" && (
         <div className="relative mb-2 inline-block px-3 py-2 bg-muted/50 rounded-lg text-sm text-muted-foreground">
-          🎥 Видео выбрано
+          🎥 Video
           <button onClick={clearPreview} className="ml-2 text-destructive"><X className="w-3 h-3 inline" /></button>
         </div>
       )}

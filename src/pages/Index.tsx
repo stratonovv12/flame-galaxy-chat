@@ -10,9 +10,8 @@ import { SearchView } from "@/components/views/SearchView";
 import { AIView } from "@/components/views/AIView";
 import { ProfileView } from "@/components/views/ProfileView";
 import { UserProfileView } from "@/components/views/UserProfileView";
-import { WalletView } from "@/components/views/WalletView";
 
-type Tab = BottomTab | "profile" | "wallet";
+type Tab = BottomTab | "profile" | "search";
 
 const Index = () => {
   const { user, loading, isBanned } = useAuth();
@@ -60,19 +59,18 @@ const Index = () => {
       case "search": return <SearchView searchQuery={searchQuery} onSearchChange={setSearchQuery} onStartChat={handleStartChat} onViewProfile={handleViewProfile} />;
       case "ai": return <AIView />;
       case "profile": return <ProfileView onNavigate={(tab) => setActiveTab(tab as Tab)} />;
-      case "wallet": return <WalletView />;
       default: return <FeedView onViewProfile={handleViewProfile} />;
     }
   };
 
-  const bottomTab: BottomTab = (activeTab === "profile" || activeTab === "wallet") ? "feed" : activeTab as BottomTab;
+  const bottomTab: BottomTab = (activeTab === "profile" || activeTab === "search") ? "feed" : activeTab as BottomTab;
 
   return (
     <div className="min-h-screen cosmic-bg flex flex-col">
       <TopBar
         searchQuery={searchQuery}
         onSearchChange={(q) => { setSearchQuery(q); if (q.trim()) setActiveTab("search"); }}
-        onOpenWallet={() => { setViewingProfileUserId(null); setActiveTab("wallet"); }}
+        onOpenSearch={() => { setViewingProfileUserId(null); setActiveTab("search"); }}
         onOpenProfile={() => { setViewingProfileUserId(null); setActiveTab("profile"); }}
       />
       <main className="flex-1 pt-[72px] pb-[80px] overflow-hidden">

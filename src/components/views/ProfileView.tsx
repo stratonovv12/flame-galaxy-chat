@@ -8,7 +8,7 @@ import { FlameInput } from "@/components/ui/FlameInput";
 import { UserBadge } from "@/components/ui/UserBadge";
 import { AvatarUpload } from "@/components/ui/AvatarUpload";
 import { AdminPanelView } from "@/components/views/AdminPanelView";
-import { LogOut, Settings, Mail, Shield, Wallet, Globe, Users as UsersIcon, ArrowLeft, Volume2 } from "lucide-react";
+import { LogOut, Settings, Mail, Shield, Globe, Users as UsersIcon, ArrowLeft, Volume2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Slider } from "@/components/ui/slider";
@@ -146,11 +146,6 @@ export function ProfileView({ onNavigate }: ProfileViewProps) {
         </div>
       </button>
 
-      {onNavigate && (
-        <FlameButton variant="outline" className="w-full" onClick={() => onNavigate("wallet")}>
-          <Wallet className="w-4 h-4 mr-2" /> {t("wallet")}
-        </FlameButton>
-      )}
 
       {isAdmin && (
         <FlameButton onClick={() => setShowAdmin(true)} className="w-full" variant="outline"><Shield className="w-4 h-4 mr-2" />{t("adminPanel")}</FlameButton>

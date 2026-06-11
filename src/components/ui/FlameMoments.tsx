@@ -1,21 +1,61 @@
 import { useEffect, useState, useRef } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { X, Plus } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
+import { X, Plus, Trash2 } from "lucide-react";
 
-// Mock stories. In production these would come from a `flame_moments` table.
-const MOCK_STORIES = [
-  { id: "1", name: "Nova",   avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200", image: "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=900", seen: false },
-  { id: "2", name: "Kai",    avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200", image: "https://images.unsplash.com/photo-1502630859934-b3b41d484bfe?w=900", seen: false },
-  { id: "3", name: "Luna",   avatar: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=200", image: "https://images.unsplash.com/photo-1465101046530-73398c7f28ca?w=900", seen: false },
-  { id: "4", name: "Atlas",  avatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200", image: "https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?w=900", seen: true  },
-  { id: "5", name: "Echo",   avatar: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=200", image: "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?w=900", seen: true  },
-  { id: "6", name: "Vega",   avatar: "https://images.unsplash.com/photo-1531123897727-8f129e1688ce?w=200", image: "https://images.unsplash.com/photo-1502134249126-9f3755a50d78?w=900", seen: false },
-];
+interface MomentRow {
+  id: string;
+  user_id: string;
+  media_url: string;
+  media_type: string;
+  created_at: string;
+  username: string | null;
+  display_name: string | null;
+  avatar_url: string | null;
+}
+
+const MAX_MB = 25;
 
 export function FlameMoments() {
   const { t } = useLanguage();
+  const { user } = useAuth();
+  const [moments, setMoments] = useState<MomentRow[]>([]);
   const [activeIdx, setActiveIdx] = useState<number | null>(null);
   const [progress, setProgress] = useState(0);
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    fetchMoments();
+    const channel = supabase.channel("flame-moments-rt")
+      .on("postgres_changes", { event: "*", schema: "public", table: "flame_moments" }, () => fetchMoments())
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, []);
+
+  const fetchMoments = async () => {
+    const { data: rows } = await supabase.from("flame_moments")
+      .select("id, user_id, media_url, media_type, created_at")
+      .gt("expires_at", new Date().toISOString())
+      .order("created_at", { ascending: false })
+      .limit(50);
+    if (!rows || rows.length === 0) { setMoments([]); return; }
+    const userIds = [...new Set(rows.map(r => r.user_id))];
+    const { data: profiles } = await supabase.from("profiles")
+      .select("user_id, username, display_name, avatar_url").in("user_id", userIds);
+    const pmap = new Map((profiles || []).map(p => [p.user_id, p]));
+    setMoments(rows.map(r => {
+      const p = pmap.get(r.user_id);
+      return {
+        ...r,
+        username: p?.username || null,
+        display_name: p?.display_name || null,
+        avatar_url: p?.avatar_url || null,
+      };
+    }));
+  };
 
   useEffect(() => {
     if (activeIdx === null) return;
@@ -26,37 +66,80 @@ export function FlameMoments() {
       setProgress(pct);
       if (pct >= 100) {
         clearInterval(interval);
-        setActiveIdx(null);
+        setActiveIdx(i => (i !== null && i + 1 < moments.length ? i + 1 : null));
       }
     }, 50);
     return () => clearInterval(interval);
-  }, [activeIdx]);
+  }, [activeIdx, moments.length]);
 
-  const active = activeIdx !== null ? MOCK_STORIES[activeIdx] : null;
+  const onFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+    const isImg = file.type.startsWith("image/");
+    const isVid = file.type.startsWith("video/");
+    if (!isImg && !isVid) { toast({ title: t("error"), description: t("mediaTypeUnsupported"), variant: "destructive" }); return; }
+    if (file.size > MAX_MB * 1024 * 1024) { toast({ title: t("error"), description: `Max ${MAX_MB}MB`, variant: "destructive" }); return; }
+    setUploading(true);
+    try {
+      const ext = file.name.split(".").pop() || "bin";
+      const path = `${user.id}/moments/${Date.now()}.${ext}`;
+      const { error: upErr } = await supabase.storage.from("media").upload(path, file, { upsert: true, cacheControl: "3600" });
+      if (upErr) throw upErr;
+      const { data: pub } = supabase.storage.from("media").getPublicUrl(path);
+      const { error: insErr } = await supabase.from("flame_moments").insert({
+        user_id: user.id, media_url: pub.publicUrl, media_type: isImg ? "image" : "video",
+      });
+      if (insErr) throw insErr;
+      toast({ title: t("momentPosted") });
+      fetchMoments();
+    } catch (err: any) {
+      toast({ title: t("error"), description: err.message || "upload failed", variant: "destructive" });
+    } finally {
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  };
+
+  const deleteMoment = async (id: string) => {
+    await supabase.from("flame_moments").delete().eq("id", id);
+    setActiveIdx(null);
+    fetchMoments();
+  };
+
+  const active = activeIdx !== null ? moments[activeIdx] : null;
+  const initial = (name?: string | null) => (name?.replace(/^@/, "").charAt(0) || "?").toUpperCase();
 
   return (
     <>
       <div className="px-1">
         <div className="flex items-center gap-3 overflow-x-auto pb-2 custom-scrollbar -mx-1 px-1">
-          {/* Add own */}
-          <button className="flex flex-col items-center gap-1 shrink-0">
+          <input ref={fileRef} type="file" accept="image/*,video/*" onChange={onFile} className="hidden" />
+          <button
+            disabled={uploading}
+            onClick={() => fileRef.current?.click()}
+            className="flex flex-col items-center gap-1 shrink-0 disabled:opacity-50">
             <div className="w-16 h-16 rounded-full bg-muted/40 border-2 border-dashed border-primary/40 flex items-center justify-center">
-              <Plus className="w-6 h-6 text-primary" />
+              {uploading
+                ? <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                : <Plus className="w-6 h-6 text-primary" />}
             </div>
             <span className="text-[10px] text-muted-foreground max-w-[64px] truncate">{t("yourMoment")}</span>
           </button>
 
-          {MOCK_STORIES.map((s, i) => (
-            <button key={s.id} onClick={() => setActiveIdx(i)} className="flex flex-col items-center gap-1 shrink-0 group">
-              <div className={`p-[2px] rounded-full transition-all ${s.seen
-                ? "bg-muted/40"
-                : "bg-gradient-to-br from-[#a87cff] via-[#7f5af0] to-[#5b3fe0] shadow-[0_0_14px_rgba(127,90,240,0.55)]"
-              }`}>
-                <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-background">
-                  <img src={s.avatar} alt={s.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+          {moments.length === 0 && !uploading && (
+            <span className="text-xs text-muted-foreground py-6">{t("noMomentsYet")}</span>
+          )}
+
+          {moments.map((m, i) => (
+            <button key={m.id} onClick={() => setActiveIdx(i)} className="flex flex-col items-center gap-1 shrink-0 group">
+              <div className="p-[2px] rounded-full bg-gradient-to-br from-[#a87cff] via-[#7f5af0] to-[#5b3fe0] shadow-[0_0_14px_rgba(127,90,240,0.55)]">
+                <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-background bg-muted flex items-center justify-center">
+                  {m.avatar_url
+                    ? <img src={m.avatar_url} alt="" className="w-full h-full object-cover" />
+                    : <span className="text-sm font-bold">{initial(m.display_name || m.username)}</span>}
                 </div>
               </div>
-              <span className="text-[10px] max-w-[64px] truncate">{s.name}</span>
+              <span className="text-[10px] max-w-[64px] truncate">{m.display_name || m.username || "—"}</span>
             </button>
           ))}
         </div>
@@ -64,19 +147,28 @@ export function FlameMoments() {
 
       {active && (
         <div className="fixed inset-0 z-[100] bg-black flex items-center justify-center animate-fade-in" onClick={() => setActiveIdx(null)}>
-          {/* Progress bar */}
           <div className="absolute top-3 left-3 right-3 h-[3px] bg-white/15 rounded-full overflow-hidden z-10">
             <div className="h-full bg-white transition-[width] duration-75 ease-linear" style={{ width: `${progress}%` }} />
           </div>
-          {/* Header */}
           <div className="absolute top-7 left-3 right-3 flex items-center gap-2 z-10">
-            <img src={active.avatar} className="w-9 h-9 rounded-full object-cover border border-white/30" alt={active.name} />
-            <span className="text-white text-sm font-medium drop-shadow">{active.name}</span>
-            <button onClick={(e) => { e.stopPropagation(); setActiveIdx(null); }} className="ml-auto text-white/90 hover:text-white p-1">
+            <div className="w-9 h-9 rounded-full overflow-hidden border border-white/30 bg-muted flex items-center justify-center">
+              {active.avatar_url
+                ? <img src={active.avatar_url} alt="" className="w-full h-full object-cover" />
+                : <span className="text-sm font-bold text-white">{initial(active.display_name || active.username)}</span>}
+            </div>
+            <span className="text-white text-sm font-medium drop-shadow">{active.display_name || active.username || "—"}</span>
+            {user?.id === active.user_id && (
+              <button onClick={(e) => { e.stopPropagation(); deleteMoment(active.id); }} className="text-white/80 hover:text-destructive p-1 ml-auto">
+                <Trash2 className="w-5 h-5" />
+              </button>
+            )}
+            <button onClick={(e) => { e.stopPropagation(); setActiveIdx(null); }} className={`text-white/90 hover:text-white p-1 ${user?.id === active.user_id ? "" : "ml-auto"}`}>
               <X className="w-6 h-6" />
             </button>
           </div>
-          <img src={active.image} alt="" className="max-h-full max-w-full object-contain animate-scale-in" />
+          {active.media_type === "video"
+            ? <video src={active.media_url} autoPlay playsInline className="max-h-full max-w-full object-contain animate-scale-in" />
+            : <img src={active.media_url} alt="" className="max-h-full max-w-full object-contain animate-scale-in" />}
         </div>
       )}
     </>

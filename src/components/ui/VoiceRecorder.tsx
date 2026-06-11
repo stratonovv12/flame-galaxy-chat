@@ -67,7 +67,7 @@ export function VoiceRecorder({ onRecorded, className }: VoiceRecorderProps) {
         setDuration(prev => prev + 1);
       }, 1000);
     } catch {
-      toast({ title: "Ошибка", description: "Нет доступа к микрофону", variant: "destructive" });
+      toast({ title: "Error", description: "Microphone access denied", variant: "destructive" });
     }
   }, [user, onRecorded]);
 

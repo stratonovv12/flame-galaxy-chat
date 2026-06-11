@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Search, Flame, Wallet as WalletIcon, User } from "lucide-react";
+import { Search, Flame, User } from "lucide-react";
 import { FlameInput } from "@/components/ui/FlameInput";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -8,11 +8,11 @@ import { useLanguage } from "@/contexts/LanguageContext";
 interface TopBarProps {
   searchQuery: string;
   onSearchChange: (query: string) => void;
-  onOpenWallet?: () => void;
+  onOpenSearch?: () => void;
   onOpenProfile?: () => void;
 }
 
-export function TopBar({ searchQuery, onSearchChange, onOpenWallet, onOpenProfile }: TopBarProps) {
+export function TopBar({ searchQuery, onSearchChange, onOpenSearch, onOpenProfile }: TopBarProps) {
   const { user } = useAuth();
   const { t } = useLanguage();
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
@@ -33,12 +33,19 @@ export function TopBar({ searchQuery, onSearchChange, onOpenWallet, onOpenProfil
         </div>
 
         <div className="relative flex-1">
-          <FlameInput type="text" placeholder={t("searchPlaceholder")} value={searchQuery} onChange={e => onSearchChange(e.target.value)} className="pl-10 py-2.5 text-sm" />
+          <FlameInput
+            type="text"
+            placeholder={t("searchPlaceholder")}
+            value={searchQuery}
+            onChange={e => onSearchChange(e.target.value)}
+            onFocus={() => onOpenSearch?.()}
+            className="pl-10 py-2.5 text-sm"
+          />
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         </div>
 
-        <button onClick={onOpenWallet} className="p-2 hover:bg-muted/50 rounded-lg transition-colors touch-target shrink-0" title={t("wallet")}>
-          <WalletIcon className="w-5 h-5 text-muted-foreground hover:text-primary transition-colors" />
+        <button onClick={onOpenSearch} className="p-2 hover:bg-muted/50 rounded-lg transition-colors touch-target shrink-0" title={t("search")}>
+          <Search className="w-5 h-5 text-muted-foreground hover:text-primary transition-colors" />
         </button>
 
         <button onClick={onOpenProfile} className="shrink-0" title={t("profile")}>
