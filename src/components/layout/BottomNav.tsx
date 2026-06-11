@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
-import { Home, MessageCircle, Sparkles, Search } from "lucide-react";
+import { Home, MessageCircle, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 
-export type BottomTab = "feed" | "messages" | "search" | "ai";
+export type BottomTab = "feed" | "messages" | "ai";
 
 interface BottomNavProps {
   activeTab: BottomTab;
@@ -20,7 +20,6 @@ export function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
   const tabs: { id: BottomTab; label: string; icon: typeof Home }[] = [
     { id: "feed", label: t("feed"), icon: Home },
     { id: "messages", label: t("chats"), icon: MessageCircle },
-    { id: "search", label: t("search"), icon: Search },
     { id: "ai", label: "AI", icon: Sparkles },
   ];
 
