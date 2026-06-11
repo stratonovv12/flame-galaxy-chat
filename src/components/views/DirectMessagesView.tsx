@@ -649,7 +649,8 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
       ) : (
         <div className="space-y-3">
           {conversations.map(conv => (
-            <ChatListContextMenu key={conv.partnerId} partnerId={conv.partnerId} partnerUsername={conv.partnerUsername} onDeleted={fetchConversations}>
+            <ChatListContextMenu key={conv.partnerId} partnerId={conv.partnerId} partnerUsername={conv.partnerUsername}
+              onDeleted={() => { setConversations(prev => prev.filter(c => c.partnerId !== conv.partnerId)); fetchConversations(); }}>
               <GlassCard
                 className={`p-4 cursor-pointer hover:border-primary/50 transition-colors ${conv.unreadCount > 0 ? "border-primary/50" : ""}`}
                 onClick={() => openChatWithUser(conv.partnerId)}>
@@ -660,11 +661,11 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-1.5">
-                        <h3 className="font-semibold">{conv.partnerUsername || "Пользователь"}</h3>
+                        <h3 className="font-semibold">{conv.partnerUsername || t("user")}</h3>
                         <UserBadge userId={conv.partnerId} />
                       </div>
                       <span className="text-xs text-muted-foreground">
-                        {formatDistanceToNow(new Date(conv.lastMessageAt), { addSuffix: true, locale: ru })}
+                        {formatDistanceToNow(new Date(conv.lastMessageAt), { addSuffix: true, locale: lang === "ru" ? ru : enUS })}
                       </span>
                     </div>
                     {conv.partnerUsername && <p className="text-xs text-primary/70">@{conv.partnerUsername.replace(/^@/, "")}</p>}
