@@ -488,47 +488,52 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
 
   if (activeChat) {
     const visibleMessages = messages.filter(m => !hiddenIds.has(m.id));
+    const ghostShell = ghostMode
+      ? "bg-zinc-900 text-zinc-200 [&_*]:!text-zinc-200 grayscale-[0.85]"
+      : "";
 
     return (
-      <div className={`flex flex-col h-full transition-colors duration-300 ${ghostMode ? "bg-black text-white" : ""}`}>
-        <GlassCard className={`rounded-none border-x-0 border-t-0 p-4 sticky top-0 z-20 shrink-0 backdrop-blur-xl ${ghostMode ? "bg-black/90 border-white/10" : "bg-background/80"}`}>
-          <div className="flex items-center gap-3">
-            <button onClick={closeChat} className="p-2 hover:bg-muted/50 rounded-lg transition-colors touch-target">
+      <div className={`flex flex-col h-full transition-colors duration-300 ${ghostShell}`}>
+        <GlassCard className={`rounded-none border-x-0 border-t-0 p-3 sticky top-0 z-30 shrink-0 backdrop-blur-xl ${ghostMode ? "bg-zinc-950/95 border-zinc-700/60 shadow-[0_0_18px_rgba(180,180,200,0.18)]" : "bg-background/85"}`}>
+          <div className="flex items-center gap-2">
+            <button onClick={closeChat} className="p-2 hover:bg-muted/50 rounded-lg transition-colors touch-target shrink-0">
               <ArrowLeft className="w-5 h-5" />
             </button>
             <button onClick={() => onViewProfile?.(activeChat.id)} className="shrink-0">
-              <UserAvatar username={activeChat.username} avatarUrl={activeChat.avatarUrl} size="md" showOnline isOnline={partnerPresence.is_online} />
+              <UserAvatar username={activeChat.username} avatarUrl={activeChat.avatarUrl} size="sm" showOnline isOnline={partnerPresence.is_online} />
             </button>
-            <div className="flex-1">
+            <button onClick={() => onViewProfile?.(activeChat.id)} className="flex-1 min-w-0 text-left">
               <div className="flex items-center gap-1.5">
-                <h2 className="font-semibold">{activeChat.username || "Пользователь"}</h2>
+                <h2 className="font-semibold text-sm truncate">{activeChat.username || t("user")}</h2>
                 <UserBadge userId={activeChat.id} />
               </div>
               {ghostMode ? (
-                <p className="text-xs text-primary flex items-center gap-1"><Ghost className="w-3 h-3" /> {t("ghostActive")}</p>
+                <p className="text-[10px] text-zinc-400 flex items-center gap-1"><Ghost className="w-3 h-3" /> {t("ghostActive")}</p>
               ) : (
                 <OnlineIndicator userId={activeChat.id} showText />
               )}
-            </div>
-            <div className="flex items-center gap-1">
-              <button
-                onClick={() => setGhostMode(g => !g)}
-                title={t("ghostMode")}
-                className={`p-2 rounded-lg transition-colors touch-target ${ghostMode ? "bg-primary/20 text-primary shadow-[0_0_12px_rgba(127,90,240,0.5)]" : "hover:bg-muted/50 text-muted-foreground"}`}>
-                <Ghost className="w-5 h-5" />
-              </button>
-              <button onClick={startCall} className="p-2 hover:bg-muted/50 rounded-lg transition-colors touch-target">
-                <Phone className="w-5 h-5 text-primary" />
+            </button>
+            <div className="flex items-center gap-0.5 shrink-0">
+              <button onClick={startCall} className="p-2 hover:bg-muted/50 rounded-lg transition-colors touch-target" title={t("call" as any)}>
+                <Phone className={`w-5 h-5 ${ghostMode ? "text-zinc-300" : "text-primary"}`} />
               </button>
               <button onClick={toggleBlock} className="p-2 hover:bg-muted/50 rounded-lg transition-colors touch-target">
                 {isBlocked ? <ShieldCheck className="w-5 h-5 text-destructive" /> : <ShieldBan className="w-5 h-5 text-muted-foreground" />}
               </button>
+              <button
+                onClick={() => setGhostMode(g => !g)}
+                title={t("ghostMode")}
+                className={`p-2 rounded-lg transition-all touch-target ${ghostMode
+                  ? "bg-zinc-700/60 text-zinc-100 shadow-[0_0_14px_rgba(200,200,210,0.45)]"
+                  : "hover:bg-muted/50 text-muted-foreground"}`}>
+                <Ghost className="w-5 h-5" />
+              </button>
             </div>
           </div>
-          {ghostMode && <p className="text-[10px] text-muted-foreground mt-2 text-center">{t("ghostHint")}</p>}
+          {ghostMode && <p className="text-[10px] text-zinc-500 mt-1.5 text-center">{t("ghostHint")}</p>}
         </GlassCard>
 
-        <div className={`flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar ${ghostMode ? "bg-black" : ""}`}>
+        <div className={`flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar ${ghostMode ? "bg-zinc-900" : ""}`}>
           {loading ? (
             <div className="text-center py-12">
               <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
@@ -541,31 +546,39 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
           ) : (
             visibleMessages.map(msg => {
               const isGhostFading = ghostMode && ghostHiddenIds.has(msg.id);
+              const isMine = msg.sender_id === user?.id;
+              const isHighlighted = highlightedMsgId === msg.id;
+              const bubbleBase = ghostMode
+                ? (isMine ? "bg-zinc-700/70 border-zinc-600/60" : "bg-zinc-800/80 border-zinc-700/60")
+                : (isMine ? "bg-primary/20 border-primary/30" : "");
               return (
               <div key={msg.id}
-                className={`flex group ${msg.sender_id === user?.id ? "justify-end" : "justify-start"} transition-opacity duration-700 ${isGhostFading ? "opacity-0 pointer-events-none h-0 overflow-hidden" : "opacity-100"}`}>
+                ref={(el) => { if (el) messageRefs.current.set(msg.id, el); else messageRefs.current.delete(msg.id); }}
+                className={`flex group ${isMine ? "justify-end" : "justify-start"} transition-all duration-700 ${isGhostFading ? "opacity-0 pointer-events-none h-0 overflow-hidden" : "opacity-100"} ${isHighlighted ? "scale-[1.02]" : ""}`}>
                 <div className="flex items-start gap-1 max-w-[80%]">
-                  <GlassCard className={`p-3 ${msg.sender_id === user?.id ? (ghostMode ? "bg-primary/30 border-primary/40" : "bg-primary/20 border-primary/30") : (ghostMode ? "bg-white/5 border-white/10" : "")}`}>
+                  <GlassCard className={`p-3 transition-shadow duration-500 ${bubbleBase} ${isHighlighted ? (ghostMode ? "shadow-[0_0_22px_rgba(200,200,210,0.55)] ring-1 ring-zinc-300/40" : "shadow-[0_0_22px_rgba(127,90,240,0.6)] ring-1 ring-primary/50") : ""}`}>
                     {msg.forwarded_from && (
-                      <p className="text-xs text-primary/70 mb-1 flex items-center gap-1">
-                        <Forward className="w-3 h-3" /> Переслано от {msg.forwarded_from}
+                      <p className={`text-xs mb-1 flex items-center gap-1 ${ghostMode ? "text-zinc-400" : "text-primary/70"}`}>
+                        <Forward className="w-3 h-3" /> {t("forwardedFromShort")} {msg.forwarded_from}
                       </p>
                     )}
                     {msg.reply_to_id && (
-                      <div className="mb-2 pl-2 border-l-2 border-primary/50 text-xs text-muted-foreground">
-                        {getReplyPreview(msg.reply_to_id) || "Сообщение"}
-                      </div>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); scrollToMessage(msg.reply_to_id!); }}
+                        className={`block w-full text-left mb-2 pl-2 border-l-2 text-xs hover:bg-muted/20 rounded-r transition-colors ${ghostMode ? "border-zinc-400/60 text-zinc-400" : "border-primary/50 text-muted-foreground"}`}>
+                        {getReplyPreview(msg.reply_to_id) || t("message")}
+                      </button>
                     )}
                     {msg.media_url && renderMedia(msg.media_url)}
-                    {msg.content && msg.content !== "📎 Медиа" && msg.content !== "🎤 Голосовое сообщение" && msg.content !== "🎥 Видео-кружок" && (
+                    {msg.content && msg.content !== t("media") && !msg.content.startsWith("🎤") && !msg.content.startsWith("🎥") && (
                       <p className="text-sm break-words">{msg.content}</p>
                     )}
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {formatDistanceToNow(new Date(msg.created_at), { addSuffix: true, locale: ru })}
+                    <p className={`text-xs mt-1 ${ghostMode ? "text-zinc-500" : "text-muted-foreground"}`}>
+                      {formatDistanceToNow(new Date(msg.created_at), { addSuffix: true, locale: lang === "ru" ? ru : enUS })}
                     </p>
                   </GlassCard>
                   <MessageContextMenu
-                    messageId={msg.id} messageType="dm" isSender={msg.sender_id === user?.id}
+                    messageId={msg.id} messageType="dm" isSender={isMine}
                     messageContent={msg.content}
                     onDeleted={() => setMessages(prev => prev.filter(m => m.id !== msg.id))}
                     onHidden={() => setHiddenIds(prev => new Set([...prev, msg.id]))}
@@ -583,20 +596,20 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
           {partnerTyping && (
             <div className="flex items-center gap-2 px-2 py-1">
               <div className="flex gap-1.5">
-                <div className="w-2 h-2 rounded-full bg-primary typing-dot" />
-                <div className="w-2 h-2 rounded-full bg-primary typing-dot" />
-                <div className="w-2 h-2 rounded-full bg-primary typing-dot" />
+                <div className={`w-2 h-2 rounded-full typing-dot ${ghostMode ? "bg-zinc-400" : "bg-primary"}`} />
+                <div className={`w-2 h-2 rounded-full typing-dot ${ghostMode ? "bg-zinc-400" : "bg-primary"}`} />
+                <div className={`w-2 h-2 rounded-full typing-dot ${ghostMode ? "bg-zinc-400" : "bg-primary"}`} />
               </div>
-              <span className="text-xs text-muted-foreground">печатает...</span>
+              <span className={`text-xs ${ghostMode ? "text-zinc-400" : "text-muted-foreground"}`}>{t("typingShort")}</span>
             </div>
           )}
           <div ref={messagesEndRef} />
         </div>
 
         {replyTo && (
-          <div className="px-4 py-2 border-t border-border bg-muted/30 flex items-center gap-2">
-            <div className="flex-1 pl-2 border-l-2 border-primary">
-              <p className="text-xs text-primary font-medium">Ответ</p>
+          <div className={`px-4 py-2 border-t flex items-center gap-2 ${ghostMode ? "border-zinc-700 bg-zinc-800/60" : "border-border bg-muted/30"}`}>
+            <div className={`flex-1 pl-2 border-l-2 ${ghostMode ? "border-zinc-400" : "border-primary"}`}>
+              <p className={`text-xs font-medium ${ghostMode ? "text-zinc-300" : "text-primary"}`}>{t("replyTo")}</p>
               <p className="text-xs text-muted-foreground truncate">{replyTo.content}</p>
             </div>
             <button onClick={() => setReplyTo(null)} className="p-1 hover:bg-muted/50 rounded">
@@ -604,6 +617,7 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
             </button>
           </div>
         )}
+
 
         <div className="p-4 glass-card rounded-none border-x-0 border-b-0 ipad-input">
           <div className="flex items-end gap-2">
