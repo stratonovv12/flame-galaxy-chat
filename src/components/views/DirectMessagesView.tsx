@@ -67,6 +67,8 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
   const [partnerTyping, setPartnerTyping] = useState(false);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messageRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+  const [highlightedMsgId, setHighlightedMsgId] = useState<string | null>(null);
   const { pendingUploads, startUpload, cancelUpload } = useMediaUpload();
 
   // Call state
@@ -214,7 +216,7 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
       status: "ringing",
     }).select().single();
     if (error) {
-      toast({ title: "Ошибка", description: "Не удалось начать вызов", variant: "destructive" });
+      toast({ title: t("error"), description: t("callFailed"), variant: "destructive" });
       return;
     }
     setActiveCallId(data.id);
@@ -227,7 +229,7 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
         // Insert missed call message
         await supabase.from("direct_messages").insert({
           sender_id: user.id, receiver_id: activeChat.id,
-          content: "📞 Пропущенный вызов",
+          content: `📞 ${t("missedCall")}`,
         });
       }
     }, 30000);
@@ -287,10 +289,10 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
     if (!user || !activeChat) return;
     if (isBlocked) {
       await supabase.from("blocked_users").delete().eq("blocker_id", user.id).eq("blocked_id", activeChat.id);
-      toast({ title: "Пользователь разблокирован" });
+      toast({ title: t("userUnblocked") });
     } else {
       await supabase.from("blocked_users").insert({ blocker_id: user.id, blocked_id: activeChat.id });
-      toast({ title: "Пользователь заблокирован" });
+      toast({ title: t("userBlockedAction") });
     }
     setIsBlocked(!isBlocked);
   };
@@ -360,18 +362,18 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
   const sendMessage = async () => {
     if ((!newMessage.trim() && !mediaUrl) || !activeChat || !user) return;
     if (blockedByThem) {
-      toast({ title: "Ошибка", description: "Вы заблокированы этим пользователем", variant: "destructive" });
+      toast({ title: t("error"), description: t("blocked"), variant: "destructive" });
       return;
     }
     const { error } = await supabase.from("direct_messages").insert({
       sender_id: user.id,
       receiver_id: activeChat.id,
-      content: newMessage.trim() || (mediaUrl ? "📎 Медиа" : ""),
+      content: newMessage.trim() || (mediaUrl ? t("media") : ""),
       media_url: mediaUrl || null,
       reply_to_id: replyTo?.id || null,
     });
     if (error) {
-      toast({ title: "Ошибка", description: "Не удалось отправить", variant: "destructive" });
+      toast({ title: t("error"), description: t("sendFailed"), variant: "destructive" });
     } else {
       setNewMessage(""); setMediaUrl(""); setReplyTo(null);
     }
@@ -394,10 +396,18 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
       receiver_id: targetUserId,
       content: forwardMsg.content,
       media_url: forwardMsg.media_url,
-      forwarded_from: forwardMsg.sender_id === user.id ? "Вы" : (activeChat?.username || "Пользователь"),
+      forwarded_from: forwardMsg.sender_id === user.id ? t("user") : (activeChat?.username || t("user")),
     });
-    toast({ title: "Сообщение переслано" });
+    toast({ title: t("forwarded") });
     setForwardMsg(null);
+  };
+
+  const scrollToMessage = (id: string) => {
+    const el = messageRefs.current.get(id);
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    setHighlightedMsgId(id);
+    setTimeout(() => setHighlightedMsgId(prev => (prev === id ? null : prev)), 1800);
   };
 
   const closeChat = () => {
@@ -451,22 +461,22 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
             <button onClick={() => setForwardMsg(null)} className="p-2 hover:bg-muted/50 rounded-lg touch-target">
               <ArrowLeft className="w-5 h-5" />
             </button>
-            <h2 className="font-semibold">Переслать сообщение</h2>
+            <h2 className="font-semibold">{t("forwardMessageTitle")}</h2>
           </div>
         </GlassCard>
         <div className="p-4 mb-2">
           <GlassCard className="p-3 bg-muted/30">
-            <p className="text-xs text-muted-foreground mb-1">Сообщение:</p>
+            <p className="text-xs text-muted-foreground mb-1">{t("messageLabel")}</p>
             <p className="text-sm">{forwardMsg.content}</p>
           </GlassCard>
         </div>
         <div className="flex-1 overflow-y-auto p-4 space-y-2">
-          <p className="text-sm text-muted-foreground mb-2">Выберите чат:</p>
+          <p className="text-sm text-muted-foreground mb-2">{t("pickChat")}</p>
           {conversations.map(conv => (
             <GlassCard key={conv.partnerId} className="p-3 cursor-pointer hover:border-primary/50 transition-colors" onClick={() => forwardMessage(conv.partnerId)}>
               <div className="flex items-center gap-3">
                 <UserAvatar username={conv.partnerUsername} avatarUrl={conv.partnerAvatarUrl} size="sm" />
-                <span className="font-medium text-sm">{conv.partnerUsername || "Пользователь"}</span>
+                <span className="font-medium text-sm">{conv.partnerUsername || t("user")}</span>
                 <Forward className="w-4 h-4 ml-auto text-primary" />
               </div>
             </GlassCard>
