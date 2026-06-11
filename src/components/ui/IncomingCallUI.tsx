@@ -28,8 +28,8 @@ export function IncomingCallUI({ callerUsername, callerAvatarUrl, onAccept, onRe
         <div className="animate-pulse">
           <UserAvatar username={callerUsername} avatarUrl={callerAvatarUrl} size="xl" className="neon-glow" />
         </div>
-        <h2 className="text-xl font-bold">{callerUsername || "Пользователь"}</h2>
-        <p className="text-sm text-muted-foreground animate-pulse">Входящий вызов...</p>
+        <h2 className="text-xl font-bold">{callerUsername || "User"}</h2>
+        <p className="text-sm text-muted-foreground animate-pulse">Incoming call...</p>
       </div>
 
       <div className="flex items-center gap-12 mt-16">

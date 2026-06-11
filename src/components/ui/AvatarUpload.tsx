@@ -24,12 +24,12 @@ export function AvatarUpload({ onUpload, currentUrl, folder, className }: Avatar
     if (!file || !user) return;
 
     if (!file.type.startsWith("image/")) {
-      toast({ title: "Ошибка", description: "Пожалуйста, выберите изображение", variant: "destructive" });
+      toast({ title: "Error", description: "Please select an image", variant: "destructive" });
       return;
     }
 
     if (file.size > 5 * 1024 * 1024) {
-      toast({ title: "Ошибка", description: "Размер файла не должен превышать 5MB", variant: "destructive" });
+      toast({ title: "Error", description: "Max file size is 5MB", variant: "destructive" });
       return;
     }
 
@@ -55,10 +55,10 @@ export function AvatarUpload({ onUpload, currentUrl, folder, className }: Avatar
         .getPublicUrl(filePath);
 
       onUpload(publicUrlData.publicUrl);
-      toast({ title: "Готово!", description: "Фото успешно загружено" });
+      toast({ title: "Done!", description: "Photo uploaded" });
     } catch (error: any) {
       console.error("Upload error:", error);
-      toast({ title: "Ошибка загрузки", description: error.message || "Не удалось загрузить изображение", variant: "destructive" });
+      toast({ title: "Upload error", description: error.message || "Failed to upload image", variant: "destructive" });
       setPreview(currentUrl || null);
     } finally {
       setUploading(false);

@@ -42,9 +42,9 @@ export function CallUI({ partnerUsername, partnerAvatarUrl, onEnd, isActive = fa
         <div className={`${!connected ? "animate-pulse" : ""}`}>
           <UserAvatar username={partnerUsername} avatarUrl={partnerAvatarUrl} size="xl" className="neon-glow" />
         </div>
-        <h2 className="text-xl font-bold">{partnerUsername || "Пользователь"}</h2>
+        <h2 className="text-xl font-bold">{partnerUsername || "User"}</h2>
         <p className="text-sm text-muted-foreground">
-          {connected ? formatTime(elapsed) : "Вызов..."}
+          {connected ? formatTime(elapsed) : "Calling..."}
         </p>
       </div>
 
