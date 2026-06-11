@@ -19,7 +19,7 @@ import { useMediaUpload } from "@/hooks/useMediaUpload";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { MessageCircle, Send, ArrowLeft, Phone, ShieldBan, ShieldCheck, X, Forward, Ghost } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
-import { ru } from "date-fns/locale";
+import { ru, enUS } from "date-fns/locale";
 import { toast } from "@/hooks/use-toast";
 import { playNotificationSound, showBrowserNotification, requestNotificationPermission, setActiveChatPartner } from "@/lib/notifications";
 
@@ -51,7 +51,7 @@ interface DirectMessagesViewProps {
 
 export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onViewProfile }: DirectMessagesViewProps) {
   const { user } = useAuth();
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeChat, setActiveChat] = useState<{ id: string; username: string | null; avatarUrl: string | null } | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
