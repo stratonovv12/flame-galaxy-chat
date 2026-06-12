@@ -82,11 +82,11 @@ export function MiniAppsView({ open, onOpenChange }: Props) {
     };
     if (editing.id) {
       const { error } = await supabase.from("mini_apps").update(payload).eq("id", editing.id);
-      if (error) toast({ title: t("error"), description: error.message.includes("duplicate") ? t("handleAlreadyTaken") : error.message, variant: "destructive" });
+      if (error) toast({ title: t("error"), description: error.message.includes("duplicate") ? t("handleTaken") : error.message, variant: "destructive" });
       else { toast({ title: t("appUpdated") }); setEditing(null); load(); }
     } else {
       const { error } = await supabase.from("mini_apps").insert(payload);
-      if (error) toast({ title: t("error"), description: error.message.includes("duplicate") ? t("handleAlreadyTaken") : error.message, variant: "destructive" });
+      if (error) toast({ title: t("error"), description: error.message.includes("duplicate") ? t("handleTaken") : error.message, variant: "destructive" });
       else { toast({ title: t("appCreated") }); setEditing(null); load(); }
     }
     setLoading(false);
