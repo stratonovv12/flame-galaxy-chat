@@ -66,14 +66,14 @@ const Index = () => {
   const bottomTab: BottomTab = (activeTab === "profile" || activeTab === "search") ? "feed" : activeTab as BottomTab;
 
   return (
-    <div className="min-h-screen cosmic-bg flex flex-col">
+    <div className="h-screen cosmic-bg flex flex-col overflow-hidden">
       <TopBar
         searchQuery={searchQuery}
         onSearchChange={(q) => { setSearchQuery(q); if (q.trim()) setActiveTab("search"); }}
         onOpenSearch={() => { setViewingProfileUserId(null); setActiveTab("search"); }}
         onOpenProfile={() => { setViewingProfileUserId(null); setActiveTab("profile"); }}
       />
-      <main className="flex-1 pt-[72px] pb-[80px] overflow-hidden">
+      <main className="flex-1 pt-[64px] min-h-0 overflow-hidden">
         <div className="h-full overflow-y-auto custom-scrollbar">{renderView()}</div>
       </main>
       <BottomNav

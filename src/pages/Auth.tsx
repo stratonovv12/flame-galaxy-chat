@@ -68,9 +68,17 @@ const Auth = () => {
             toast({ title: t("error"), description: error.message, variant: "destructive" });
           }
         } else {
-          toast({ title: t("registerSuccess"), description: t("checkEmailToConfirm") });
-          setIsLogin(true);
+          // Auto-confirm is enabled: try to sign in immediately
+          const { error: signInError } = await signIn(email, password);
+          if (signInError) {
+            toast({ title: t("registerSuccess"), description: "" });
+            setIsLogin(true);
+          } else {
+            toast({ title: t("registerSuccess") });
+            navigate("/");
+          }
         }
+
       }
     } finally {
       setLoading(false);

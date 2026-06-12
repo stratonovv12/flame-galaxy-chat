@@ -382,6 +382,48 @@ export type Database = {
         }
         Relationships: []
       }
+      mini_apps: {
+        Row: {
+          app_type: string
+          content: string
+          created_at: string
+          creator_id: string
+          description: string | null
+          handle: string
+          icon: string | null
+          id: string
+          name: string
+          published: boolean
+          updated_at: string
+        }
+        Insert: {
+          app_type?: string
+          content?: string
+          created_at?: string
+          creator_id: string
+          description?: string | null
+          handle: string
+          icon?: string | null
+          id?: string
+          name: string
+          published?: boolean
+          updated_at?: string
+        }
+        Update: {
+          app_type?: string
+          content?: string
+          created_at?: string
+          creator_id?: string
+          description?: string | null
+          handle?: string
+          icon?: string | null
+          id?: string
+          name?: string
+          published?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null

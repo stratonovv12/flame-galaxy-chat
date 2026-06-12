@@ -6,9 +6,11 @@ import { GlassCard } from "@/components/ui/GlassCard";
 import { FlameButton } from "@/components/ui/FlameButton";
 import { FlameInput } from "@/components/ui/FlameInput";
 import { Progress } from "@/components/ui/progress";
-import { Sparkles, Send, Bot, User, Trash2, Plus, Image, MessageSquare, Menu, X, Brain } from "lucide-react";
+import { Sparkles, Send, Bot, User, Trash2, Plus, Image, MessageSquare, Menu, X, Brain, Gamepad2, Boxes } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import ReactMarkdown from "react-markdown";
+import { MiniGames } from "@/components/ui/MiniGames";
+import { MiniAppsView } from "@/components/views/MiniAppsView";
 
 interface Message {
   id: string;
@@ -37,6 +39,8 @@ export function AIView() {
   const [activeTopic, setActiveTopic] = useState<Topic | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [attachedImage, setAttachedImage] = useState<string | null>(null);
+  const [gamesOpen, setGamesOpen] = useState(false);
+  const [appsOpen, setAppsOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -90,7 +94,7 @@ export function AIView() {
   const createNewTopic = async () => {
     if (!user) return;
     const { data } = await supabase
-      .from("ai_topics").insert({ user_id: user.id, title: "Новый чат" }).select().single();
+      .from("ai_topics").insert({ user_id: user.id, title: t("newChat") }).select().single();
     if (data) {
       setTopics(prev => [data, ...prev]);
       setActiveTopic(data);
@@ -116,7 +120,7 @@ export function AIView() {
     const file = e.target.files?.[0];
     if (!file) return;
     if (!file.type.startsWith("image/")) {
-      toast({ title: "Error", description: "Images only", variant: "destructive" });
+      toast({ title: t("error"), description: t("onlyImages"), variant: "destructive" });
       return;
     }
     const reader = new FileReader();
@@ -130,12 +134,12 @@ export function AIView() {
     let topic = activeTopic;
     if (!topic && user) {
       const { data } = await supabase
-        .from("ai_topics").insert({ user_id: user.id, title: input.trim().slice(0, 50) || "Новый чат" }).select().single();
+        .from("ai_topics").insert({ user_id: user.id, title: input.trim().slice(0, 50) || t("newChat") }).select().single();
       if (data) { topic = data; setTopics(prev => [data, ...prev]); setActiveTopic(data); }
     }
     if (!topic) return;
 
-    const userContent = input.trim() || (attachedImage ? "📷 Изображение" : "");
+    const userContent = input.trim() || (attachedImage ? t("attachedImage") : "");
     const tempUserId = Date.now().toString();
     const userMessage: Message = { id: tempUserId, role: "user", content: userContent, imageUrl: attachedImage || undefined };
 
@@ -161,7 +165,7 @@ export function AIView() {
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.access_token) throw new Error("Необходимо войти в аккаунт");
+      if (!session?.access_token) throw new Error(t("mustSignIn"));
 
       if (isImgGen) {
         const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/flame-ai`, {
@@ -176,10 +180,10 @@ export function AIView() {
             mode: "image_gen",
           }),
         });
-        if (!response.ok) throw new Error("Ошибка генерации");
+        if (!response.ok) throw new Error(t("imageGenError"));
         const result = await response.json();
         setImageProgress(100);
-        const assistantContent = result.text || "Вот сгенерированное изображение:";
+        const assistantContent = result.text || t("generatedImage");
         setMessages(prev => prev.map(m => m.id === tempAssistantId ? { ...m, content: assistantContent, imageUrl: result.imageUrl } : m));
         await saveMessage("assistant", assistantContent + (result.imageUrl ? `\n![image](${result.imageUrl})` : ""), topic.id);
       } else {
@@ -195,9 +199,9 @@ export function AIView() {
           body: JSON.stringify(body),
         });
         if (!response.ok) {
-          if (response.status === 429) throw new Error("Превышен лимит запросов");
-          if (response.status === 402) throw new Error("Закончились кредиты AI");
-          throw new Error("Ошибка сервера");
+          if (response.status === 429) throw new Error(t("rateLimitExceeded"));
+          if (response.status === 402) throw new Error(t("aiCreditsExhausted"));
+          throw new Error(t("serverError"));
         }
         const reader = response.body?.getReader();
         if (!reader) throw new Error("No response body");
@@ -233,7 +237,7 @@ export function AIView() {
         if (assistantContent) await saveMessage("assistant", assistantContent, topic.id);
       }
     } catch (error) {
-      toast({ title: "AI Error", description: error instanceof Error ? error.message : "Unknown error", variant: "destructive" });
+      toast({ title: t("aiError"), description: error instanceof Error ? error.message : t("unknownError"), variant: "destructive" });
       setMessages(prev => prev.filter(m => m.id !== tempAssistantId));
     } finally {
       setIsLoading(false);
@@ -309,12 +313,20 @@ export function AIView() {
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center neon-glow-sm">
               <Sparkles className="w-5 h-5 text-primary-foreground" />
             </div>
-            <div className="flex-1">
+            <div className="flex-1 min-w-0">
               <h2 className="font-bold text-lg">FLAME AI</h2>
               <p className="text-xs text-muted-foreground truncate">
-                {activeTopic?.title || "Ваш умный помощник"}
+                {activeTopic?.title || t("yourSmartAssistant")}
               </p>
             </div>
+            <button onClick={() => setGamesOpen(true)} title={t("miniGames")}
+              className="p-2 rounded-lg bg-primary/15 hover:bg-primary/25 border border-primary/30 text-primary touch-target transition-colors">
+              <Gamepad2 className="w-5 h-5" />
+            </button>
+            <button onClick={() => setAppsOpen(true)} title={t("miniApps")}
+              className="p-2 rounded-lg bg-accent/15 hover:bg-accent/25 border border-accent/30 text-accent touch-target transition-colors">
+              <Boxes className="w-5 h-5" />
+            </button>
           </div>
         </GlassCard>
 
@@ -334,7 +346,7 @@ export function AIView() {
                 {t("aiHint")}
               </p>
               <div className="flex flex-wrap gap-2 justify-center max-w-md mx-auto">
-                {["📷 Анализ фото", "🎨 Нарисуй картинку", "💡 Помоги с задачей"].map(hint => (
+                {[t("analyzePhoto"), t("drawPicture"), t("helpWithTask")].map(hint => (
                   <button key={hint} onClick={() => setInput(hint)} className="px-3 py-1.5 rounded-full text-xs bg-muted/50 hover:bg-primary/20 transition-colors border border-border">
                     {hint}
                   </button>
@@ -411,8 +423,8 @@ export function AIView() {
             </button>
             <button
               onClick={() => {
-                const prefix = "Generate image: ";
-                if (!input.toLowerCase().startsWith("generate")) setInput(prefix + input);
+                const prefix = t("generateImagePrefix");
+                if (!input.toLowerCase().startsWith("generate") && !input.toLowerCase().startsWith("сгенер")) setInput(prefix + input);
                 setTimeout(() => sendMessage(), 0);
               }}
               disabled={isLoading || !input.trim()}
@@ -436,6 +448,8 @@ export function AIView() {
       </div>
 
       {sidebarOpen && <div className="absolute inset-0 z-20 bg-background/50" onClick={() => setSidebarOpen(false)} />}
+      <MiniGames open={gamesOpen} onOpenChange={setGamesOpen} />
+      <MiniAppsView open={appsOpen} onOpenChange={setAppsOpen} />
     </div>
   );
 }
