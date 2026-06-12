@@ -494,7 +494,7 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
 
     return (
       <div className={`flex flex-col h-full transition-colors duration-300 ${ghostShell}`}>
-        <GlassCard className={`rounded-none border-x-0 border-t-0 p-3 sticky top-0 z-30 shrink-0 backdrop-blur-xl ${ghostMode ? "bg-zinc-950/95 border-zinc-700/60 shadow-[0_0_18px_rgba(180,180,200,0.18)]" : "bg-background/85"}`}>
+        <GlassCard className={`rounded-none border-x-0 border-t-0 p-3 shrink-0 ${ghostMode ? "bg-zinc-950/95 border-zinc-700/60 shadow-[0_0_18px_rgba(180,180,200,0.18)]" : "bg-background/85"}`}>
           <div className="flex items-center gap-2">
             <button onClick={closeChat} className="p-2 hover:bg-muted/50 rounded-lg transition-colors touch-target shrink-0">
               <ArrowLeft className="w-5 h-5" />

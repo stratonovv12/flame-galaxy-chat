@@ -47,7 +47,7 @@ export function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
   };
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 glass-card rounded-none border-t border-border/50 pb-safe">
+    <nav className="shrink-0 glass-card rounded-none border-t border-border/50 pb-safe">
       <div className="flex items-stretch justify-around">
         {tabs.map(tab => {
           const Icon = tab.icon;
