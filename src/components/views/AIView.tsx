@@ -423,8 +423,8 @@ export function AIView() {
             </button>
             <button
               onClick={() => {
-                const prefix = "Generate image: ";
-                if (!input.toLowerCase().startsWith("generate")) setInput(prefix + input);
+                const prefix = t("generateImagePrefix");
+                if (!input.toLowerCase().startsWith("generate") && !input.toLowerCase().startsWith("сгенер")) setInput(prefix + input);
                 setTimeout(() => sendMessage(), 0);
               }}
               disabled={isLoading || !input.trim()}
@@ -448,6 +448,8 @@ export function AIView() {
       </div>
 
       {sidebarOpen && <div className="absolute inset-0 z-20 bg-background/50" onClick={() => setSidebarOpen(false)} />}
+      <MiniGames open={gamesOpen} onOpenChange={setGamesOpen} />
+      <MiniAppsView open={appsOpen} onOpenChange={setAppsOpen} />
     </div>
   );
 }
