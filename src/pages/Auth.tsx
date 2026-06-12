@@ -77,10 +77,8 @@ const Auth = () => {
             toast({ title: t("registerSuccess") });
             navigate("/");
           }
-        } else {
-          toast({ title: t("registerSuccess"), description: t("checkEmailToConfirm") });
-          setIsLogin(true);
         }
+
       }
     } finally {
       setLoading(false);
