@@ -57,7 +57,9 @@ const Auth = () => {
             toast({ title: t("error"), description: error.message, variant: "destructive" });
           }
         } else {
-          navigate("/");
+          const redirect = sessionStorage.getItem("flame_post_redirect");
+          sessionStorage.removeItem("flame_post_redirect");
+          navigate(redirect || "/");
         }
       } else {
         const { error } = await signUp(email, password);
@@ -75,7 +77,9 @@ const Auth = () => {
             setIsLogin(true);
           } else {
             toast({ title: t("registerSuccess") });
-            navigate("/");
+            const redirect = sessionStorage.getItem("flame_post_redirect");
+            sessionStorage.removeItem("flame_post_redirect");
+            navigate(redirect || "/");
           }
         }
 
