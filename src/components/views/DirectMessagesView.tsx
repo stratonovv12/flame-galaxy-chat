@@ -639,7 +639,24 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
           {ghostMode && <p className="text-[10px] text-zinc-500 mt-1.5 text-center">{t("ghostHint")}</p>}
         </GlassCard>
 
-        <div className={`flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar ${ghostMode ? "bg-zinc-900" : ""}`}>
+        {/* Pinned messages bar (max 2) */}
+        {pinned.length > 0 && (
+          <div className={`px-3 py-2 border-b shrink-0 space-y-1 ${ghostMode ? "bg-zinc-900/80 border-zinc-700/60" : "bg-muted/30 border-border"}`}>
+            {pinned.map(p => p.message && (
+              <div key={p.id} className="flex items-center gap-2">
+                <Pin className={`w-3.5 h-3.5 shrink-0 ${ghostMode ? "text-zinc-300" : "text-primary"}`} />
+                <button onClick={() => scrollToMessage(p.message_id)} className="flex-1 text-left text-xs truncate hover:underline">
+                  {p.message.content || (p.message.media_url ? t("media") : "")}
+                </button>
+                <button onClick={() => unpinMessage(p.id)} className="p-1 hover:bg-muted/50 rounded">
+                  <PinOff className="w-3.5 h-3.5 text-muted-foreground" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div ref={messagesContainerRef} onScroll={handleScroll} className={`flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar relative ${ghostMode ? "bg-zinc-900" : ""}`}>
           {loading ? (
             <div className="text-center py-12">
               <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
