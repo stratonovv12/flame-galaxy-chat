@@ -517,7 +517,7 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
   };
 
   const closeChat = () => {
-    setActiveChat(null); setMessages([]); setHiddenIds(new Set()); setReplyTo(null); onClearSelectedUser?.();
+    setActiveChat(null); setMessages([]); setHiddenIds(new Set()); setReplyTo(null); setPinned([]); setUnreadIncoming(0); onClearSelectedUser?.();
   };
 
   const getReplyPreview = (replyId: string) => {
