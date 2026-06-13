@@ -696,17 +696,31 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
                     {msg.content && msg.content !== t("media") && !msg.content.startsWith("🎤") && !msg.content.startsWith("🎥") && (
                       <p className="text-sm break-words">{msg.content}</p>
                     )}
-                    <p className={`text-xs mt-1 ${ghostMode ? "text-zinc-500" : "text-muted-foreground"}`}>
-                      {formatDistanceToNow(new Date(msg.created_at), { addSuffix: true, locale: lang === "ru" ? ru : enUS })}
-                    </p>
+                    <div className="flex items-center justify-end gap-1 mt-1">
+                      <p className={`text-xs ${ghostMode ? "text-zinc-500" : "text-muted-foreground"}`}>
+                        {formatDistanceToNow(new Date(msg.created_at), { addSuffix: true, locale: lang === "ru" ? ru : enUS })}
+                      </p>
+                      {isMine && (
+                        <Flame
+                          className={`w-3 h-3 ${msg.read_at ? "text-primary fill-primary/30" : "text-muted-foreground/70 fill-muted-foreground/10"}`}
+                          aria-label={msg.read_at ? "read" : "delivered"}
+                        />
+                      )}
+                    </div>
                   </GlassCard>
                   <MessageContextMenu
                     messageId={msg.id} messageType="dm" isSender={isMine}
                     messageContent={msg.content}
+                    isPinned={pinned.some(p => p.message_id === msg.id)}
                     onDeleted={() => setMessages(prev => prev.filter(m => m.id !== msg.id))}
                     onHidden={() => setHiddenIds(prev => new Set([...prev, msg.id]))}
                     onReply={() => setReplyTo(msg)}
                     onForward={() => setForwardMsg(msg)}
+                    onPin={() => pinMessage(msg)}
+                    onUnpin={() => {
+                      const p = pinned.find(pp => pp.message_id === msg.id);
+                      if (p) unpinMessage(p.id);
+                    }}
                   />
                 </div>
               </div>
