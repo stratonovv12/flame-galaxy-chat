@@ -7,7 +7,7 @@ import { FlameButton } from "@/components/ui/FlameButton";
 import { FlameInput } from "@/components/ui/FlameInput";
 import { UserAvatar } from "@/components/ui/UserAvatar";
 import { UserBadge } from "@/components/ui/UserBadge";
-import { Heart, MessageCircle, Trash2, Plus, Image as ImageIcon, Video as VideoIcon, X, Filter, Send } from "lucide-react";
+import { Heart, MessageCircle, Trash2, Plus, Image as ImageIcon, Video as VideoIcon, X, Filter, Send, Share2, Repeat2 } from "lucide-react";
 import { FlameMoments } from "@/components/ui/FlameMoments";
 import { formatDistanceToNow } from "date-fns";
 import { ru, enUS } from "date-fns/locale";
@@ -381,12 +381,47 @@ export function FeedPostCard({ post, onAuthorClick, onChanged, onOpenComments }:
           ? <video src={post.media_url} controls playsInline className="w-full max-h-[480px] rounded-lg bg-black mb-3" />
           : <img src={post.media_url} alt="" className="w-full max-h-[480px] object-cover rounded-lg mb-3" />
       )}
-      <div className="flex items-center gap-6 text-sm">
+      <div className="flex items-center gap-5 text-sm flex-wrap">
         <button onClick={toggleLike} className={`flex items-center gap-1 transition-colors ${post.liked_by_me ? "text-red-400" : "text-muted-foreground hover:text-red-400"}`}>
           <Heart className={`w-4 h-4 ${post.liked_by_me ? "fill-current" : ""}`} /> {post.likes_count}
         </button>
         <button onClick={onOpenComments} className="flex items-center gap-1 text-muted-foreground hover:text-primary">
           <MessageCircle className="w-4 h-4" /> {post.comments_count}
+        </button>
+        <button
+          onClick={async () => {
+            if (!user) return;
+            const { error } = await supabase.from("feed_posts").insert({
+              author_id: user.id,
+              content: null,
+              media_url: post.media_url,
+              media_type: post.media_type,
+              repost_of: post.id,
+            } as any);
+            if (error) toast({ title: t("error"), description: error.message, variant: "destructive" });
+            else { toast({ title: t("reposted" as any) || "Reposted" }); onChanged?.(); }
+          }}
+          className="flex items-center gap-1 text-muted-foreground hover:text-primary"
+          title={t("repost" as any) || "Repost"}
+        >
+          <Repeat2 className="w-4 h-4" />
+        </button>
+        <button
+          onClick={async () => {
+            const link = `${window.location.origin}/p/${post.id}`;
+            try {
+              if (navigator.share) {
+                await navigator.share({ title: t("flame" as any) || "Flame", text: post.content || "", url: link });
+              } else {
+                await navigator.clipboard.writeText(link);
+                toast({ title: t("linkCopied" as any) || "Link copied" });
+              }
+            } catch {}
+          }}
+          className="flex items-center gap-1 text-muted-foreground hover:text-primary ml-auto"
+          title={t("share" as any) || "Share"}
+        >
+          <Share2 className="w-4 h-4" />
         </button>
       </div>
     </GlassCard>

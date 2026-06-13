@@ -17,11 +17,12 @@ import { IncomingCallUI } from "@/components/ui/IncomingCallUI";
 import { OnlineIndicator } from "@/components/ui/OnlineIndicator";
 import { useMediaUpload } from "@/hooks/useMediaUpload";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
-import { MessageCircle, Send, ArrowLeft, Phone, ShieldBan, ShieldCheck, X, Forward, Ghost } from "lucide-react";
+import { MessageCircle, Send, ArrowLeft, Phone, ShieldBan, ShieldCheck, X, Forward, Ghost, ChevronDown, Pin, PinOff, Flame } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ru, enUS } from "date-fns/locale";
 import { toast } from "@/hooks/use-toast";
 import { playNotificationSound, showBrowserNotification, requestNotificationPermission, setActiveChatPartner } from "@/lib/notifications";
+import { sendPush } from "@/lib/push";
 
 interface Conversation {
   partnerId: string;
@@ -41,6 +42,13 @@ interface Message {
   created_at: string;
   reply_to_id: string | null;
   forwarded_from: string | null;
+  read_at?: string | null;
+}
+
+interface PinnedMessage {
+  id: string;
+  message_id: string;
+  message: Message | null;
 }
 
 interface DirectMessagesViewProps {
@@ -77,6 +85,14 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
   const [incomingCall, setIncomingCall] = useState<{ id: string; callerId: string; callerUsername: string | null; callerAvatarUrl: string | null } | null>(null);
 
   const partnerPresence = useOnlineStatus(activeChat?.id);
+
+  // Pinned messages (max 2 per chat)
+  const [pinned, setPinned] = useState<PinnedMessage[]>([]);
+
+  // Scroll behavior
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const [isAtBottom, setIsAtBottom] = useState(true);
+  const [unreadIncoming, setUnreadIncoming] = useState(0);
 
   // Ghost mode (per-chat ephemeral)
   const [ghostMode, setGhostMode] = useState(false);
@@ -158,6 +174,11 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
           fetchConversations();
           return;
         }
+        if (payload.eventType === "UPDATE") {
+          const upd = payload.new as Message;
+          setMessages(prev => prev.map(m => m.id === upd.id ? { ...m, ...upd } : m));
+          return;
+        }
         const newMsg = payload.new as Message;
         if (newMsg.sender_id === user.id || newMsg.receiver_id === user.id) {
           if (activeChat && (newMsg.sender_id === activeChat.id || newMsg.receiver_id === activeChat.id)) {
@@ -165,9 +186,11 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
               if (prev.some(m => m.id === newMsg.id)) return prev;
               return [...prev, newMsg];
             });
-            // Mark as read if it's incoming and chat is open
-            if (newMsg.sender_id !== user.id) {
+            // Mark as read only if it's incoming AND user is viewing bottom of chat
+            if (newMsg.sender_id !== user.id && isAtBottom) {
               supabase.from("direct_messages").update({ read_at: new Date().toISOString() }).eq("id", newMsg.id).then();
+            } else if (newMsg.sender_id !== user.id) {
+              setUnreadIncoming(c => c + 1);
             }
           }
           if (newMsg.sender_id !== user.id) {
@@ -179,9 +202,37 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [user, activeChat]);
+  }, [user, activeChat, isAtBottom]);
 
-  useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
+  // Smart auto-scroll: only when already at bottom
+  useEffect(() => {
+    if (isAtBottom) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+      if (unreadIncoming > 0) setUnreadIncoming(0);
+    }
+  }, [messages, isAtBottom]);
+
+  const handleScroll = () => {
+    const el = messagesContainerRef.current;
+    if (!el) return;
+    const distFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    const atBottom = distFromBottom < 80;
+    setIsAtBottom(atBottom);
+    if (atBottom && unreadIncoming > 0) {
+      setUnreadIncoming(0);
+      // Mark recent unread as read
+      if (user && activeChat) {
+        supabase.from("direct_messages").update({ read_at: new Date().toISOString() })
+          .eq("receiver_id", user.id).eq("sender_id", activeChat.id).is("read_at", null).then();
+      }
+    }
+  };
+
+  const scrollToLatest = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    setIsAtBottom(true);
+    setUnreadIncoming(0);
+  };
 
   // Typing indicator via broadcast
   useEffect(() => {
@@ -299,18 +350,26 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
 
   const fetchConversations = async () => {
     if (!user) return;
-    const { data: messagesData } = await supabase
-      .from("direct_messages").select("*")
-      .or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`)
-      .order("created_at", { ascending: false });
+    const [{ data: messagesData }, { data: deletedData }] = await Promise.all([
+      supabase.from("direct_messages").select("*")
+        .or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`)
+        .order("created_at", { ascending: false }),
+      supabase.from("deleted_conversations" as any).select("partner_id, deleted_at").eq("user_id", user.id),
+    ]);
+
+    const deletedMap = new Map<string, string>(
+      (deletedData as any[] || []).map((d: any) => [d.partner_id, d.deleted_at])
+    );
 
     const conversationsMap = new Map<string, { lastMessage: any; unreadCount: number }>();
     for (const msg of messagesData || []) {
       const partnerId = msg.sender_id === user.id ? msg.receiver_id : msg.sender_id;
+      // Skip messages older than user's chat deletion timestamp
+      const delAt = deletedMap.get(partnerId);
+      if (delAt && new Date(msg.created_at) <= new Date(delAt)) continue;
       if (!conversationsMap.has(partnerId)) {
         conversationsMap.set(partnerId, { lastMessage: msg, unreadCount: 0 });
       }
-      // Count unread from this partner
       if (msg.receiver_id === user.id && !msg.read_at) {
         const entry = conversationsMap.get(partnerId)!;
         entry.unreadCount++;
@@ -340,8 +399,11 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
     const { data: profile } = await supabase.from("profiles").select("user_id, username, avatar_url").eq("user_id", partnerId).maybeSingle();
     setActiveChat({ id: partnerId, username: profile?.username || null, avatarUrl: profile?.avatar_url || null });
     fetchMessages(partnerId);
-    // Mark all as read
+    fetchPinned(partnerId);
+    // Reopening a previously deleted chat clears the deletion marker
     if (user) {
+      await supabase.from("deleted_conversations" as any).delete()
+        .eq("user_id", user.id).eq("partner_id", partnerId);
       await supabase.from("direct_messages").update({ read_at: new Date().toISOString() })
         .eq("receiver_id", user.id).eq("sender_id", partnerId).is("read_at", null);
       fetchConversations();
@@ -357,6 +419,44 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
       .order("created_at", { ascending: true });
     setMessages(data || []);
     setLoading(false);
+    setIsAtBottom(true);
+    setUnreadIncoming(0);
+  };
+
+  const fetchPinned = async (partnerId: string) => {
+    if (!user) return;
+    const { data } = await supabase.from("pinned_messages" as any)
+      .select("id, message_id")
+      .eq("user_id", user.id).eq("partner_id", partnerId)
+      .order("created_at", { ascending: true }) as any;
+    const rows = (data || []) as any[];
+    if (rows.length === 0) { setPinned([]); return; }
+    const msgIds = rows.map(r => r.message_id);
+    const { data: msgs } = await supabase.from("direct_messages").select("*").in("id", msgIds);
+    const map = new Map((msgs || []).map(m => [m.id, m]));
+    setPinned(rows.map(r => ({ id: r.id, message_id: r.message_id, message: map.get(r.message_id) || null })));
+  };
+
+  const pinMessage = async (msg: Message) => {
+    if (!user || !activeChat) return;
+    if (pinned.length >= 2) {
+      toast({ title: t("pinLimitReached" as any) || "Maximum 2 pinned messages", variant: "destructive" });
+      return;
+    }
+    const { error } = await supabase.from("pinned_messages" as any)
+      .insert({ user_id: user.id, partner_id: activeChat.id, message_id: msg.id });
+    if (error) {
+      toast({ title: t("error"), description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: t("messagePinned" as any) || "Message pinned" });
+      fetchPinned(activeChat.id);
+    }
+  };
+
+  const unpinMessage = async (pinnedRowId: string) => {
+    if (!user || !activeChat) return;
+    await supabase.from("pinned_messages" as any).delete().eq("id", pinnedRowId);
+    fetchPinned(activeChat.id);
   };
 
   const sendMessage = async () => {
@@ -365,10 +465,11 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
       toast({ title: t("error"), description: t("blocked"), variant: "destructive" });
       return;
     }
+    const content = newMessage.trim() || (mediaUrl ? t("media") : "");
     const { error } = await supabase.from("direct_messages").insert({
       sender_id: user.id,
       receiver_id: activeChat.id,
-      content: newMessage.trim() || (mediaUrl ? t("media") : ""),
+      content,
       media_url: mediaUrl || null,
       reply_to_id: replyTo?.id || null,
     });
@@ -376,6 +477,10 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
       toast({ title: t("error"), description: t("sendFailed"), variant: "destructive" });
     } else {
       setNewMessage(""); setMediaUrl(""); setReplyTo(null);
+      // Fire push to receiver (best-effort)
+      sendPush(activeChat.id, t("newMessage" as any) || "New message", content, "/");
+      // Sender just sent -> jump to bottom
+      setIsAtBottom(true);
     }
   };
 
@@ -386,6 +491,7 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
         sender_id: user.id, receiver_id: activeChat.id,
         content: `🎤 ${t("voiceMessage")}`, media_url: url,
       });
+      sendPush(activeChat.id, t("newMessage" as any) || "New message", `🎤 ${t("voiceMessage")}`, "/");
     });
   };
 
@@ -411,7 +517,7 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
   };
 
   const closeChat = () => {
-    setActiveChat(null); setMessages([]); setHiddenIds(new Set()); setReplyTo(null); onClearSelectedUser?.();
+    setActiveChat(null); setMessages([]); setHiddenIds(new Set()); setReplyTo(null); setPinned([]); setUnreadIncoming(0); onClearSelectedUser?.();
   };
 
   const getReplyPreview = (replyId: string) => {
@@ -493,7 +599,7 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
       : "";
 
     return (
-      <div className={`flex flex-col h-full transition-colors duration-300 ${ghostShell}`}>
+      <div className={`relative flex flex-col h-full transition-colors duration-300 ${ghostShell}`}>
         <GlassCard className={`rounded-none border-x-0 border-t-0 p-3 shrink-0 ${ghostMode ? "bg-zinc-950/95 border-zinc-700/60 shadow-[0_0_18px_rgba(180,180,200,0.18)]" : "bg-background/85"}`}>
           <div className="flex items-center gap-2">
             <button onClick={closeChat} className="p-2 hover:bg-muted/50 rounded-lg transition-colors touch-target shrink-0">
@@ -533,7 +639,24 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
           {ghostMode && <p className="text-[10px] text-zinc-500 mt-1.5 text-center">{t("ghostHint")}</p>}
         </GlassCard>
 
-        <div className={`flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar ${ghostMode ? "bg-zinc-900" : ""}`}>
+        {/* Pinned messages bar (max 2) */}
+        {pinned.length > 0 && (
+          <div className={`px-3 py-2 border-b shrink-0 space-y-1 ${ghostMode ? "bg-zinc-900/80 border-zinc-700/60" : "bg-muted/30 border-border"}`}>
+            {pinned.map(p => p.message && (
+              <div key={p.id} className="flex items-center gap-2">
+                <Pin className={`w-3.5 h-3.5 shrink-0 ${ghostMode ? "text-zinc-300" : "text-primary"}`} />
+                <button onClick={() => scrollToMessage(p.message_id)} className="flex-1 text-left text-xs truncate hover:underline">
+                  {p.message.content || (p.message.media_url ? t("media") : "")}
+                </button>
+                <button onClick={() => unpinMessage(p.id)} className="p-1 hover:bg-muted/50 rounded">
+                  <PinOff className="w-3.5 h-3.5 text-muted-foreground" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div ref={messagesContainerRef} onScroll={handleScroll} className={`flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar relative ${ghostMode ? "bg-zinc-900" : ""}`}>
           {loading ? (
             <div className="text-center py-12">
               <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
@@ -573,17 +696,31 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
                     {msg.content && msg.content !== t("media") && !msg.content.startsWith("🎤") && !msg.content.startsWith("🎥") && (
                       <p className="text-sm break-words">{msg.content}</p>
                     )}
-                    <p className={`text-xs mt-1 ${ghostMode ? "text-zinc-500" : "text-muted-foreground"}`}>
-                      {formatDistanceToNow(new Date(msg.created_at), { addSuffix: true, locale: lang === "ru" ? ru : enUS })}
-                    </p>
+                    <div className="flex items-center justify-end gap-1 mt-1">
+                      <p className={`text-xs ${ghostMode ? "text-zinc-500" : "text-muted-foreground"}`}>
+                        {formatDistanceToNow(new Date(msg.created_at), { addSuffix: true, locale: lang === "ru" ? ru : enUS })}
+                      </p>
+                      {isMine && (
+                        <Flame
+                          className={`w-3 h-3 ${msg.read_at ? "text-primary fill-primary/30" : "text-muted-foreground/70 fill-muted-foreground/10"}`}
+                          aria-label={msg.read_at ? "read" : "delivered"}
+                        />
+                      )}
+                    </div>
                   </GlassCard>
                   <MessageContextMenu
                     messageId={msg.id} messageType="dm" isSender={isMine}
                     messageContent={msg.content}
+                    isPinned={pinned.some(p => p.message_id === msg.id)}
                     onDeleted={() => setMessages(prev => prev.filter(m => m.id !== msg.id))}
                     onHidden={() => setHiddenIds(prev => new Set([...prev, msg.id]))}
                     onReply={() => setReplyTo(msg)}
                     onForward={() => setForwardMsg(msg)}
+                    onPin={() => pinMessage(msg)}
+                    onUnpin={() => {
+                      const p = pinned.find(pp => pp.message_id === msg.id);
+                      if (p) unpinMessage(p.id);
+                    }}
                   />
                 </div>
               </div>
@@ -605,6 +742,20 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
           )}
           <div ref={messagesEndRef} />
         </div>
+
+        {!isAtBottom && (
+          <button
+            onClick={scrollToLatest}
+            className={`absolute right-4 z-30 flex items-center gap-1.5 rounded-full pl-3 pr-3 py-2 text-xs font-semibold shadow-lg backdrop-blur-md border transition-all hover:scale-105 active:scale-95 ${ghostMode ? "bg-zinc-800/90 border-zinc-700 text-zinc-100" : "bg-primary/95 border-primary/50 text-primary-foreground shadow-primary/30"}`}
+            style={{ bottom: replyTo ? "140px" : "92px" }}
+            aria-label="Scroll to latest"
+          >
+            {unreadIncoming > 0 && (
+              <span className="font-bold">{unreadIncoming > 99 ? "99+" : unreadIncoming}</span>
+            )}
+            <ChevronDown className="w-4 h-4" />
+          </button>
+        )}
 
         {replyTo && (
           <div className={`px-4 py-2 border-t flex items-center gap-2 ${ghostMode ? "border-zinc-700 bg-zinc-800/60" : "border-border bg-muted/30"}`}>

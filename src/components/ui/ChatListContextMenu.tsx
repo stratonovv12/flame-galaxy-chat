@@ -43,8 +43,13 @@ export function ChatListContextMenu({ children, partnerId, partnerUsername, onDe
   const deleteConversation = async () => {
     if (!user) return;
     setOpen(false);
-    // Immediately trigger UI removal before DB operation
     onDeleted?.();
+    // Mark conversation as hidden for this user (sticky across refresh)
+    await supabase.from("deleted_conversations" as any).upsert(
+      { user_id: user.id, partner_id: partnerId },
+      { onConflict: "user_id,partner_id" } as any
+    );
+    // Delete the messages we own on this side (RLS allows only sender-owned deletes)
     await supabase.from("direct_messages").delete()
       .or(`and(sender_id.eq.${user.id},receiver_id.eq.${partnerId}),and(sender_id.eq.${partnerId},receiver_id.eq.${user.id})`);
     toast({ title: t("chatDeleted") });
@@ -54,6 +59,10 @@ export function ChatListContextMenu({ children, partnerId, partnerUsername, onDe
     if (!user) return;
     setOpen(false);
     onDeleted?.();
+    await supabase.from("deleted_conversations" as any).upsert(
+      { user_id: user.id, partner_id: partnerId },
+      { onConflict: "user_id,partner_id" } as any
+    );
     await supabase.from("direct_messages").delete()
       .or(`and(sender_id.eq.${user.id},receiver_id.eq.${partnerId}),and(sender_id.eq.${partnerId},receiver_id.eq.${user.id})`);
     await supabase.from("blocked_users").insert({ blocker_id: user.id, blocked_id: partnerId });
