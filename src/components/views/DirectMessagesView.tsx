@@ -743,6 +743,20 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
           <div ref={messagesEndRef} />
         </div>
 
+        {!isAtBottom && (
+          <button
+            onClick={scrollToLatest}
+            className={`absolute right-4 z-30 flex items-center gap-1.5 rounded-full pl-3 pr-3 py-2 text-xs font-semibold shadow-lg backdrop-blur-md border transition-all hover:scale-105 active:scale-95 ${ghostMode ? "bg-zinc-800/90 border-zinc-700 text-zinc-100" : "bg-primary/95 border-primary/50 text-primary-foreground shadow-primary/30"}`}
+            style={{ bottom: replyTo ? "140px" : "92px" }}
+            aria-label="Scroll to latest"
+          >
+            {unreadIncoming > 0 && (
+              <span className="font-bold">{unreadIncoming > 99 ? "99+" : unreadIncoming}</span>
+            )}
+            <ChevronDown className="w-4 h-4" />
+          </button>
+        )}
+
         {replyTo && (
           <div className={`px-4 py-2 border-t flex items-center gap-2 ${ghostMode ? "border-zinc-700 bg-zinc-800/60" : "border-border bg-muted/30"}`}>
             <div className={`flex-1 pl-2 border-l-2 ${ghostMode ? "border-zinc-400" : "border-primary"}`}>
