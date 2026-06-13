@@ -148,6 +148,27 @@ export type Database = {
         }
         Relationships: []
       }
+      deleted_conversations: {
+        Row: {
+          deleted_at: string
+          id: string
+          partner_id: string
+          user_id: string
+        }
+        Insert: {
+          deleted_at?: string
+          id?: string
+          partner_id: string
+          user_id: string
+        }
+        Update: {
+          deleted_at?: string
+          id?: string
+          partner_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       deposit_requests: {
         Row: {
           amount: number
@@ -288,6 +309,7 @@ export type Database = {
           id: string
           media_type: string | null
           media_url: string | null
+          repost_of: string | null
         }
         Insert: {
           author_id: string
@@ -296,6 +318,7 @@ export type Database = {
           id?: string
           media_type?: string | null
           media_url?: string | null
+          repost_of?: string | null
         }
         Update: {
           author_id?: string
@@ -304,8 +327,17 @@ export type Database = {
           id?: string
           media_type?: string | null
           media_url?: string | null
+          repost_of?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "feed_posts_repost_of_fkey"
+            columns: ["repost_of"]
+            isOneToOne: false
+            referencedRelation: "feed_posts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       flame_moments: {
         Row: {
@@ -424,6 +456,38 @@ export type Database = {
         }
         Relationships: []
       }
+      pinned_messages: {
+        Row: {
+          created_at: string
+          id: string
+          message_id: string
+          partner_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message_id: string
+          partner_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message_id?: string
+          partner_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pinned_messages_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "direct_messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -457,6 +521,33 @@ export type Database = {
           updated_at?: string
           user_id?: string
           username?: string | null
+        }
+        Relationships: []
+      }
+      push_subscriptions: {
+        Row: {
+          auth: string
+          created_at: string
+          endpoint: string
+          id: string
+          p256dh: string
+          user_id: string
+        }
+        Insert: {
+          auth: string
+          created_at?: string
+          endpoint: string
+          id?: string
+          p256dh: string
+          user_id: string
+        }
+        Update: {
+          auth?: string
+          created_at?: string
+          endpoint?: string
+          id?: string
+          p256dh?: string
+          user_id?: string
         }
         Relationships: []
       }
