@@ -465,10 +465,11 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
       toast({ title: t("error"), description: t("blocked"), variant: "destructive" });
       return;
     }
+    const content = newMessage.trim() || (mediaUrl ? t("media") : "");
     const { error } = await supabase.from("direct_messages").insert({
       sender_id: user.id,
       receiver_id: activeChat.id,
-      content: newMessage.trim() || (mediaUrl ? t("media") : ""),
+      content,
       media_url: mediaUrl || null,
       reply_to_id: replyTo?.id || null,
     });
@@ -476,6 +477,10 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
       toast({ title: t("error"), description: t("sendFailed"), variant: "destructive" });
     } else {
       setNewMessage(""); setMediaUrl(""); setReplyTo(null);
+      // Fire push to receiver (best-effort)
+      sendPush(activeChat.id, t("newMessage" as any) || "New message", content, "/");
+      // Sender just sent -> jump to bottom
+      setIsAtBottom(true);
     }
   };
 
@@ -486,6 +491,7 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
         sender_id: user.id, receiver_id: activeChat.id,
         content: `🎤 ${t("voiceMessage")}`, media_url: url,
       });
+      sendPush(activeChat.id, t("newMessage" as any) || "New message", `🎤 ${t("voiceMessage")}`, "/");
     });
   };
 
