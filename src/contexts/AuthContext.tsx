@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
+import { ensurePushSubscription } from "@/lib/push";
 
 interface AuthContextType {
   user: User | null;
@@ -83,6 +84,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       supabase.from("banned_users").select("id").eq("user_id", userId).maybeSingle(),
     ]);
     setIsAdmin(roles?.some(r => r.role === "admin") || false);
+    // Register push subscription (best-effort)
+    ensurePushSubscription(userId).catch(() => {});
     if (ban) {
       setIsBanned(true);
       await supabase.auth.signOut();
