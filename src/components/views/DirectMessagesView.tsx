@@ -17,11 +17,12 @@ import { IncomingCallUI } from "@/components/ui/IncomingCallUI";
 import { OnlineIndicator } from "@/components/ui/OnlineIndicator";
 import { useMediaUpload } from "@/hooks/useMediaUpload";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
-import { MessageCircle, Send, ArrowLeft, Phone, ShieldBan, ShieldCheck, X, Forward, Ghost } from "lucide-react";
+import { MessageCircle, Send, ArrowLeft, Phone, ShieldBan, ShieldCheck, X, Forward, Ghost, ChevronDown, Pin, PinOff, Flame } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ru, enUS } from "date-fns/locale";
 import { toast } from "@/hooks/use-toast";
 import { playNotificationSound, showBrowserNotification, requestNotificationPermission, setActiveChatPartner } from "@/lib/notifications";
+import { sendPush } from "@/lib/push";
 
 interface Conversation {
   partnerId: string;
@@ -41,6 +42,13 @@ interface Message {
   created_at: string;
   reply_to_id: string | null;
   forwarded_from: string | null;
+  read_at?: string | null;
+}
+
+interface PinnedMessage {
+  id: string;
+  message_id: string;
+  message: Message | null;
 }
 
 interface DirectMessagesViewProps {
@@ -77,6 +85,14 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
   const [incomingCall, setIncomingCall] = useState<{ id: string; callerId: string; callerUsername: string | null; callerAvatarUrl: string | null } | null>(null);
 
   const partnerPresence = useOnlineStatus(activeChat?.id);
+
+  // Pinned messages (max 2 per chat)
+  const [pinned, setPinned] = useState<PinnedMessage[]>([]);
+
+  // Scroll behavior
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const [isAtBottom, setIsAtBottom] = useState(true);
+  const [unreadIncoming, setUnreadIncoming] = useState(0);
 
   // Ghost mode (per-chat ephemeral)
   const [ghostMode, setGhostMode] = useState(false);
