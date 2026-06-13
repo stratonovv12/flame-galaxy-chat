@@ -9,6 +9,7 @@ import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Banned from "./pages/Banned";
 import NotFound from "./pages/NotFound";
+import Post from "./pages/Post";
 
 const queryClient = new QueryClient();
 
@@ -24,6 +25,7 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/banned" element={<Banned />} />
+            <Route path="/p/:id" element={<Post />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
