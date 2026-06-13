@@ -174,6 +174,11 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
           fetchConversations();
           return;
         }
+        if (payload.eventType === "UPDATE") {
+          const upd = payload.new as Message;
+          setMessages(prev => prev.map(m => m.id === upd.id ? { ...m, ...upd } : m));
+          return;
+        }
         const newMsg = payload.new as Message;
         if (newMsg.sender_id === user.id || newMsg.receiver_id === user.id) {
           if (activeChat && (newMsg.sender_id === activeChat.id || newMsg.receiver_id === activeChat.id)) {
@@ -181,9 +186,11 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
               if (prev.some(m => m.id === newMsg.id)) return prev;
               return [...prev, newMsg];
             });
-            // Mark as read if it's incoming and chat is open
-            if (newMsg.sender_id !== user.id) {
+            // Mark as read only if it's incoming AND user is viewing bottom of chat
+            if (newMsg.sender_id !== user.id && isAtBottom) {
               supabase.from("direct_messages").update({ read_at: new Date().toISOString() }).eq("id", newMsg.id).then();
+            } else if (newMsg.sender_id !== user.id) {
+              setUnreadIncoming(c => c + 1);
             }
           }
           if (newMsg.sender_id !== user.id) {
@@ -195,9 +202,37 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [user, activeChat]);
+  }, [user, activeChat, isAtBottom]);
 
-  useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
+  // Smart auto-scroll: only when already at bottom
+  useEffect(() => {
+    if (isAtBottom) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+      if (unreadIncoming > 0) setUnreadIncoming(0);
+    }
+  }, [messages, isAtBottom]);
+
+  const handleScroll = () => {
+    const el = messagesContainerRef.current;
+    if (!el) return;
+    const distFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    const atBottom = distFromBottom < 80;
+    setIsAtBottom(atBottom);
+    if (atBottom && unreadIncoming > 0) {
+      setUnreadIncoming(0);
+      // Mark recent unread as read
+      if (user && activeChat) {
+        supabase.from("direct_messages").update({ read_at: new Date().toISOString() })
+          .eq("receiver_id", user.id).eq("sender_id", activeChat.id).is("read_at", null).then();
+      }
+    }
+  };
+
+  const scrollToLatest = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    setIsAtBottom(true);
+    setUnreadIncoming(0);
+  };
 
   // Typing indicator via broadcast
   useEffect(() => {
