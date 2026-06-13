@@ -350,18 +350,26 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
 
   const fetchConversations = async () => {
     if (!user) return;
-    const { data: messagesData } = await supabase
-      .from("direct_messages").select("*")
-      .or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`)
-      .order("created_at", { ascending: false });
+    const [{ data: messagesData }, { data: deletedData }] = await Promise.all([
+      supabase.from("direct_messages").select("*")
+        .or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`)
+        .order("created_at", { ascending: false }),
+      supabase.from("deleted_conversations" as any).select("partner_id, deleted_at").eq("user_id", user.id),
+    ]);
+
+    const deletedMap = new Map<string, string>(
+      (deletedData as any[] || []).map((d: any) => [d.partner_id, d.deleted_at])
+    );
 
     const conversationsMap = new Map<string, { lastMessage: any; unreadCount: number }>();
     for (const msg of messagesData || []) {
       const partnerId = msg.sender_id === user.id ? msg.receiver_id : msg.sender_id;
+      // Skip messages older than user's chat deletion timestamp
+      const delAt = deletedMap.get(partnerId);
+      if (delAt && new Date(msg.created_at) <= new Date(delAt)) continue;
       if (!conversationsMap.has(partnerId)) {
         conversationsMap.set(partnerId, { lastMessage: msg, unreadCount: 0 });
       }
-      // Count unread from this partner
       if (msg.receiver_id === user.id && !msg.read_at) {
         const entry = conversationsMap.get(partnerId)!;
         entry.unreadCount++;
@@ -391,8 +399,11 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
     const { data: profile } = await supabase.from("profiles").select("user_id, username, avatar_url").eq("user_id", partnerId).maybeSingle();
     setActiveChat({ id: partnerId, username: profile?.username || null, avatarUrl: profile?.avatar_url || null });
     fetchMessages(partnerId);
-    // Mark all as read
+    fetchPinned(partnerId);
+    // Reopening a previously deleted chat clears the deletion marker
     if (user) {
+      await supabase.from("deleted_conversations" as any).delete()
+        .eq("user_id", user.id).eq("partner_id", partnerId);
       await supabase.from("direct_messages").update({ read_at: new Date().toISOString() })
         .eq("receiver_id", user.id).eq("sender_id", partnerId).is("read_at", null);
       fetchConversations();
@@ -408,6 +419,44 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
       .order("created_at", { ascending: true });
     setMessages(data || []);
     setLoading(false);
+    setIsAtBottom(true);
+    setUnreadIncoming(0);
+  };
+
+  const fetchPinned = async (partnerId: string) => {
+    if (!user) return;
+    const { data } = await supabase.from("pinned_messages" as any)
+      .select("id, message_id")
+      .eq("user_id", user.id).eq("partner_id", partnerId)
+      .order("created_at", { ascending: true }) as any;
+    const rows = (data || []) as any[];
+    if (rows.length === 0) { setPinned([]); return; }
+    const msgIds = rows.map(r => r.message_id);
+    const { data: msgs } = await supabase.from("direct_messages").select("*").in("id", msgIds);
+    const map = new Map((msgs || []).map(m => [m.id, m]));
+    setPinned(rows.map(r => ({ id: r.id, message_id: r.message_id, message: map.get(r.message_id) || null })));
+  };
+
+  const pinMessage = async (msg: Message) => {
+    if (!user || !activeChat) return;
+    if (pinned.length >= 2) {
+      toast({ title: t("pinLimitReached" as any) || "Maximum 2 pinned messages", variant: "destructive" });
+      return;
+    }
+    const { error } = await supabase.from("pinned_messages" as any)
+      .insert({ user_id: user.id, partner_id: activeChat.id, message_id: msg.id });
+    if (error) {
+      toast({ title: t("error"), description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: t("messagePinned" as any) || "Message pinned" });
+      fetchPinned(activeChat.id);
+    }
+  };
+
+  const unpinMessage = async (pinnedRowId: string) => {
+    if (!user || !activeChat) return;
+    await supabase.from("pinned_messages" as any).delete().eq("id", pinnedRowId);
+    fetchPinned(activeChat.id);
   };
 
   const sendMessage = async () => {
