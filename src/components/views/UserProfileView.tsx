@@ -9,6 +9,7 @@ import { UserBadge } from "@/components/ui/UserBadge";
 import { ArrowLeft, MessageCircle, Calendar, UserPlus, UserMinus, Lock } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { FeedPostCard, FeedPost } from "@/components/views/FeedView";
+import { MomentsStoryViewer, fetchUserMoments } from "@/components/ui/FlameMoments";
 
 interface Profile {
   id: string;
@@ -37,10 +38,12 @@ export function UserProfileView({ userId, onBack, onStartChat }: UserProfileView
   const [followerCount, setFollowerCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
   const [followBusy, setFollowBusy] = useState(false);
+  const [momentsGroup, setMomentsGroup] = useState<Awaited<ReturnType<typeof fetchUserMoments>> | null>(null);
+  const [viewingMoments, setViewingMoments] = useState(false);
 
   const isOwnProfile = user?.id === userId;
 
-  useEffect(() => { fetchAll(); }, [userId]);
+  useEffect(() => { fetchAll(); fetchUserMoments(userId).then(setMomentsGroup); }, [userId]);
 
   const fetchAll = async () => {
     setLoading(true);
@@ -134,7 +137,22 @@ export function UserProfileView({ userId, onBack, onStartChat }: UserProfileView
       <button onClick={onBack} className="flex items-center gap-2 text-muted-foreground"><ArrowLeft className="w-5 h-5" /> {t("back")}</button>
 
       <GlassCard className="p-8 text-center" glow>
-        <UserAvatar username={profile.username} avatarUrl={profile.avatar_url} size="xl" className="mx-auto mb-4 neon-glow" />
+        <button
+          type="button"
+          onClick={() => { if (momentsGroup) setViewingMoments(true); }}
+          className={`mx-auto mb-4 block rounded-full ${momentsGroup ? "p-[3px] bg-gradient-to-br from-[#a87cff] via-[#7f5af0] to-[#5b3fe0] shadow-[0_0_18px_rgba(127,90,240,0.55)] cursor-pointer" : ""}`}
+          aria-label={momentsGroup ? "View moments" : undefined}
+        >
+          <UserAvatar username={profile.username} avatarUrl={profile.avatar_url} size="xl" className={momentsGroup ? "" : "neon-glow"} />
+        </button>
+        {viewingMoments && momentsGroup && (
+          <MomentsStoryViewer
+            group={momentsGroup}
+            ownerCanDelete={isOwnProfile}
+            onClose={() => setViewingMoments(false)}
+            onDeleted={() => fetchUserMoments(userId).then(setMomentsGroup)}
+          />
+        )}
         <div className="flex items-center justify-center gap-1.5 mb-1">
           <h2 className="text-xl font-bold">{profile.display_name || profile.username || t("noName")}</h2>
           <UserBadge userId={userId} />
