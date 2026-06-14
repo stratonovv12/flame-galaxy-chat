@@ -955,7 +955,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   const [lang, setLangState] = useState<Lang>(() => {
     const saved = localStorage.getItem("flame_lang");
     if (saved === "en" || saved === "ru") return saved;
-    return navigator.language.startsWith("en") ? "en" : "ru";
+    return "en"; // Default to English for new users
   });
 
   const setLang = (l: Lang) => {
