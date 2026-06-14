@@ -106,9 +106,10 @@ serve(async (req) => {
       });
     }
 
-    const { messages, images, mode } = body as Record<string, unknown>;
+    const { messages, images, mode, lang } = body as Record<string, unknown>;
 
-    // Validate mode
+    const userLang = lang === "ru" ? "ru" : "en";
+
     if (mode !== undefined && (typeof mode !== "string" || !VALID_MODES.has(mode))) {
       return new Response(JSON.stringify({ error: `Invalid mode. Must be one of: ${[...VALID_MODES].join(", ")}` }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
