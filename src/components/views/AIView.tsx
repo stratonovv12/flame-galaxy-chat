@@ -176,7 +176,7 @@ export function AIView() {
             apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
           },
           body: JSON.stringify({
-            messages: [...messages, userMessage].map(m => ({ role: m.role, content: m.content })),
+            messages: [...messages, userMessage].map(m => ({ role: m.role, content: m.content })), lang,
             mode: "image_gen",
           }),
         });
@@ -187,7 +187,7 @@ export function AIView() {
         setMessages(prev => prev.map(m => m.id === tempAssistantId ? { ...m, content: assistantContent, imageUrl: result.imageUrl } : m));
         await saveMessage("assistant", assistantContent + (result.imageUrl ? `\n![image](${result.imageUrl})` : ""), topic.id);
       } else {
-        const body: any = { messages: [...messages, userMessage].map(m => ({ role: m.role, content: m.content })) };
+        const body: any = { messages: [...messages, userMessage].map(m => ({ role: m.role, content: m.content })), lang };
         if (currentImage) body.images = [currentImage];
         const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/flame-ai`, {
           method: "POST",
