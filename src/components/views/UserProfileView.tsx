@@ -38,10 +38,12 @@ export function UserProfileView({ userId, onBack, onStartChat }: UserProfileView
   const [followerCount, setFollowerCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
   const [followBusy, setFollowBusy] = useState(false);
+  const [momentsGroup, setMomentsGroup] = useState<Awaited<ReturnType<typeof fetchUserMoments>> | null>(null);
+  const [viewingMoments, setViewingMoments] = useState(false);
 
   const isOwnProfile = user?.id === userId;
 
-  useEffect(() => { fetchAll(); }, [userId]);
+  useEffect(() => { fetchAll(); fetchUserMoments(userId).then(setMomentsGroup); }, [userId]);
 
   const fetchAll = async () => {
     setLoading(true);
