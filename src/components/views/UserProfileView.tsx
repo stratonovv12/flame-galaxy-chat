@@ -9,6 +9,7 @@ import { UserBadge } from "@/components/ui/UserBadge";
 import { ArrowLeft, MessageCircle, Calendar, UserPlus, UserMinus, Lock } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { FeedPostCard, FeedPost } from "@/components/views/FeedView";
+import { MomentsStoryViewer, fetchUserMoments } from "@/components/ui/FlameMoments";
 
 interface Profile {
   id: string;
