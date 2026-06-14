@@ -6,7 +6,7 @@ import { GlassCard } from "@/components/ui/GlassCard";
 import { FlameButton } from "@/components/ui/FlameButton";
 import { FlameInput } from "@/components/ui/FlameInput";
 import { Progress } from "@/components/ui/progress";
-import { Sparkles, Send, Bot, User, Trash2, Plus, Image, MessageSquare, Menu, X, Brain, Gamepad2, Boxes } from "lucide-react";
+import { Sparkles, Send, Flame, User, Trash2, Plus, Image, MessageSquare, Menu, X, Gamepad2, Boxes } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import ReactMarkdown from "react-markdown";
 import { MiniGames } from "@/components/ui/MiniGames";
@@ -28,7 +28,7 @@ interface Topic {
 
 export function AIView() {
   const { user } = useAuth();
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -176,7 +176,7 @@ export function AIView() {
             apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
           },
           body: JSON.stringify({
-            messages: [...messages, userMessage].map(m => ({ role: m.role, content: m.content })),
+            messages: [...messages, userMessage].map(m => ({ role: m.role, content: m.content })), lang,
             mode: "image_gen",
           }),
         });
@@ -187,7 +187,7 @@ export function AIView() {
         setMessages(prev => prev.map(m => m.id === tempAssistantId ? { ...m, content: assistantContent, imageUrl: result.imageUrl } : m));
         await saveMessage("assistant", assistantContent + (result.imageUrl ? `\n![image](${result.imageUrl})` : ""), topic.id);
       } else {
-        const body: any = { messages: [...messages, userMessage].map(m => ({ role: m.role, content: m.content })) };
+        const body: any = { messages: [...messages, userMessage].map(m => ({ role: m.role, content: m.content })), lang };
         if (currentImage) body.images = [currentImage];
         const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/flame-ai`, {
           method: "POST",
@@ -249,7 +249,7 @@ export function AIView() {
   const ThinkingIndicator = () => (
     <div className="flex gap-3 justify-start">
       <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center shrink-0 animate-ai-pulse">
-        <Brain className="w-4 h-4 text-primary-foreground" />
+        <Flame className="w-4 h-4 text-primary-foreground" />
       </div>
       <GlassCard className="p-3 max-w-[80%]">
         {isImageGen ? (
@@ -362,7 +362,7 @@ export function AIView() {
                   <div key={message.id} className={`flex gap-3 ${message.role === "user" ? "justify-end" : "justify-start"}`}>
                     {message.role === "assistant" && (
                       <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center shrink-0">
-                        <Bot className="w-4 h-4 text-primary-foreground" />
+                        <Flame className="w-4 h-4 text-primary-foreground" />
                       </div>
                     )}
                     <GlassCard className={`max-w-[80%] p-3 ${message.role === "user" ? "bg-primary/20 border-primary/30" : ""}`}>
