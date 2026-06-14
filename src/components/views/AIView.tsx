@@ -6,7 +6,7 @@ import { GlassCard } from "@/components/ui/GlassCard";
 import { FlameButton } from "@/components/ui/FlameButton";
 import { FlameInput } from "@/components/ui/FlameInput";
 import { Progress } from "@/components/ui/progress";
-import { Sparkles, Send, Bot, User, Trash2, Plus, Image, MessageSquare, Menu, X, Brain, Gamepad2, Boxes } from "lucide-react";
+import { Sparkles, Send, Flame, User, Trash2, Plus, Image, MessageSquare, Menu, X, Gamepad2, Boxes } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import ReactMarkdown from "react-markdown";
 import { MiniGames } from "@/components/ui/MiniGames";
