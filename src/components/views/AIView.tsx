@@ -249,7 +249,7 @@ export function AIView() {
   const ThinkingIndicator = () => (
     <div className="flex gap-3 justify-start">
       <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center shrink-0 animate-ai-pulse">
-        <Brain className="w-4 h-4 text-primary-foreground" />
+        <Flame className="w-4 h-4 text-primary-foreground" />
       </div>
       <GlassCard className="p-3 max-w-[80%]">
         {isImageGen ? (
@@ -362,7 +362,7 @@ export function AIView() {
                   <div key={message.id} className={`flex gap-3 ${message.role === "user" ? "justify-end" : "justify-start"}`}>
                     {message.role === "assistant" && (
                       <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center shrink-0">
-                        <Bot className="w-4 h-4 text-primary-foreground" />
+                        <Flame className="w-4 h-4 text-primary-foreground" />
                       </div>
                     )}
                     <GlassCard className={`max-w-[80%] p-3 ${message.role === "user" ? "bg-primary/20 border-primary/30" : ""}`}>
