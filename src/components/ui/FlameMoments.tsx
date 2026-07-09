@@ -190,7 +190,13 @@ export function FlameMoments() {
   const [groups, setGroups] = useState<UserMoments[]>([]);
   const [activeGroupIdx, setActiveGroupIdx] = useState<number | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [viewedIds, setViewedIds] = useState<Set<string>>(() => loadViewed());
   const fileRef = useRef<HTMLInputElement>(null);
+
+  const isGroupAllViewed = useCallback((g: UserMoments) => {
+    if (!user || g.user_id === user.id) return false; // own story never counts as "viewed"
+    return g.items.every((it) => viewedIds.has(it.id));
+  }, [viewedIds, user]);
 
   const fetchMoments = useCallback(async () => {
     const { data: rows } = await supabase.from("flame_moments")
