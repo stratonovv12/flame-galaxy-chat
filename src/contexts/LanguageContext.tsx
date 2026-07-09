@@ -470,6 +470,30 @@ const translations = {
     appUpdated: "Приложение обновлено",
     appDeleted: "Приложение удалено",
     editApp: "Редактировать",
+
+    // Tic-Tac-Toe multiplayer
+    inviteToPlay: "Пригласить сыграть",
+    tttInviteTitle: "Приглашение в игру",
+    tttInviteText: "приглашает тебя сыграть в Крестики-нолики",
+    acceptChallenge: "Принять вызов",
+    declineChallenge: "Отклонить",
+    tttWaitingAccept: "Ожидаем принятия…",
+    tttYouAreX: "Ты играешь за ✕",
+    tttYouAreO: "Ты играешь за ◯",
+    tttOpponentTurn: "Ход соперника",
+    tttPartnerWon: "Соперник победил",
+    tttGameOver: "Игра окончена",
+    tttResign: "Сдаться",
+
+    // AI Memory / Photo editing
+    aiMemory: "Память AI",
+    aiMemoryOn: "AI Память: Вкл",
+    aiMemoryOff: "AI Память: Выкл",
+    aiMemoryCleared: "Память очищена",
+    photoEditing: "Обрабатываю фото…",
+    enhanceQualityAction: "Улучшить качество",
+    changeBackground: "Заменить фон",
+    photoshopIt: "Отфотошопить",
   },
   en: {
     // Nav & global
