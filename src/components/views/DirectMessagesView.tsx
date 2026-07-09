@@ -825,9 +825,27 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
             <FlameButton onClick={sendMessage} size="md"><Send className="w-5 h-5" /></FlameButton>
           </div>
         </div>
+
+        {activeTTTGame && (
+          <TTTGameOverlay
+            gameId={activeTTTGame}
+            games={parseTTTMessages(messages)}
+            partnerId={activeChat.id}
+            partnerName={activeChat.username || t("user")}
+            ghostMode={ghostMode}
+            onClose={() => setActiveTTTGame(null)}
+          />
+        )}
       </div>
     );
   }
+
+  // duplicate return below is unreachable; keep only original
+  if (false) return null;
+
+  {/* original conversations list return follows */}
+  // eslint-disable-next-line no-lone-blocks
+  {
 
   return (
     <div className="p-4 space-y-4">
