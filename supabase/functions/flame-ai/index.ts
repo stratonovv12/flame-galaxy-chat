@@ -106,9 +106,12 @@ serve(async (req) => {
       });
     }
 
-    const { messages, images, mode, lang } = body as Record<string, unknown>;
+    const { messages, images, mode, lang, memory } = body as Record<string, unknown>;
 
     const userLang = lang === "ru" ? "ru" : "en";
+    const memoryFacts = Array.isArray(memory)
+      ? (memory as unknown[]).filter((f): f is string => typeof f === "string" && f.length > 0 && f.length < 500).slice(0, 40)
+      : [];
 
     if (mode !== undefined && (typeof mode !== "string" || !VALID_MODES.has(mode))) {
       return new Response(JSON.stringify({ error: `Invalid mode. Must be one of: ${[...VALID_MODES].join(", ")}` }), {
@@ -116,7 +119,6 @@ serve(async (req) => {
       });
     }
 
-    // Validate messages
     const msgValidation = validateMessages(messages);
     if (!msgValidation.valid) {
       return new Response(JSON.stringify({ error: msgValidation.error }), {
@@ -124,7 +126,6 @@ serve(async (req) => {
       });
     }
 
-    // Validate images
     const imgValidation = validateImages(images);
     if (!imgValidation.valid) {
       return new Response(JSON.stringify({ error: imgValidation.error }), {
