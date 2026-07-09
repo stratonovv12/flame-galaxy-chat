@@ -72,6 +72,17 @@ export function MomentsStoryViewer({
 
   useEffect(() => { if (idx === -1) onClose(); }, [idx, onClose]);
 
+  // Mark the currently visible item as viewed
+  useEffect(() => {
+    if (!active) return;
+    const viewed = loadViewed();
+    if (!viewed.has(active.id)) {
+      viewed.add(active.id);
+      saveViewed(viewed);
+      onItemViewed?.(active.id);
+    }
+  }, [active?.id]);
+
   const next = () => setIdx((i) => (i + 1 < items.length ? i + 1 : -1));
   const prev = () => setIdx((i) => Math.max(0, i - 1));
 
