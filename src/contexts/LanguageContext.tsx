@@ -962,6 +962,30 @@ const translations = {
     appUpdated: "App updated",
     appDeleted: "App deleted",
     editApp: "Edit",
+
+    // Tic-Tac-Toe multiplayer
+    inviteToPlay: "Invite to Play",
+    tttInviteTitle: "Game Invitation",
+    tttInviteText: "invited you to play Tic-Tac-Toe",
+    acceptChallenge: "Accept Challenge",
+    declineChallenge: "Decline",
+    tttWaitingAccept: "Waiting for accept…",
+    tttYouAreX: "You play as ✕",
+    tttYouAreO: "You play as ◯",
+    tttOpponentTurn: "Opponent's turn",
+    tttPartnerWon: "Opponent wins",
+    tttGameOver: "Game over",
+    tttResign: "Resign",
+
+    // AI Memory / Photo editing
+    aiMemory: "AI Memory",
+    aiMemoryOn: "AI Memory: On",
+    aiMemoryOff: "AI Memory: Off",
+    aiMemoryCleared: "Memory cleared",
+    photoEditing: "Editing photo…",
+    enhanceQualityAction: "Enhance quality",
+    changeBackground: "Change background",
+    photoshopIt: "Photoshop it",
   },
 } as const;
 
