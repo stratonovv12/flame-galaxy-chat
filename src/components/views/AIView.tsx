@@ -42,6 +42,27 @@ export function AIView() {
   const [attachedImage, setAttachedImage] = useState<string | null>(null);
   const [gamesOpen, setGamesOpen] = useState(false);
   const [appsOpen, setAppsOpen] = useState(false);
+  const [memoryOn, setMemoryOn] = useState<boolean>(() => {
+    try { return localStorage.getItem("flame_ai_memory_enabled") !== "0"; } catch { return true; }
+  });
+  const memoryKey = user ? `flame_ai_memory_facts_${user.id}` : "";
+  const readMemory = (): string[] => {
+    if (!memoryOn || !memoryKey) return [];
+    try { return JSON.parse(localStorage.getItem(memoryKey) || "[]"); } catch { return []; }
+  };
+  const writeMemory = (facts: string[]) => {
+    if (!memoryKey) return;
+    try { localStorage.setItem(memoryKey, JSON.stringify(facts.slice(-40))); } catch { /* ignore */ }
+  };
+  const toggleMemory = () => {
+    const next = !memoryOn;
+    setMemoryOn(next);
+    try { localStorage.setItem("flame_ai_memory_enabled", next ? "1" : "0"); } catch { /* ignore */ }
+    if (!next && memoryKey) {
+      try { localStorage.removeItem(memoryKey); } catch { /* ignore */ }
+      toast({ title: t("aiMemoryCleared") });
+    }
+  };
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
