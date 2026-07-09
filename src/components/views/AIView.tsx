@@ -6,7 +6,8 @@ import { GlassCard } from "@/components/ui/GlassCard";
 import { FlameButton } from "@/components/ui/FlameButton";
 import { FlameInput } from "@/components/ui/FlameInput";
 import { Progress } from "@/components/ui/progress";
-import { Sparkles, Send, Flame, User, Trash2, Plus, Image, MessageSquare, Menu, X, Gamepad2, Boxes } from "lucide-react";
+import { Sparkles, Send, Flame, User, Trash2, Plus, Image, MessageSquare, Menu, X, Gamepad2, Boxes, Brain } from "lucide-react";
+
 import { toast } from "@/hooks/use-toast";
 import ReactMarkdown from "react-markdown";
 import { MiniGames } from "@/components/ui/MiniGames";
@@ -41,6 +42,27 @@ export function AIView() {
   const [attachedImage, setAttachedImage] = useState<string | null>(null);
   const [gamesOpen, setGamesOpen] = useState(false);
   const [appsOpen, setAppsOpen] = useState(false);
+  const [memoryOn, setMemoryOn] = useState<boolean>(() => {
+    try { return localStorage.getItem("flame_ai_memory_enabled") !== "0"; } catch { return true; }
+  });
+  const memoryKey = user ? `flame_ai_memory_facts_${user.id}` : "";
+  const readMemory = (): string[] => {
+    if (!memoryOn || !memoryKey) return [];
+    try { return JSON.parse(localStorage.getItem(memoryKey) || "[]"); } catch { return []; }
+  };
+  const writeMemory = (facts: string[]) => {
+    if (!memoryKey) return;
+    try { localStorage.setItem(memoryKey, JSON.stringify(facts.slice(-40))); } catch { /* ignore */ }
+  };
+  const toggleMemory = () => {
+    const next = !memoryOn;
+    setMemoryOn(next);
+    try { localStorage.setItem("flame_ai_memory_enabled", next ? "1" : "0"); } catch { /* ignore */ }
+    if (!next && memoryKey) {
+      try { localStorage.removeItem(memoryKey); } catch { /* ignore */ }
+      toast({ title: t("aiMemoryCleared") });
+    }
+  };
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -157,8 +179,11 @@ export function AIView() {
       setTopics(prev => prev.map(t => t.id === topic!.id ? { ...t, title: userContent.slice(0, 60) } : t));
     }
 
-    const isImgGen = /(?:сгенерируй|нарисуй|создай|generate|draw|make).{0,20}(?:картинк|изображени|фото|image|picture|рисунок)/i.test(userContent);
+    const isPhotoEdit = !!currentImage && /(photoshop|enhance|улучш|отфотош|фотошоп|background|фон|filter|фильтр|стил|style|remove|убери|цвет|color)/i.test(userContent);
+    const isImgGen = isPhotoEdit || /(?:сгенерируй|нарисуй|создай|generate|draw|make).{0,20}(?:картинк|изображени|фото|image|picture|рисунок)/i.test(userContent);
     setIsImageGen(isImgGen);
+
+    const memoryFacts = readMemory();
 
     const tempAssistantId = (Date.now() + 1).toString();
     setMessages(prev => [...prev, { id: tempAssistantId, role: "assistant", content: "" }]);
@@ -178,6 +203,8 @@ export function AIView() {
           body: JSON.stringify({
             messages: [...messages, userMessage].map(m => ({ role: m.role, content: m.content })), lang,
             mode: "image_gen",
+            images: currentImage ? [currentImage] : undefined,
+            memory: memoryFacts,
           }),
         });
         if (!response.ok) throw new Error(t("imageGenError"));
@@ -187,7 +214,7 @@ export function AIView() {
         setMessages(prev => prev.map(m => m.id === tempAssistantId ? { ...m, content: assistantContent, imageUrl: result.imageUrl } : m));
         await saveMessage("assistant", assistantContent + (result.imageUrl ? `\n![image](${result.imageUrl})` : ""), topic.id);
       } else {
-        const body: any = { messages: [...messages, userMessage].map(m => ({ role: m.role, content: m.content })), lang };
+        const body: any = { messages: [...messages, userMessage].map(m => ({ role: m.role, content: m.content })), lang, memory: memoryFacts };
         if (currentImage) body.images = [currentImage];
         const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/flame-ai`, {
           method: "POST",
@@ -319,6 +346,12 @@ export function AIView() {
                 {activeTopic?.title || t("yourSmartAssistant")}
               </p>
             </div>
+            <button
+              onClick={toggleMemory}
+              title={memoryOn ? t("aiMemoryOn") : t("aiMemoryOff")}
+              className={`p-2 rounded-lg border touch-target transition-colors ${memoryOn ? "bg-primary/15 hover:bg-primary/25 border-primary/30 text-primary" : "bg-muted/40 hover:bg-muted/60 border-border text-muted-foreground"}`}>
+              <Brain className="w-5 h-5" />
+            </button>
             <button onClick={() => setGamesOpen(true)} title={t("miniGames")}
               className="p-2 rounded-lg bg-primary/15 hover:bg-primary/25 border border-primary/30 text-primary touch-target transition-colors">
               <Gamepad2 className="w-5 h-5" />

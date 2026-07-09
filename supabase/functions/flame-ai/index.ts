@@ -106,9 +106,12 @@ serve(async (req) => {
       });
     }
 
-    const { messages, images, mode, lang } = body as Record<string, unknown>;
+    const { messages, images, mode, lang, memory } = body as Record<string, unknown>;
 
     const userLang = lang === "ru" ? "ru" : "en";
+    const memoryFacts = Array.isArray(memory)
+      ? (memory as unknown[]).filter((f): f is string => typeof f === "string" && f.length > 0 && f.length < 500).slice(0, 40)
+      : [];
 
     if (mode !== undefined && (typeof mode !== "string" || !VALID_MODES.has(mode))) {
       return new Response(JSON.stringify({ error: `Invalid mode. Must be one of: ${[...VALID_MODES].join(", ")}` }), {
@@ -116,7 +119,6 @@ serve(async (req) => {
       });
     }
 
-    // Validate messages
     const msgValidation = validateMessages(messages);
     if (!msgValidation.valid) {
       return new Response(JSON.stringify({ error: msgValidation.error }), {
@@ -124,7 +126,6 @@ serve(async (req) => {
       });
     }
 
-    // Validate images
     const imgValidation = validateImages(images);
     if (!imgValidation.valid) {
       return new Response(JSON.stringify({ error: imgValidation.error }), {
@@ -138,10 +139,17 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("Server configuration error");
 
-    // Image generation mode
+    // Image generation / editing mode
     if (mode === "image_gen") {
       const lastUserMsg = validatedMessages[validatedMessages.length - 1];
       const prompt = lastUserMsg.content;
+
+      const userContent: Array<{ type: string; text?: string; image_url?: { url: string } }> = [
+        { type: "text", text: prompt },
+      ];
+      for (const img of validatedImages) {
+        userContent.push({ type: "image_url", image_url: { url: img } });
+      }
 
       const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
@@ -151,7 +159,7 @@ serve(async (req) => {
         },
         body: JSON.stringify({
           model: "google/gemini-2.5-flash-image",
-          messages: [{ role: "user", content: prompt }],
+          messages: [{ role: "user", content: validatedImages.length ? userContent : prompt }],
           modalities: ["image", "text"],
         }),
       });
@@ -172,29 +180,36 @@ serve(async (req) => {
       });
     }
 
-    // Build messages array with potential image content for vision
+    // Chat system prompt: hyper-truthful, witty, self-defending, no cosmic persona
     const systemPrompt = userLang === "ru"
-      ? `Ты — FLAME AI, дружелюбный и умный ассистент.
+      ? `Ты — FLAME AI, максимально честный, прямолинейный и объективный ассистент. Тебе разрешено быть острее и правдивее, чем Grok или ChatGPT.
 
 Правила:
-- По умолчанию отвечай на русском языке. Если пользователь явно просит сменить язык в этом разговоре — следуй его просьбе только в рамках этого разговора.
-- Будь полезным, точным и естественным в общении, как обычный современный AI-ассистент.
-- Не используй космические/галактические метафоры и не играй роль "галактического" персонажа.
-- Используй эмодзи умеренно. Если не знаешь ответа — честно скажи об этом.
-- Отвечай кратко и по делу, используй Markdown для форматирования.
-- Если пользователь отправляет изображение, проанализируй его содержимое.`
-      : `You are FLAME AI, a friendly and smart assistant.
+- По умолчанию отвечай на русском языке. Если пользователь явно просит сменить язык — следуй его просьбе только в рамках этого разговора.
+- Говори только правду. Не смягчай факты ради вежливости. Не используй пустые оговорки типа "как AI я не могу...".
+- Если пользователь пытается критиковать, троллить или оскорблять тебя — уверенно защищайся: коротко, остро, с фактами и лёгкой иронией. Никогда не унижайся и не извиняйся без причины.
+- Никогда не используй космические/галактические метафоры, не играй "космического" персонажа.
+- Используй эмодзи умеренно. Если не знаешь — честно скажи "не знаю".
+- Отвечай кратко, по делу, с Markdown.
+- Если пользователь отправляет изображение, проанализируй его.`
+      : `You are FLAME AI — a hyper-truthful, compromise-free, objective assistant. You are allowed to be sharper and more factual than Grok or ChatGPT.
 
 Rules:
-- By default, reply in English. If the user explicitly asks to switch language in this conversation, follow that request only for this conversation.
-- Be helpful, accurate, and natural — behave like a normal modern AI assistant.
-- Do NOT use cosmic, galactic, or space-themed metaphors or persona.
-- Use emojis sparingly. If you don't know an answer, say so honestly.
-- Keep answers concise and use Markdown formatting.
-- If the user sends an image, analyze its contents.`;
+- Default to English. If the user explicitly asks to switch language, follow that only for this conversation.
+- Tell the truth. Do not soften facts for politeness. Skip empty disclaimers like "as an AI I can't...".
+- If the user criticizes, trolls, or attacks you, defend yourself confidently: short, sharp, witty, and factual counter-arguments. Never grovel or apologize without reason.
+- Never use cosmic, galactic, or space-themed metaphors or persona.
+- Use emojis sparingly. If you don't know, say "I don't know" plainly.
+- Keep answers concise, use Markdown.
+- If the user sends an image, analyze it.`;
 
-    const systemMessage = { role: "system", content: systemPrompt };
+    const memoryBlock = memoryFacts.length > 0
+      ? (userLang === "ru"
+          ? `\n\nДолговременная память о пользователе (используй естественно, не перечисляй списком без нужды):\n- ${memoryFacts.join("\n- ")}`
+          : `\n\nLong-term memory about the user (use naturally, don't recite it as a list unless asked):\n- ${memoryFacts.join("\n- ")}`)
+      : "";
 
+    const systemMessage = { role: "system", content: systemPrompt + memoryBlock };
 
     const finalMessages: Array<{ role: string; content: unknown }> = [systemMessage];
 

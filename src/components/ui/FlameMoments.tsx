@@ -24,16 +24,30 @@ interface UserMoments {
 const MAX_MB = 25;
 const STORY_MS = 5000;
 
+const VIEWED_KEY = "flame_moments_viewed_v1";
+function loadViewed(): Set<string> {
+  try {
+    const raw = localStorage.getItem(VIEWED_KEY);
+    if (!raw) return new Set();
+    return new Set(JSON.parse(raw) as string[]);
+  } catch { return new Set(); }
+}
+function saveViewed(set: Set<string>) {
+  try { localStorage.setItem(VIEWED_KEY, JSON.stringify([...set])); } catch { /* ignore */ }
+}
+
 export function MomentsStoryViewer({
   group,
   onClose,
   ownerCanDelete,
   onDeleted,
+  onItemViewed,
 }: {
   group: UserMoments;
   onClose: () => void;
   ownerCanDelete?: boolean;
   onDeleted?: (itemId: string) => void;
+  onItemViewed?: (itemId: string) => void;
 }) {
   const [idx, setIdx] = useState(0);
   const [progress, setProgress] = useState(0);
@@ -57,6 +71,17 @@ export function MomentsStoryViewer({
   }, [idx, items.length]);
 
   useEffect(() => { if (idx === -1) onClose(); }, [idx, onClose]);
+
+  // Mark the currently visible item as viewed
+  useEffect(() => {
+    if (!active) return;
+    const viewed = loadViewed();
+    if (!viewed.has(active.id)) {
+      viewed.add(active.id);
+      saveViewed(viewed);
+      onItemViewed?.(active.id);
+    }
+  }, [active?.id]);
 
   const next = () => setIdx((i) => (i + 1 < items.length ? i + 1 : -1));
   const prev = () => setIdx((i) => Math.max(0, i - 1));
@@ -165,7 +190,13 @@ export function FlameMoments() {
   const [groups, setGroups] = useState<UserMoments[]>([]);
   const [activeGroupIdx, setActiveGroupIdx] = useState<number | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [viewedIds, setViewedIds] = useState<Set<string>>(() => loadViewed());
   const fileRef = useRef<HTMLInputElement>(null);
+
+  const isGroupAllViewed = useCallback((g: UserMoments) => {
+    if (!user || g.user_id === user.id) return false; // own story never counts as "viewed"
+    return g.items.every((it) => viewedIds.has(it.id));
+  }, [viewedIds, user]);
 
   const fetchMoments = useCallback(async () => {
     const { data: rows } = await supabase.from("flame_moments")
@@ -198,12 +229,18 @@ export function FlameMoments() {
         });
       }
     }
-    // Sort: current user first if present, then by most recent activity
+    // Sort: current user first, then unviewed by recency, then fully-viewed at the end
+    const currentViewed = loadViewed();
+    const allViewed = (g: UserMoments) =>
+      user && g.user_id !== user.id && g.items.every((it) => currentViewed.has(it.id));
     const arr = [...grouped.values()].sort((a, b) => {
       if (user) {
         if (a.user_id === user.id) return -1;
         if (b.user_id === user.id) return 1;
       }
+      const aV = allViewed(a) ? 1 : 0;
+      const bV = allViewed(b) ? 1 : 0;
+      if (aV !== bV) return aV - bV; // unviewed (0) first
       return b.lastAt.localeCompare(a.lastAt);
     });
     setGroups(arr);
@@ -270,34 +307,43 @@ export function FlameMoments() {
             <span className="text-xs text-muted-foreground py-6">{t("noMomentsYet")}</span>
           )}
 
-          {groups.map((g, i) => (
-            <button key={g.user_id} onClick={() => setActiveGroupIdx(i)} className="flex flex-col items-center gap-1 shrink-0 group">
-              <div className="relative p-[2px] rounded-full bg-gradient-to-br from-[#a87cff] via-[#7f5af0] to-[#5b3fe0] shadow-[0_0_14px_rgba(127,90,240,0.55)]">
-                <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-background bg-muted flex items-center justify-center">
-                  {g.avatar_url
-                    ? <img src={g.avatar_url} alt="" className="w-full h-full object-cover" />
-                    : <span className="text-sm font-bold">{initial(g.display_name || g.username)}</span>}
+          {groups.map((g, i) => {
+            const allViewed = isGroupAllViewed(g);
+            const ringClass = allViewed
+              ? "bg-zinc-600/70 shadow-none"
+              : "bg-gradient-to-br from-[#ffb347] via-[#ff7a18] to-[#ff2e63] shadow-[0_0_14px_rgba(255,122,24,0.55)]";
+            return (
+              <button key={g.user_id} onClick={() => setActiveGroupIdx(i)} className="flex flex-col items-center gap-1 shrink-0 group">
+                <div className={`relative p-[2px] rounded-full transition-all ${ringClass}`}>
+                  <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-background bg-muted flex items-center justify-center">
+                    {g.avatar_url
+                      ? <img src={g.avatar_url} alt="" className="w-full h-full object-cover" />
+                      : <span className="text-sm font-bold">{initial(g.display_name || g.username)}</span>}
+                  </div>
+                  {g.items.length > 1 && (
+                    <span className={`absolute -top-1 -right-1 text-[10px] font-bold rounded-full min-w-[18px] h-[18px] px-1 flex items-center justify-center ${
+                      allViewed ? "bg-zinc-600 text-zinc-200" : "bg-orange-500 text-white"
+                    }`}>
+                      {g.items.length}
+                    </span>
+                  )}
                 </div>
-                {g.items.length > 1 && (
-                  <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-[10px] font-bold rounded-full min-w-[18px] h-[18px] px-1 flex items-center justify-center">
-                    {g.items.length}
-                  </span>
-                )}
-              </div>
-              <span className="text-[10px] max-w-[64px] truncate">
-                {g.user_id === user?.id ? t("yourMoment") : (g.display_name || g.username || "—")}
-              </span>
-            </button>
-          ))}
+                <span className={`text-[10px] max-w-[64px] truncate ${allViewed ? "text-muted-foreground/70" : ""}`}>
+                  {g.user_id === user?.id ? t("yourMoment") : (g.display_name || g.username || "—")}
+                </span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
       {activeGroup && (
         <MomentsStoryViewer
           group={activeGroup}
-          onClose={() => setActiveGroupIdx(null)}
+          onClose={() => { setActiveGroupIdx(null); fetchMoments(); }}
           ownerCanDelete={user?.id === activeGroup.user_id}
           onDeleted={() => fetchMoments()}
+          onItemViewed={(id) => setViewedIds(prev => { const next = new Set(prev); next.add(id); return next; })}
         />
       )}
     </>
