@@ -624,6 +624,18 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
               )}
             </button>
             <div className="flex items-center gap-0.5 shrink-0">
+            <div className="flex items-center gap-0.5 shrink-0">
+              <button
+                onClick={async () => {
+                  if (!user || !activeChat) return;
+                  const { error } = await sendTTTInvite(user.id, activeChat.id);
+                  if (error) toast({ title: t("error"), description: error.message, variant: "destructive" });
+                }}
+                title={t("inviteToPlay")}
+                className={`p-2 rounded-lg transition-all touch-target ${ghostMode ? "hover:bg-zinc-800 text-zinc-300" : "hover:bg-orange-500/15 text-orange-400"}`}
+              >
+                <Gamepad2 className="w-5 h-5" />
+              </button>
               <button onClick={startCall} className="p-2 hover:bg-muted/50 rounded-lg transition-colors touch-target" title={t("call" as any)}>
                 <Phone className={`w-5 h-5 ${ghostMode ? "text-zinc-300" : "text-primary"}`} />
               </button>
