@@ -262,7 +262,7 @@ export function TTTGameOverlay({
     >
       <div
         onClick={e => e.stopPropagation()}
-        className={`w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl border ${shellClass} shadow-2xl p-5 space-y-4 animate-slide-in-right`}
+        className={`w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl border ${shellClass} shadow-2xl p-5 space-y-4 animate-fade-in`}
       >
         <div className="flex items-center gap-3">
           <div
