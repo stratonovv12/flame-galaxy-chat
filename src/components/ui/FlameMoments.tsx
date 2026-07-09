@@ -24,16 +24,30 @@ interface UserMoments {
 const MAX_MB = 25;
 const STORY_MS = 5000;
 
+const VIEWED_KEY = "flame_moments_viewed_v1";
+function loadViewed(): Set<string> {
+  try {
+    const raw = localStorage.getItem(VIEWED_KEY);
+    if (!raw) return new Set();
+    return new Set(JSON.parse(raw) as string[]);
+  } catch { return new Set(); }
+}
+function saveViewed(set: Set<string>) {
+  try { localStorage.setItem(VIEWED_KEY, JSON.stringify([...set])); } catch { /* ignore */ }
+}
+
 export function MomentsStoryViewer({
   group,
   onClose,
   ownerCanDelete,
   onDeleted,
+  onItemViewed,
 }: {
   group: UserMoments;
   onClose: () => void;
   ownerCanDelete?: boolean;
   onDeleted?: (itemId: string) => void;
+  onItemViewed?: (itemId: string) => void;
 }) {
   const [idx, setIdx] = useState(0);
   const [progress, setProgress] = useState(0);
