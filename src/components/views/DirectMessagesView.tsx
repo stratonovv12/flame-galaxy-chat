@@ -100,6 +100,9 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
   const [ghostHiddenIds, setGhostHiddenIds] = useState<Set<string>>(new Set());
   const ghostTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
+  // Tic-Tac-Toe multiplayer
+  const [activeTTTGame, setActiveTTTGame] = useState<string | null>(null);
+
   // Tell the notifications system which chat is open (suppresses sound for that partner)
   useEffect(() => {
     setActiveChatPartner(activeChat?.id || null);
