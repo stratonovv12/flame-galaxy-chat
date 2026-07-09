@@ -840,12 +840,6 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
     );
   }
 
-  // duplicate return below is unreachable; keep only original
-  if (false) return null;
-
-  {/* original conversations list return follows */}
-  // eslint-disable-next-line no-lone-blocks
-  {
 
   return (
     <div className="p-4 space-y-4">
