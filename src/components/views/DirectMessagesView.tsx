@@ -670,96 +670,92 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
               <MessageCircle className="w-12 h-12 mx-auto mb-3 opacity-50" />
               <p>{t("startConversation")}</p>
             </div>
-          ) : (() => {
-            const tttGames = parseTTTMessages(messages);
-            const seenTTT = new Set<string>();
-            return visibleMessages.map(msg => {
-              // Collapse TTT event stream into a single card per gameId
-              if (isTTTMarker(msg.content)) {
-                const gid = msg.content.match(/^\[\[TTT_[A-Z]+:([\w-]+)/)?.[1];
-                if (!gid || seenTTT.has(gid)) return null;
-                seenTTT.add(gid);
-                const isMine = msg.sender_id === user?.id;
+          ) : (
+            (() => {
+              const tttGames = parseTTTMessages(messages);
+              const seenTTT = new Set<string>();
+              return visibleMessages.map(msg => {
                 const isGhostFading = ghostMode && ghostHiddenIds.has(msg.id);
+                const isMine = msg.sender_id === user?.id;
+
+                // Render TTT event stream as a single interactive card per game
+                if (isTTTMarker(msg.content)) {
+                  const gid = msg.content.match(/^\[\[TTT_[A-Z]+:([\w-]+)/)?.[1];
+                  if (!gid || seenTTT.has(gid)) return null;
+                  seenTTT.add(gid);
+                  return (
+                    <div key={msg.id}
+                      className={`flex ${isMine ? "justify-end" : "justify-start"} transition-all duration-700 ${isGhostFading ? "opacity-0 pointer-events-none h-0 overflow-hidden" : "opacity-100"}`}>
+                      <div className="max-w-[85%] w-full sm:w-[320px]">
+                        <TTTMessageCard
+                          message={msg}
+                          games={tttGames}
+                          partnerId={activeChat!.id}
+                          ghostMode={ghostMode}
+                          onOpen={(id) => setActiveTTTGame(id)}
+                        />
+                      </div>
+                    </div>
+                  );
+                }
+
+                const isHighlighted = highlightedMsgId === msg.id;
+                const bubbleBase = ghostMode
+                  ? (isMine ? "bg-zinc-700/70 border-zinc-600/60" : "bg-zinc-800/80 border-zinc-700/60")
+                  : (isMine ? "bg-primary/20 border-primary/30" : "");
                 return (
                   <div key={msg.id}
-                    className={`flex ${isMine ? "justify-end" : "justify-start"} transition-all duration-700 ${isGhostFading ? "opacity-0 pointer-events-none h-0 overflow-hidden" : "opacity-100"}`}>
-                    <div className="max-w-[85%] w-full sm:w-[320px]">
-                      <TTTMessageCard
-                        message={msg}
-                        games={tttGames}
-                        partnerId={activeChat!.id}
-                        ghostMode={ghostMode}
-                        onOpen={(id) => setActiveTTTGame(id)}
+                    ref={(el) => { if (el) messageRefs.current.set(msg.id, el); else messageRefs.current.delete(msg.id); }}
+                    className={`flex group ${isMine ? "justify-end" : "justify-start"} transition-all duration-700 ${isGhostFading ? "opacity-0 pointer-events-none h-0 overflow-hidden" : "opacity-100"} ${isHighlighted ? "scale-[1.02]" : ""}`}>
+                    <div className="flex items-start gap-1 max-w-[80%]">
+                      <GlassCard className={`p-3 transition-shadow duration-500 ${bubbleBase} ${isHighlighted ? (ghostMode ? "shadow-[0_0_22px_rgba(200,200,210,0.55)] ring-1 ring-zinc-300/40" : "shadow-[0_0_22px_rgba(127,90,240,0.6)] ring-1 ring-primary/50") : ""}`}>
+                        {msg.forwarded_from && (
+                          <p className={`text-xs mb-1 flex items-center gap-1 ${ghostMode ? "text-zinc-400" : "text-primary/70"}`}>
+                            <Forward className="w-3 h-3" /> {t("forwardedFromShort")} {msg.forwarded_from}
+                          </p>
+                        )}
+                        {msg.reply_to_id && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); scrollToMessage(msg.reply_to_id!); }}
+                            className={`block w-full text-left mb-2 pl-2 border-l-2 text-xs hover:bg-muted/20 rounded-r transition-colors ${ghostMode ? "border-zinc-400/60 text-zinc-400" : "border-primary/50 text-muted-foreground"}`}>
+                            {getReplyPreview(msg.reply_to_id) || t("message")}
+                          </button>
+                        )}
+                        {msg.media_url && renderMedia(msg.media_url)}
+                        {msg.content && msg.content !== t("media") && !msg.content.startsWith("🎤") && !msg.content.startsWith("🎥") && (
+                          <p className="text-sm break-words">{msg.content}</p>
+                        )}
+                        <div className="flex items-center justify-end gap-1 mt-1">
+                          <p className={`text-xs ${ghostMode ? "text-zinc-500" : "text-muted-foreground"}`}>
+                            {formatDistanceToNow(new Date(msg.created_at), { addSuffix: true, locale: lang === "ru" ? ru : enUS })}
+                          </p>
+                          {isMine && (
+                            <Flame
+                              className={`w-3 h-3 ${msg.read_at ? "text-primary fill-primary/30" : "text-muted-foreground/70 fill-muted-foreground/10"}`}
+                              aria-label={msg.read_at ? "read" : "delivered"}
+                            />
+                          )}
+                        </div>
+                      </GlassCard>
+                      <MessageContextMenu
+                        messageId={msg.id} messageType="dm" isSender={isMine}
+                        messageContent={msg.content}
+                        isPinned={pinned.some(p => p.message_id === msg.id)}
+                        onDeleted={() => setMessages(prev => prev.filter(m => m.id !== msg.id))}
+                        onHidden={() => setHiddenIds(prev => new Set([...prev, msg.id]))}
+                        onReply={() => setReplyTo(msg)}
+                        onForward={() => setForwardMsg(msg)}
+                        onPin={() => pinMessage(msg)}
+                        onUnpin={() => {
+                          const p = pinned.find(pp => pp.message_id === msg.id);
+                          if (p) unpinMessage(p.id);
+                        }}
                       />
                     </div>
                   </div>
                 );
-              }
-              return renderNormalMessage(msg);
-            });
-          })()
-          }
-          {/* placeholder to close the ternary correctly */}
-          {false && visibleMessages.map(msg => {
-              const isGhostFading = ghostMode && ghostHiddenIds.has(msg.id);
-              const isMine = msg.sender_id === user?.id;
-              const isHighlighted = highlightedMsgId === msg.id;
-              const bubbleBase = ghostMode
-                ? (isMine ? "bg-zinc-700/70 border-zinc-600/60" : "bg-zinc-800/80 border-zinc-700/60")
-                : (isMine ? "bg-primary/20 border-primary/30" : "");
-              return (
-              <div key={msg.id}
-                ref={(el) => { if (el) messageRefs.current.set(msg.id, el); else messageRefs.current.delete(msg.id); }}
-                className={`flex group ${isMine ? "justify-end" : "justify-start"} transition-all duration-700 ${isGhostFading ? "opacity-0 pointer-events-none h-0 overflow-hidden" : "opacity-100"} ${isHighlighted ? "scale-[1.02]" : ""}`}>
-                <div className="flex items-start gap-1 max-w-[80%]">
-                  <GlassCard className={`p-3 transition-shadow duration-500 ${bubbleBase} ${isHighlighted ? (ghostMode ? "shadow-[0_0_22px_rgba(200,200,210,0.55)] ring-1 ring-zinc-300/40" : "shadow-[0_0_22px_rgba(127,90,240,0.6)] ring-1 ring-primary/50") : ""}`}>
-                    {msg.forwarded_from && (
-                      <p className={`text-xs mb-1 flex items-center gap-1 ${ghostMode ? "text-zinc-400" : "text-primary/70"}`}>
-                        <Forward className="w-3 h-3" /> {t("forwardedFromShort")} {msg.forwarded_from}
-                      </p>
-                    )}
-                    {msg.reply_to_id && (
-                      <button
-                        onClick={(e) => { e.stopPropagation(); scrollToMessage(msg.reply_to_id!); }}
-                        className={`block w-full text-left mb-2 pl-2 border-l-2 text-xs hover:bg-muted/20 rounded-r transition-colors ${ghostMode ? "border-zinc-400/60 text-zinc-400" : "border-primary/50 text-muted-foreground"}`}>
-                        {getReplyPreview(msg.reply_to_id) || t("message")}
-                      </button>
-                    )}
-                    {msg.media_url && renderMedia(msg.media_url)}
-                    {msg.content && msg.content !== t("media") && !msg.content.startsWith("🎤") && !msg.content.startsWith("🎥") && (
-                      <p className="text-sm break-words">{msg.content}</p>
-                    )}
-                    <div className="flex items-center justify-end gap-1 mt-1">
-                      <p className={`text-xs ${ghostMode ? "text-zinc-500" : "text-muted-foreground"}`}>
-                        {formatDistanceToNow(new Date(msg.created_at), { addSuffix: true, locale: lang === "ru" ? ru : enUS })}
-                      </p>
-                      {isMine && (
-                        <Flame
-                          className={`w-3 h-3 ${msg.read_at ? "text-primary fill-primary/30" : "text-muted-foreground/70 fill-muted-foreground/10"}`}
-                          aria-label={msg.read_at ? "read" : "delivered"}
-                        />
-                      )}
-                    </div>
-                  </GlassCard>
-                  <MessageContextMenu
-                    messageId={msg.id} messageType="dm" isSender={isMine}
-                    messageContent={msg.content}
-                    isPinned={pinned.some(p => p.message_id === msg.id)}
-                    onDeleted={() => setMessages(prev => prev.filter(m => m.id !== msg.id))}
-                    onHidden={() => setHiddenIds(prev => new Set([...prev, msg.id]))}
-                    onReply={() => setReplyTo(msg)}
-                    onForward={() => setForwardMsg(msg)}
-                    onPin={() => pinMessage(msg)}
-                    onUnpin={() => {
-                      const p = pinned.find(pp => pp.message_id === msg.id);
-                      if (p) unpinMessage(p.id);
-                    }}
-                  />
-                </div>
-              </div>
-              );
-            })
+              });
+            })()
           )}
           {pendingUploads.map(upload => (
             <UploadingBubble key={upload.id} upload={upload} onCancel={cancelUpload} />
