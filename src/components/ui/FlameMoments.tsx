@@ -307,34 +307,43 @@ export function FlameMoments() {
             <span className="text-xs text-muted-foreground py-6">{t("noMomentsYet")}</span>
           )}
 
-          {groups.map((g, i) => (
-            <button key={g.user_id} onClick={() => setActiveGroupIdx(i)} className="flex flex-col items-center gap-1 shrink-0 group">
-              <div className="relative p-[2px] rounded-full bg-gradient-to-br from-[#a87cff] via-[#7f5af0] to-[#5b3fe0] shadow-[0_0_14px_rgba(127,90,240,0.55)]">
-                <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-background bg-muted flex items-center justify-center">
-                  {g.avatar_url
-                    ? <img src={g.avatar_url} alt="" className="w-full h-full object-cover" />
-                    : <span className="text-sm font-bold">{initial(g.display_name || g.username)}</span>}
+          {groups.map((g, i) => {
+            const allViewed = isGroupAllViewed(g);
+            const ringClass = allViewed
+              ? "bg-zinc-600/70 shadow-none"
+              : "bg-gradient-to-br from-[#ffb347] via-[#ff7a18] to-[#ff2e63] shadow-[0_0_14px_rgba(255,122,24,0.55)]";
+            return (
+              <button key={g.user_id} onClick={() => setActiveGroupIdx(i)} className="flex flex-col items-center gap-1 shrink-0 group">
+                <div className={`relative p-[2px] rounded-full transition-all ${ringClass}`}>
+                  <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-background bg-muted flex items-center justify-center">
+                    {g.avatar_url
+                      ? <img src={g.avatar_url} alt="" className="w-full h-full object-cover" />
+                      : <span className="text-sm font-bold">{initial(g.display_name || g.username)}</span>}
+                  </div>
+                  {g.items.length > 1 && (
+                    <span className={`absolute -top-1 -right-1 text-[10px] font-bold rounded-full min-w-[18px] h-[18px] px-1 flex items-center justify-center ${
+                      allViewed ? "bg-zinc-600 text-zinc-200" : "bg-orange-500 text-white"
+                    }`}>
+                      {g.items.length}
+                    </span>
+                  )}
                 </div>
-                {g.items.length > 1 && (
-                  <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-[10px] font-bold rounded-full min-w-[18px] h-[18px] px-1 flex items-center justify-center">
-                    {g.items.length}
-                  </span>
-                )}
-              </div>
-              <span className="text-[10px] max-w-[64px] truncate">
-                {g.user_id === user?.id ? t("yourMoment") : (g.display_name || g.username || "—")}
-              </span>
-            </button>
-          ))}
+                <span className={`text-[10px] max-w-[64px] truncate ${allViewed ? "text-muted-foreground/70" : ""}`}>
+                  {g.user_id === user?.id ? t("yourMoment") : (g.display_name || g.username || "—")}
+                </span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
       {activeGroup && (
         <MomentsStoryViewer
           group={activeGroup}
-          onClose={() => setActiveGroupIdx(null)}
+          onClose={() => { setActiveGroupIdx(null); fetchMoments(); }}
           ownerCanDelete={user?.id === activeGroup.user_id}
           onDeleted={() => fetchMoments()}
+          onItemViewed={(id) => setViewedIds(prev => { const next = new Set(prev); next.add(id); return next; })}
         />
       )}
     </>
