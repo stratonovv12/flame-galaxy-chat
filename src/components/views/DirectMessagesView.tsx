@@ -624,7 +624,6 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
               )}
             </button>
             <div className="flex items-center gap-0.5 shrink-0">
-            <div className="flex items-center gap-0.5 shrink-0">
               <button
                 onClick={async () => {
                   if (!user || !activeChat) return;
