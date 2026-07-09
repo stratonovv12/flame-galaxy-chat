@@ -179,8 +179,11 @@ export function AIView() {
       setTopics(prev => prev.map(t => t.id === topic!.id ? { ...t, title: userContent.slice(0, 60) } : t));
     }
 
-    const isImgGen = /(?:сгенерируй|нарисуй|создай|generate|draw|make).{0,20}(?:картинк|изображени|фото|image|picture|рисунок)/i.test(userContent);
+    const isPhotoEdit = !!currentImage && /(photoshop|enhance|улучш|отфотош|фотошоп|background|фон|filter|фильтр|стил|style|remove|убери|цвет|color)/i.test(userContent);
+    const isImgGen = isPhotoEdit || /(?:сгенерируй|нарисуй|создай|generate|draw|make).{0,20}(?:картинк|изображени|фото|image|picture|рисунок)/i.test(userContent);
     setIsImageGen(isImgGen);
+
+    const memoryFacts = readMemory();
 
     const tempAssistantId = (Date.now() + 1).toString();
     setMessages(prev => [...prev, { id: tempAssistantId, role: "assistant", content: "" }]);
@@ -200,6 +203,8 @@ export function AIView() {
           body: JSON.stringify({
             messages: [...messages, userMessage].map(m => ({ role: m.role, content: m.content })), lang,
             mode: "image_gen",
+            images: currentImage ? [currentImage] : undefined,
+            memory: memoryFacts,
           }),
         });
         if (!response.ok) throw new Error(t("imageGenError"));
@@ -209,7 +214,7 @@ export function AIView() {
         setMessages(prev => prev.map(m => m.id === tempAssistantId ? { ...m, content: assistantContent, imageUrl: result.imageUrl } : m));
         await saveMessage("assistant", assistantContent + (result.imageUrl ? `\n![image](${result.imageUrl})` : ""), topic.id);
       } else {
-        const body: any = { messages: [...messages, userMessage].map(m => ({ role: m.role, content: m.content })), lang };
+        const body: any = { messages: [...messages, userMessage].map(m => ({ role: m.role, content: m.content })), lang, memory: memoryFacts };
         if (currentImage) body.images = [currentImage];
         const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/flame-ai`, {
           method: "POST",
