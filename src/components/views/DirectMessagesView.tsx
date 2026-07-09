@@ -670,8 +670,38 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
               <MessageCircle className="w-12 h-12 mx-auto mb-3 opacity-50" />
               <p>{t("startConversation")}</p>
             </div>
-          ) : (
-            visibleMessages.map(msg => {
+          ) : (() => {
+            const tttGames = parseTTTMessages(messages);
+            const seenTTT = new Set<string>();
+            return visibleMessages.map(msg => {
+              // Collapse TTT event stream into a single card per gameId
+              if (isTTTMarker(msg.content)) {
+                const gid = msg.content.match(/^\[\[TTT_[A-Z]+:([\w-]+)/)?.[1];
+                if (!gid || seenTTT.has(gid)) return null;
+                seenTTT.add(gid);
+                const isMine = msg.sender_id === user?.id;
+                const isGhostFading = ghostMode && ghostHiddenIds.has(msg.id);
+                return (
+                  <div key={msg.id}
+                    className={`flex ${isMine ? "justify-end" : "justify-start"} transition-all duration-700 ${isGhostFading ? "opacity-0 pointer-events-none h-0 overflow-hidden" : "opacity-100"}`}>
+                    <div className="max-w-[85%] w-full sm:w-[320px]">
+                      <TTTMessageCard
+                        message={msg}
+                        games={tttGames}
+                        partnerId={activeChat!.id}
+                        ghostMode={ghostMode}
+                        onOpen={(id) => setActiveTTTGame(id)}
+                      />
+                    </div>
+                  </div>
+                );
+              }
+              return renderNormalMessage(msg);
+            });
+          })()
+          }
+          {/* placeholder to close the ternary correctly */}
+          {false && visibleMessages.map(msg => {
               const isGhostFading = ghostMode && ghostHiddenIds.has(msg.id);
               const isMine = msg.sender_id === user?.id;
               const isHighlighted = highlightedMsgId === msg.id;
