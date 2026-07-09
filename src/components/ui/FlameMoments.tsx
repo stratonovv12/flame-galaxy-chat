@@ -229,12 +229,18 @@ export function FlameMoments() {
         });
       }
     }
-    // Sort: current user first if present, then by most recent activity
+    // Sort: current user first, then unviewed by recency, then fully-viewed at the end
+    const currentViewed = loadViewed();
+    const allViewed = (g: UserMoments) =>
+      user && g.user_id !== user.id && g.items.every((it) => currentViewed.has(it.id));
     const arr = [...grouped.values()].sort((a, b) => {
       if (user) {
         if (a.user_id === user.id) return -1;
         if (b.user_id === user.id) return 1;
       }
+      const aV = allViewed(a) ? 1 : 0;
+      const bV = allViewed(b) ? 1 : 0;
+      if (aV !== bV) return aV - bV; // unviewed (0) first
       return b.lastAt.localeCompare(a.lastAt);
     });
     setGroups(arr);
