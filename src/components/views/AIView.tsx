@@ -347,12 +347,7 @@ export function AIView() {
                 {activeTopic?.title || t("yourSmartAssistant")}
               </p>
             </div>
-            <button
-              onClick={toggleMemory}
-              title={memoryOn ? t("aiMemoryOn") : t("aiMemoryOff")}
-              className={`p-2 rounded-lg border touch-target transition-colors ${memoryOn ? "bg-primary/15 hover:bg-primary/25 border-primary/30 text-primary" : "bg-muted/40 hover:bg-muted/60 border-border text-muted-foreground"}`}>
-              <Brain className="w-5 h-5" />
-            </button>
+            {/* AI Memory toggle moved to the chat history sidebar to keep the mobile header compact. */}
             <button onClick={() => setGamesOpen(true)} title={t("miniGames")}
               className="p-2 rounded-lg bg-primary/15 hover:bg-primary/25 border border-primary/30 text-primary touch-target transition-colors">
               <Gamepad2 className="w-5 h-5" />
