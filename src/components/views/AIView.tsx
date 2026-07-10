@@ -7,6 +7,7 @@ import { FlameButton } from "@/components/ui/FlameButton";
 import { FlameInput } from "@/components/ui/FlameInput";
 import { Progress } from "@/components/ui/progress";
 import { Sparkles, Send, Flame, User, Trash2, Plus, Image, MessageSquare, Menu, X, Gamepad2, Boxes, Brain } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 
 import { toast } from "@/hooks/use-toast";
 import ReactMarkdown from "react-markdown";
@@ -310,10 +311,20 @@ export function AIView() {
           <h3 className="font-semibold text-sm">{t("chatHistory")}</h3>
           <button onClick={() => setSidebarOpen(false)} className="p-1 hover:bg-muted/50 rounded-lg"><X className="w-4 h-4" /></button>
         </div>
-        <div className="p-2">
+        <div className="p-2 space-y-1">
           <button onClick={createNewTopic} className="w-full flex items-center gap-2 p-3 rounded-lg hover:bg-muted/50 text-sm text-primary transition-colors">
             <Plus className="w-4 h-4" /> {t("newChat")}
           </button>
+          <div className="flex items-center justify-between gap-2 p-3 rounded-lg bg-muted/30 border border-border">
+            <div className="flex items-center gap-2 min-w-0">
+              <Brain className={`w-4 h-4 shrink-0 ${memoryOn ? "text-primary" : "text-muted-foreground"}`} />
+              <div className="min-w-0">
+                <p className="text-sm font-medium truncate">{t("aiMemory" as any) || "AI Memory"}</p>
+                <p className="text-[10px] text-muted-foreground truncate">{memoryOn ? (t("aiMemoryOn") as string) : (t("aiMemoryOff") as string)}</p>
+              </div>
+            </div>
+            <Switch checked={memoryOn} onCheckedChange={toggleMemory} />
+          </div>
         </div>
         <div className="overflow-y-auto flex-1 p-2 space-y-1" style={{ maxHeight: "calc(100% - 120px)" }}>
           {topics.map(topic => (
@@ -346,12 +357,7 @@ export function AIView() {
                 {activeTopic?.title || t("yourSmartAssistant")}
               </p>
             </div>
-            <button
-              onClick={toggleMemory}
-              title={memoryOn ? t("aiMemoryOn") : t("aiMemoryOff")}
-              className={`p-2 rounded-lg border touch-target transition-colors ${memoryOn ? "bg-primary/15 hover:bg-primary/25 border-primary/30 text-primary" : "bg-muted/40 hover:bg-muted/60 border-border text-muted-foreground"}`}>
-              <Brain className="w-5 h-5" />
-            </button>
+            {/* AI Memory toggle moved to the chat history sidebar to keep the mobile header compact. */}
             <button onClick={() => setGamesOpen(true)} title={t("miniGames")}
               className="p-2 rounded-lg bg-primary/15 hover:bg-primary/25 border border-primary/30 text-primary touch-target transition-colors">
               <Gamepad2 className="w-5 h-5" />
