@@ -309,21 +309,20 @@ export function FlameMoments() {
 
           {groups.map((g, i) => {
             const allViewed = isGroupAllViewed(g);
-            const ringClass = allViewed
-              ? "bg-zinc-600/70 shadow-none"
-              : "bg-gradient-to-br from-[#ffb347] via-[#ff7a18] to-[#ff2e63] shadow-[0_0_14px_rgba(255,122,24,0.55)]";
+            // Stage 1: once viewed, ring disappears entirely (clean avatar, no outline).
+            const ringWrapper = allViewed
+              ? "relative rounded-full"
+              : "relative p-[2px] rounded-full bg-gradient-to-br from-[#a78bfa] via-[#7f5af0] to-[#5b21b6] shadow-[0_0_14px_rgba(127,90,240,0.6)]";
             return (
               <button key={g.user_id} onClick={() => setActiveGroupIdx(i)} className="flex flex-col items-center gap-1 shrink-0 group">
-                <div className={`relative p-[2px] rounded-full transition-all ${ringClass}`}>
-                  <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-background bg-muted flex items-center justify-center">
+                <div className={ringWrapper}>
+                  <div className={`w-16 h-16 rounded-full overflow-hidden bg-muted flex items-center justify-center ${allViewed ? "" : "border-2 border-background"}`}>
                     {g.avatar_url
                       ? <img src={g.avatar_url} alt="" className="w-full h-full object-cover" />
                       : <span className="text-sm font-bold">{initial(g.display_name || g.username)}</span>}
                   </div>
-                  {g.items.length > 1 && (
-                    <span className={`absolute -top-1 -right-1 text-[10px] font-bold rounded-full min-w-[18px] h-[18px] px-1 flex items-center justify-center ${
-                      allViewed ? "bg-zinc-600 text-zinc-200" : "bg-orange-500 text-white"
-                    }`}>
+                  {!allViewed && g.items.length > 1 && (
+                    <span className="absolute -top-1 -right-1 text-[10px] font-bold rounded-full min-w-[18px] h-[18px] px-1 flex items-center justify-center bg-primary text-primary-foreground">
                       {g.items.length}
                     </span>
                   )}
