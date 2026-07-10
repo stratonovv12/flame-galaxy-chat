@@ -625,31 +625,40 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
               )}
             </button>
             <div className="flex items-center gap-0.5 shrink-0">
-              <button
-                onClick={async () => {
-                  if (!user || !activeChat) return;
-                  const { error } = await sendTTTInvite(user.id, activeChat.id);
-                  if (error) toast({ title: t("error"), description: error.message, variant: "destructive" });
-                }}
-                title={t("inviteToPlay")}
-                className={`p-2 rounded-lg transition-all touch-target ${ghostMode ? "hover:bg-zinc-800 text-zinc-300" : "hover:bg-orange-500/15 text-orange-400"}`}
-              >
-                <Gamepad2 className="w-5 h-5" />
-              </button>
               <button onClick={startCall} className="p-2 hover:bg-muted/50 rounded-lg transition-colors touch-target" title={t("call" as any)}>
                 <Phone className={`w-5 h-5 ${ghostMode ? "text-zinc-300" : "text-primary"}`} />
               </button>
               <button onClick={toggleBlock} className="p-2 hover:bg-muted/50 rounded-lg transition-colors touch-target">
                 {isBlocked ? <ShieldCheck className="w-5 h-5 text-destructive" /> : <ShieldBan className="w-5 h-5 text-muted-foreground" />}
               </button>
-              <button
-                onClick={() => setGhostMode(g => !g)}
-                title={t("ghostMode")}
-                className={`p-2 rounded-lg transition-all touch-target ${ghostMode
-                  ? "bg-zinc-700/60 text-zinc-100 shadow-[0_0_14px_rgba(200,200,210,0.45)]"
-                  : "hover:bg-muted/50 text-muted-foreground"}`}>
-                <Ghost className="w-5 h-5" />
-              </button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    className={`p-2 rounded-lg transition-colors touch-target ${ghostMode ? "hover:bg-zinc-800 text-zinc-200" : "hover:bg-muted/50 text-muted-foreground"}`}
+                    title={t("more" as any) || "More"}
+                    aria-label="More"
+                  >
+                    <MoreVertical className="w-5 h-5" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-52">
+                  <DropdownMenuItem onClick={() => setGhostMode(g => !g)}>
+                    <Ghost className="w-4 h-4 mr-2" />
+                    <span>{t("ghostMode")}{ghostMode ? " ✓" : ""}</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={async () => {
+                      if (!user || !activeChat) return;
+                      const { error } = await sendTTTInvite(user.id, activeChat.id);
+                      if (error) toast({ title: t("error"), description: error.message, variant: "destructive" });
+                    }}
+                    className="text-orange-500 focus:text-orange-500 focus:bg-orange-500/10"
+                  >
+                    <Gamepad2 className="w-4 h-4 mr-2" />
+                    <span>{t("inviteToPlay")}</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
           {ghostMode && <p className="text-[10px] text-zinc-500 mt-1.5 text-center">{t("ghostHint")}</p>}
