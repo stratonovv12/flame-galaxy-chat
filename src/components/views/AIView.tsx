@@ -311,10 +311,20 @@ export function AIView() {
           <h3 className="font-semibold text-sm">{t("chatHistory")}</h3>
           <button onClick={() => setSidebarOpen(false)} className="p-1 hover:bg-muted/50 rounded-lg"><X className="w-4 h-4" /></button>
         </div>
-        <div className="p-2">
+        <div className="p-2 space-y-1">
           <button onClick={createNewTopic} className="w-full flex items-center gap-2 p-3 rounded-lg hover:bg-muted/50 text-sm text-primary transition-colors">
             <Plus className="w-4 h-4" /> {t("newChat")}
           </button>
+          <div className="flex items-center justify-between gap-2 p-3 rounded-lg bg-muted/30 border border-border">
+            <div className="flex items-center gap-2 min-w-0">
+              <Brain className={`w-4 h-4 shrink-0 ${memoryOn ? "text-primary" : "text-muted-foreground"}`} />
+              <div className="min-w-0">
+                <p className="text-sm font-medium truncate">{t("aiMemory" as any) || "AI Memory"}</p>
+                <p className="text-[10px] text-muted-foreground truncate">{memoryOn ? (t("aiMemoryOn") as string) : (t("aiMemoryOff") as string)}</p>
+              </div>
+            </div>
+            <Switch checked={memoryOn} onCheckedChange={toggleMemory} />
+          </div>
         </div>
         <div className="overflow-y-auto flex-1 p-2 space-y-1" style={{ maxHeight: "calc(100% - 120px)" }}>
           {topics.map(topic => (
