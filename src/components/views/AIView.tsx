@@ -74,8 +74,13 @@ export function AIView() {
   }, [user]);
 
   useEffect(() => {
-    if (activeTopic) loadMessages(activeTopic.id);
-    else setMessages([]);
+    if (!activeTopic) { setMessages([]); return; }
+    // Skip reloading if this topic was just created within sendMessage — local state already has the messages.
+    if (justCreatedTopicRef.current === activeTopic.id) {
+      justCreatedTopicRef.current = null;
+      return;
+    }
+    loadMessages(activeTopic.id);
   }, [activeTopic]);
 
   // Fake image progress animation
