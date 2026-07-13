@@ -204,6 +204,16 @@ export function ProfileView({ onNavigate }: ProfileViewProps) {
               />
             </div>
 
+            <button
+              onClick={() => { setSettingsOpen(false); setWorkshopOpen(true); }}
+              className="w-full flex items-center justify-between gap-3 py-3 px-3 rounded-lg bg-muted/30 hover:bg-muted/50 border border-border transition-colors">
+              <div className="flex items-center gap-2">
+                <Boxes className="w-4 h-4 text-primary" />
+                <p className="font-medium text-sm">{t("miniApps")}</p>
+              </div>
+              <span className="text-primary text-lg">›</span>
+            </button>
+
             <FlameButton variant="outline" className="w-full mt-6" onClick={() => setSettingsOpen(false)}>
               <ArrowLeft className="w-4 h-4 mr-2" />{t("backToProfile")}
             </FlameButton>
