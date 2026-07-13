@@ -483,7 +483,7 @@ export function AIView() {
 
       {sidebarOpen && <div className="absolute inset-0 z-20 bg-background/50" onClick={() => setSidebarOpen(false)} />}
       <MiniGames open={gamesOpen} onOpenChange={setGamesOpen} />
-      <MiniAppsView open={appsOpen} onOpenChange={setAppsOpen} />
+      
     </div>
   );
 }
