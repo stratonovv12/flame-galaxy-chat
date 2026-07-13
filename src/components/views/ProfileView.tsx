@@ -34,6 +34,7 @@ export function ProfileView({ onNavigate }: ProfileViewProps) {
   const [followingCount, setFollowingCount] = useState(0);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [volume, setVolumeState] = useState(() => getVolume());
+  const [workshopOpen, setWorkshopOpen] = useState(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout>>();
 
   useEffect(() => { if (user) { fetchProfile(); fetchFollowCounts(); } }, [user]);
