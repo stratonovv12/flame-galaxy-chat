@@ -346,7 +346,7 @@ export function AIView() {
       </div>
 
       {/* Main */}
-      <div className="flex flex-col flex-1">
+      <div className="flex flex-col flex-1 min-w-0 max-w-full overflow-x-hidden">
         <GlassCard className="rounded-none border-x-0 border-t-0 p-4">
           <div className="flex items-center gap-3">
             <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-2 hover:bg-muted/50 rounded-lg transition-colors touch-target">
