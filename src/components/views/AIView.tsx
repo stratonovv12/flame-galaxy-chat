@@ -143,16 +143,30 @@ export function AIView() {
     return data?.id;
   };
 
-  const handleImageAttach = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageAttach = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (e.target) e.target.value = "";
     if (!file.type.startsWith("image/")) {
       toast({ title: t("error"), description: t("onlyImages"), variant: "destructive" });
       return;
     }
-    const reader = new FileReader();
-    reader.onload = (ev) => setAttachedImage(ev.target?.result as string);
-    reader.readAsDataURL(file);
+    if (file.size > 10 * 1024 * 1024) {
+      toast({ title: t("error"), description: "Max 10MB", variant: "destructive" });
+      return;
+    }
+    if (!user) return;
+    try {
+      const path = `${user.id}/ai_${Date.now()}_${Math.random().toString(36).slice(2)}.${(file.name.split(".").pop() || "png").toLowerCase()}`;
+      const { error: upErr } = await supabase.storage.from("media").upload(path, file, {
+        upsert: false, contentType: file.type, cacheControl: "3600",
+      });
+      if (upErr) throw upErr;
+      const { data } = supabase.storage.from("media").getPublicUrl(path);
+      if (data?.publicUrl) setAttachedImage(data.publicUrl);
+    } catch (err: any) {
+      toast({ title: t("error"), description: err?.message || "Upload failed", variant: "destructive" });
+    }
   };
 
   const sendMessage = async () => {
