@@ -361,10 +361,6 @@ export function AIView() {
               className="p-2 rounded-lg bg-primary/15 hover:bg-primary/25 border border-primary/30 text-primary touch-target transition-colors">
               <Gamepad2 className="w-5 h-5" />
             </button>
-            <button onClick={() => setAppsOpen(true)} title={t("miniApps")}
-              className="p-2 rounded-lg bg-accent/15 hover:bg-accent/25 border border-accent/30 text-accent touch-target transition-colors">
-              <Boxes className="w-5 h-5" />
-            </button>
           </div>
         </GlassCard>
 
