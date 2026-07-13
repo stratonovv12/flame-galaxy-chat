@@ -308,7 +308,7 @@ export function AIView() {
   );
 
   return (
-    <div className="flex h-full relative">
+    <div className="flex h-full relative w-full max-w-full overflow-x-hidden">
       {/* Sidebar */}
       <div className={`absolute inset-y-0 left-0 z-30 w-72 transform transition-transform duration-300 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} bg-background/95 backdrop-blur-md border-r border-border`}>
         <div className="flex items-center justify-between p-4 border-b border-border">
