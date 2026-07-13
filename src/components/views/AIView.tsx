@@ -404,10 +404,10 @@ export function AIView() {
                         <Flame className="w-4 h-4 text-primary-foreground" />
                       </div>
                     )}
-                    <GlassCard className={`max-w-[80%] p-3 ${message.role === "user" ? "bg-primary/20 border-primary/30" : ""}`}>
+                    <GlassCard className={`max-w-[80%] min-w-0 p-3 break-words [overflow-wrap:anywhere] ${message.role === "user" ? "bg-primary/20 border-primary/30" : ""}`}>
                       {message.imageUrl && (
                         <>
-                          <img src={message.imageUrl} alt="" className="max-h-64 rounded-lg object-cover mb-2" />
+                          <img src={message.imageUrl} alt="" className="max-w-full max-h-64 rounded-lg object-cover mb-2" />
                           {message.role === "assistant" && (
                             <div className="flex flex-wrap gap-1.5 mb-2">
                               {[t("enhanceQuality"), t("changeStyle"), t("cyberpunkFilter")].map(tag => (
@@ -422,11 +422,11 @@ export function AIView() {
                         </>
                       )}
                       {message.role === "assistant" ? (
-                        <div className="prose prose-sm prose-invert max-w-none">
+                        <div className="prose prose-sm prose-invert max-w-none break-words [overflow-wrap:anywhere]">
                           <ReactMarkdown>{message.content || "..."}</ReactMarkdown>
                         </div>
                       ) : (
-                        <p className="text-sm">{message.content}</p>
+                        <p className="text-sm whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{message.content}</p>
                       )}
                     </GlassCard>
                     {message.role === "user" && (
