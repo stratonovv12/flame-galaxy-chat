@@ -220,6 +220,8 @@ export function ProfileView({ onNavigate }: ProfileViewProps) {
           </div>
         </SheetContent>
       </Sheet>
+
+      <MiniAppsView open={workshopOpen} onOpenChange={setWorkshopOpen} />
     </div>
   );
 }
