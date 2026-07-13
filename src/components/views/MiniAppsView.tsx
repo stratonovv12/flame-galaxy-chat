@@ -104,6 +104,31 @@ export function MiniAppsView({ open, onOpenChange }: Props) {
     load();
   };
 
+  // Full-screen launched app: render outside the Dialog so it truly covers the screen
+  if (launching) {
+    return (
+      <Dialog open={open} onOpenChange={(o) => { if (!o) { setLaunching(null); onOpenChange(false); } }}>
+        <DialogContent className="!fixed !inset-0 !top-0 !left-0 !translate-x-0 !translate-y-0 !w-screen !h-[100dvh] !max-w-none !max-h-none !rounded-none !p-0 !border-0 bg-background z-[100] flex flex-col gap-0">
+          <DialogHeader className="p-3 border-b border-border flex-row items-center justify-between space-y-0 gap-2 shrink-0">
+            <button onClick={() => setLaunching(null)} className="p-2 rounded-lg hover:bg-muted/50 text-primary flex items-center gap-1 text-sm">
+              <ArrowLeft className="w-4 h-4" /> {t("back")}
+            </button>
+            <DialogTitle className="text-sm font-semibold truncate flex-1 text-center">
+              {launching.name} <span className="text-muted-foreground font-normal">@{launching.handle}</span>
+            </DialogTitle>
+            <div className="w-16" />
+          </DialogHeader>
+          <iframe
+            sandbox="allow-scripts allow-forms allow-popups allow-same-origin"
+            srcDoc={launching.content}
+            className="flex-1 w-full border-0 bg-white"
+            title={launching.name}
+          />
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl glass-card border-primary/30 max-h-[90vh] overflow-y-auto">
@@ -113,23 +138,7 @@ export function MiniAppsView({ open, onOpenChange }: Props) {
           </DialogTitle>
         </DialogHeader>
 
-        {launching ? (
-          <div className="space-y-3">
-            <button onClick={() => setLaunching(null)} className="flex items-center gap-1 text-sm text-primary hover:underline">
-              <ArrowLeft className="w-4 h-4" /> {t("back")}
-            </button>
-            <div className="text-center">
-              <h3 className="font-bold text-lg">{launching.name}</h3>
-              <p className="text-xs text-muted-foreground">@{launching.handle}</p>
-            </div>
-            <iframe
-              sandbox="allow-scripts"
-              srcDoc={launching.content}
-              className="w-full h-[60vh] rounded-lg border border-border bg-white"
-              title={launching.name}
-            />
-          </div>
-        ) : editing ? (
+        {editing ? (
           <div className="space-y-3">
             <button onClick={() => setEditing(null)} className="flex items-center gap-1 text-sm text-primary hover:underline">
               <ArrowLeft className="w-4 h-4" /> {t("back")}
