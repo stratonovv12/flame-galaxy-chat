@@ -232,7 +232,7 @@ Rules:
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        model: validatedImages.length > 0 ? "google/gemini-2.5-flash" : "google/gemini-3-flash-preview",
         messages: finalMessages,
         stream: true,
       }),

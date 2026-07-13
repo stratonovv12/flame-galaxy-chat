@@ -6,13 +6,12 @@ import { GlassCard } from "@/components/ui/GlassCard";
 import { FlameButton } from "@/components/ui/FlameButton";
 import { FlameInput } from "@/components/ui/FlameInput";
 import { Progress } from "@/components/ui/progress";
-import { Sparkles, Send, Flame, User, Trash2, Plus, Image, MessageSquare, Menu, X, Gamepad2, Boxes, Brain } from "lucide-react";
+import { Sparkles, Send, Flame, User, Trash2, Plus, Image, MessageSquare, Menu, X, Gamepad2, Brain } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 
 import { toast } from "@/hooks/use-toast";
 import ReactMarkdown from "react-markdown";
 import { MiniGames } from "@/components/ui/MiniGames";
-import { MiniAppsView } from "@/components/views/MiniAppsView";
 
 interface Message {
   id: string;
@@ -42,7 +41,7 @@ export function AIView() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [attachedImage, setAttachedImage] = useState<string | null>(null);
   const [gamesOpen, setGamesOpen] = useState(false);
-  const [appsOpen, setAppsOpen] = useState(false);
+  const justCreatedTopicRef = useRef<string | null>(null);
   const [memoryOn, setMemoryOn] = useState<boolean>(() => {
     try { return localStorage.getItem("flame_ai_memory_enabled") !== "0"; } catch { return true; }
   });
@@ -75,8 +74,13 @@ export function AIView() {
   }, [user]);
 
   useEffect(() => {
-    if (activeTopic) loadMessages(activeTopic.id);
-    else setMessages([]);
+    if (!activeTopic) { setMessages([]); return; }
+    // Skip reloading if this topic was just created within sendMessage — local state already has the messages.
+    if (justCreatedTopicRef.current === activeTopic.id) {
+      justCreatedTopicRef.current = null;
+      return;
+    }
+    loadMessages(activeTopic.id);
   }, [activeTopic]);
 
   // Fake image progress animation
@@ -139,16 +143,30 @@ export function AIView() {
     return data?.id;
   };
 
-  const handleImageAttach = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageAttach = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (e.target) e.target.value = "";
     if (!file.type.startsWith("image/")) {
       toast({ title: t("error"), description: t("onlyImages"), variant: "destructive" });
       return;
     }
-    const reader = new FileReader();
-    reader.onload = (ev) => setAttachedImage(ev.target?.result as string);
-    reader.readAsDataURL(file);
+    if (file.size > 10 * 1024 * 1024) {
+      toast({ title: t("error"), description: "Max 10MB", variant: "destructive" });
+      return;
+    }
+    if (!user) return;
+    try {
+      const path = `${user.id}/ai_${Date.now()}_${Math.random().toString(36).slice(2)}.${(file.name.split(".").pop() || "png").toLowerCase()}`;
+      const { error: upErr } = await supabase.storage.from("media").upload(path, file, {
+        upsert: false, contentType: file.type, cacheControl: "3600",
+      });
+      if (upErr) throw upErr;
+      const { data } = supabase.storage.from("media").getPublicUrl(path);
+      if (data?.publicUrl) setAttachedImage(data.publicUrl);
+    } catch (err: any) {
+      toast({ title: t("error"), description: err?.message || "Upload failed", variant: "destructive" });
+    }
   };
 
   const sendMessage = async () => {
@@ -158,7 +176,7 @@ export function AIView() {
     if (!topic && user) {
       const { data } = await supabase
         .from("ai_topics").insert({ user_id: user.id, title: input.trim().slice(0, 50) || t("newChat") }).select().single();
-      if (data) { topic = data; setTopics(prev => [data, ...prev]); setActiveTopic(data); }
+      if (data) { topic = data; justCreatedTopicRef.current = data.id; setTopics(prev => [data, ...prev]); setActiveTopic(data); }
     }
     if (!topic) return;
 
@@ -304,7 +322,7 @@ export function AIView() {
   );
 
   return (
-    <div className="flex h-full relative">
+    <div className="flex h-full relative w-full max-w-full overflow-x-hidden">
       {/* Sidebar */}
       <div className={`absolute inset-y-0 left-0 z-30 w-72 transform transition-transform duration-300 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} bg-background/95 backdrop-blur-md border-r border-border`}>
         <div className="flex items-center justify-between p-4 border-b border-border">
@@ -342,7 +360,7 @@ export function AIView() {
       </div>
 
       {/* Main */}
-      <div className="flex flex-col flex-1">
+      <div className="flex flex-col flex-1 min-w-0 max-w-full overflow-x-hidden">
         <GlassCard className="rounded-none border-x-0 border-t-0 p-4">
           <div className="flex items-center gap-3">
             <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-2 hover:bg-muted/50 rounded-lg transition-colors touch-target">
@@ -361,10 +379,6 @@ export function AIView() {
             <button onClick={() => setGamesOpen(true)} title={t("miniGames")}
               className="p-2 rounded-lg bg-primary/15 hover:bg-primary/25 border border-primary/30 text-primary touch-target transition-colors">
               <Gamepad2 className="w-5 h-5" />
-            </button>
-            <button onClick={() => setAppsOpen(true)} title={t("miniApps")}
-              className="p-2 rounded-lg bg-accent/15 hover:bg-accent/25 border border-accent/30 text-accent touch-target transition-colors">
-              <Boxes className="w-5 h-5" />
             </button>
           </div>
         </GlassCard>
@@ -404,10 +418,10 @@ export function AIView() {
                         <Flame className="w-4 h-4 text-primary-foreground" />
                       </div>
                     )}
-                    <GlassCard className={`max-w-[80%] p-3 ${message.role === "user" ? "bg-primary/20 border-primary/30" : ""}`}>
+                    <GlassCard className={`max-w-[80%] min-w-0 p-3 break-words [overflow-wrap:anywhere] ${message.role === "user" ? "bg-primary/20 border-primary/30" : ""}`}>
                       {message.imageUrl && (
                         <>
-                          <img src={message.imageUrl} alt="" className="max-h-64 rounded-lg object-cover mb-2" />
+                          <img src={message.imageUrl} alt="" className="max-w-full max-h-64 rounded-lg object-cover mb-2" />
                           {message.role === "assistant" && (
                             <div className="flex flex-wrap gap-1.5 mb-2">
                               {[t("enhanceQuality"), t("changeStyle"), t("cyberpunkFilter")].map(tag => (
@@ -422,11 +436,11 @@ export function AIView() {
                         </>
                       )}
                       {message.role === "assistant" ? (
-                        <div className="prose prose-sm prose-invert max-w-none">
+                        <div className="prose prose-sm prose-invert max-w-none break-words [overflow-wrap:anywhere]">
                           <ReactMarkdown>{message.content || "..."}</ReactMarkdown>
                         </div>
                       ) : (
-                        <p className="text-sm">{message.content}</p>
+                        <p className="text-sm whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{message.content}</p>
                       )}
                     </GlassCard>
                     {message.role === "user" && (
@@ -488,7 +502,7 @@ export function AIView() {
 
       {sidebarOpen && <div className="absolute inset-0 z-20 bg-background/50" onClick={() => setSidebarOpen(false)} />}
       <MiniGames open={gamesOpen} onOpenChange={setGamesOpen} />
-      <MiniAppsView open={appsOpen} onOpenChange={setAppsOpen} />
+      
     </div>
   );
 }
