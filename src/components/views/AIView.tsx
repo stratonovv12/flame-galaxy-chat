@@ -162,7 +162,7 @@ export function AIView() {
     if (!topic && user) {
       const { data } = await supabase
         .from("ai_topics").insert({ user_id: user.id, title: input.trim().slice(0, 50) || t("newChat") }).select().single();
-      if (data) { topic = data; setTopics(prev => [data, ...prev]); setActiveTopic(data); }
+      if (data) { topic = data; justCreatedTopicRef.current = data.id; setTopics(prev => [data, ...prev]); setActiveTopic(data); }
     }
     if (!topic) return;
 
