@@ -41,7 +41,7 @@ export function AIView() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [attachedImage, setAttachedImage] = useState<string | null>(null);
   const [gamesOpen, setGamesOpen] = useState(false);
-  const [appsOpen, setAppsOpen] = useState(false);
+  const justCreatedTopicRef = useRef<string | null>(null);
   const [memoryOn, setMemoryOn] = useState<boolean>(() => {
     try { return localStorage.getItem("flame_ai_memory_enabled") !== "0"; } catch { return true; }
   });
