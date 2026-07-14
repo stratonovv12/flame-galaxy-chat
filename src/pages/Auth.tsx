@@ -36,6 +36,25 @@ const Auth = () => {
     }
   }, []);
 
+  // Real-time username availability check
+  useEffect(() => {
+    if (isLogin) { setUsernameStatus("idle"); return; }
+    const raw = username.replace(/^@/, "").toLowerCase().trim();
+    if (usernameDebounce.current) window.clearTimeout(usernameDebounce.current);
+    if (!raw) { setUsernameStatus("idle"); return; }
+    if (!/^[a-z0-9_]{3,24}$/.test(raw)) { setUsernameStatus("invalid"); return; }
+    setUsernameStatus("checking");
+    usernameDebounce.current = window.setTimeout(async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("username", raw)
+        .maybeSingle();
+      setUsernameStatus(data ? "taken" : "available");
+    }, 350);
+    return () => { if (usernameDebounce.current) window.clearTimeout(usernameDebounce.current); };
+  }, [username, isLogin]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) {
