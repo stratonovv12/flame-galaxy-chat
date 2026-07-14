@@ -68,6 +68,12 @@ const translations = {
     accountBannedDesc: "Ваш аккаунт был заблокирован администратором. Если вы считаете, что это ошибка, обратитесь в поддержку.",
     email: "Email",
     password: "Пароль",
+    displayName: "Отображаемое имя",
+    usernameHandle: "уникальный_логин",
+    usernameTaken: "Этот логин уже занят",
+    usernameAvailable: "Логин свободен",
+    usernameInvalid: "3–24 символа: a–z, 0–9, _",
+    checkingUsername: "Проверка логина...",
 
     // Search
     searchPlaceholder: "Поиск пользователей...",
