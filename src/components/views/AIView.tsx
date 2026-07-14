@@ -451,7 +451,7 @@ export function AIView() {
                       )}
                       {message.role === "assistant" ? (
                         <div className="prose prose-sm prose-invert max-w-none break-words [overflow-wrap:anywhere]">
-                          <ReactMarkdown>{message.content || "..."}</ReactMarkdown>
+                          <ReactMarkdown components={mdComponents}>{message.content || "..."}</ReactMarkdown>
                         </div>
                       ) : (
                         <p className="text-sm whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{message.content}</p>
