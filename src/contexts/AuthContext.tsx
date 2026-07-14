@@ -92,9 +92,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const signUp = async (email: string, password: string) => {
+  const signUp = async (email: string, password: string, displayName?: string, username?: string) => {
     const redirectUrl = `${window.location.origin}/`;
-    const { error } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo: redirectUrl } });
+    const cleanUsername = (username || "").replace(/^@/, "").toLowerCase().trim();
+
+    // Pre-check username uniqueness to fail fast before creating auth user
+    if (cleanUsername) {
+      const { data: existing } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("username", cleanUsername)
+        .maybeSingle();
+      if (existing) return { error: new Error("USERNAME_TAKEN") };
+    }
+
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: redirectUrl,
+        data: { display_name: displayName, username: cleanUsername },
+      },
+    });
+    if (!error && data.user && (displayName || cleanUsername)) {
+      const { error: profErr } = await supabase.from("profiles").insert({
+        user_id: data.user.id,
+        display_name: displayName || null,
+        username: cleanUsername || null,
+      });
+      if (profErr && profErr.message.toLowerCase().includes("duplicate")) {
+        return { error: new Error("USERNAME_TAKEN") };
+      }
+    }
     return { error };
   };
 
