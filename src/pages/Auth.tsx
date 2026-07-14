@@ -103,9 +103,12 @@ const Auth = () => {
           navigate(redirect || "/");
         }
       } else {
-        const { error } = await signUp(email, password);
+        const { error } = await signUp(email, password, displayName.trim(), username.trim());
         if (error) {
-          if (error.message.includes("already registered")) {
+          if (error.message === "USERNAME_TAKEN") {
+            setUsernameStatus("taken");
+            toast({ title: t("registerError"), description: (t as any)("usernameTaken") || "Username is already taken", variant: "destructive" });
+          } else if (error.message.includes("already registered")) {
             toast({ title: t("registerError"), description: t("alreadyRegistered"), variant: "destructive" });
           } else {
             toast({ title: t("error"), description: error.message, variant: "destructive" });
