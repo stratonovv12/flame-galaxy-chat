@@ -65,6 +65,24 @@ const Auth = () => {
       toast({ title: t("error"), description: t("passwordMinLength"), variant: "destructive" });
       return;
     }
+    if (!isLogin) {
+      if (!displayName.trim() || !username.trim()) {
+        toast({ title: t("error"), description: t("fillAllFields"), variant: "destructive" });
+        return;
+      }
+      if (usernameStatus === "invalid") {
+        toast({ title: t("error"), description: (t as any)("usernameInvalid") || "Username: a-z, 0-9, _ (3-24)", variant: "destructive" });
+        return;
+      }
+      if (usernameStatus === "taken") {
+        toast({ title: t("error"), description: (t as any)("usernameTaken") || "Username is already taken", variant: "destructive" });
+        return;
+      }
+      if (usernameStatus === "checking") {
+        toast({ title: t("error"), description: (t as any)("checkingUsername") || "Checking username...", variant: "destructive" });
+        return;
+      }
+    }
 
     setLoading(true);
     try {
