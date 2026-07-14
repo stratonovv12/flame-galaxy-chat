@@ -280,6 +280,52 @@ const Auth = () => {
             </button>
           </div>
 
+          {!isLogin && (
+            <>
+              <div className="relative">
+                <FlameInput
+                  type="text"
+                  placeholder={(t as any)("displayName") || "Display name"}
+                  value={displayName}
+                  onChange={e => setDisplayName(e.target.value)}
+                  className="pl-12"
+                  maxLength={50}
+                />
+                <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+              </div>
+              <div>
+                <div className="relative">
+                  <FlameInput
+                    type="text"
+                    placeholder={(t as any)("usernameHandle") || "unique_username"}
+                    value={username}
+                    onChange={e => setUsername(e.target.value.replace(/^@/, "").toLowerCase())}
+                    className="pl-12 pr-10"
+                    maxLength={24}
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
+                  />
+                  <AtSign className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                    {usernameStatus === "checking" && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />}
+                    {usernameStatus === "available" && <Check className="w-4 h-4 text-primary" />}
+                    {(usernameStatus === "taken" || usernameStatus === "invalid") && <XIcon className="w-4 h-4 text-destructive" />}
+                  </div>
+                </div>
+                {usernameStatus === "taken" && (
+                  <p className="text-xs text-destructive mt-1.5 ml-1">{(t as any)("usernameTaken") || "Username is already taken"}</p>
+                )}
+                {usernameStatus === "invalid" && (
+                  <p className="text-xs text-destructive mt-1.5 ml-1">{(t as any)("usernameInvalid") || "3–24 chars: a–z, 0–9, _"}</p>
+                )}
+                {usernameStatus === "available" && (
+                  <p className="text-xs text-primary mt-1.5 ml-1">{(t as any)("usernameAvailable") || "Username is available"}</p>
+                )}
+              </div>
+            </>
+          )}
+
           {isLogin && (
             <div className="text-right">
               <button type="button" onClick={() => setShowForgot(true)} className="text-xs text-primary hover:text-primary/80 transition-colors">
