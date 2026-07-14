@@ -1,11 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { FlameButton } from "@/components/ui/FlameButton";
 import { FlameInput } from "@/components/ui/FlameInput";
 import { GlassCard } from "@/components/ui/GlassCard";
-import { Flame, Mail, Lock, Eye, EyeOff, Globe, ArrowLeft } from "lucide-react";
+import { Flame, Mail, Lock, Eye, EyeOff, Globe, ArrowLeft, User, AtSign, Check, X as XIcon, Loader2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -15,12 +15,16 @@ const Auth = () => {
   const [showReset, setShowReset] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [displayName, setDisplayName] = useState("");
+  const [username, setUsername] = useState("");
+  const [usernameStatus, setUsernameStatus] = useState<"idle" | "checking" | "available" | "taken" | "invalid">("idle");
   const [newPassword, setNewPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const { signIn, signUp, isBanned } = useAuth();
   const { t, lang, setLang } = useLanguage();
   const navigate = useNavigate();
+  const usernameDebounce = useRef<number | null>(null);
 
   // Check for password recovery token in URL hash
   useEffect(() => {
@@ -32,6 +36,25 @@ const Auth = () => {
     }
   }, []);
 
+  // Real-time username availability check
+  useEffect(() => {
+    if (isLogin) { setUsernameStatus("idle"); return; }
+    const raw = username.replace(/^@/, "").toLowerCase().trim();
+    if (usernameDebounce.current) window.clearTimeout(usernameDebounce.current);
+    if (!raw) { setUsernameStatus("idle"); return; }
+    if (!/^[a-z0-9_]{3,24}$/.test(raw)) { setUsernameStatus("invalid"); return; }
+    setUsernameStatus("checking");
+    usernameDebounce.current = window.setTimeout(async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("username", raw)
+        .maybeSingle();
+      setUsernameStatus(data ? "taken" : "available");
+    }, 350);
+    return () => { if (usernameDebounce.current) window.clearTimeout(usernameDebounce.current); };
+  }, [username, isLogin]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) {
@@ -41,6 +64,24 @@ const Auth = () => {
     if (password.length < 6) {
       toast({ title: t("error"), description: t("passwordMinLength"), variant: "destructive" });
       return;
+    }
+    if (!isLogin) {
+      if (!displayName.trim() || !username.trim()) {
+        toast({ title: t("error"), description: t("fillAllFields"), variant: "destructive" });
+        return;
+      }
+      if (usernameStatus === "invalid") {
+        toast({ title: t("error"), description: (t as any)("usernameInvalid") || "Username: a-z, 0-9, _ (3-24)", variant: "destructive" });
+        return;
+      }
+      if (usernameStatus === "taken") {
+        toast({ title: t("error"), description: (t as any)("usernameTaken") || "Username is already taken", variant: "destructive" });
+        return;
+      }
+      if (usernameStatus === "checking") {
+        toast({ title: t("error"), description: (t as any)("checkingUsername") || "Checking username...", variant: "destructive" });
+        return;
+      }
     }
 
     setLoading(true);
@@ -62,9 +103,12 @@ const Auth = () => {
           navigate(redirect || "/");
         }
       } else {
-        const { error } = await signUp(email, password);
+        const { error } = await signUp(email, password, displayName.trim(), username.trim());
         if (error) {
-          if (error.message.includes("already registered")) {
+          if (error.message === "USERNAME_TAKEN") {
+            setUsernameStatus("taken");
+            toast({ title: t("registerError"), description: (t as any)("usernameTaken") || "Username is already taken", variant: "destructive" });
+          } else if (error.message.includes("already registered")) {
             toast({ title: t("registerError"), description: t("alreadyRegistered"), variant: "destructive" });
           } else {
             toast({ title: t("error"), description: error.message, variant: "destructive" });
@@ -235,6 +279,52 @@ const Auth = () => {
               {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
             </button>
           </div>
+
+          {!isLogin && (
+            <>
+              <div className="relative">
+                <FlameInput
+                  type="text"
+                  placeholder={(t as any)("displayName") || "Display name"}
+                  value={displayName}
+                  onChange={e => setDisplayName(e.target.value)}
+                  className="pl-12"
+                  maxLength={50}
+                />
+                <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+              </div>
+              <div>
+                <div className="relative">
+                  <FlameInput
+                    type="text"
+                    placeholder={(t as any)("usernameHandle") || "unique_username"}
+                    value={username}
+                    onChange={e => setUsername(e.target.value.replace(/^@/, "").toLowerCase())}
+                    className="pl-12 pr-10"
+                    maxLength={24}
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
+                  />
+                  <AtSign className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                    {usernameStatus === "checking" && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />}
+                    {usernameStatus === "available" && <Check className="w-4 h-4 text-primary" />}
+                    {(usernameStatus === "taken" || usernameStatus === "invalid") && <XIcon className="w-4 h-4 text-destructive" />}
+                  </div>
+                </div>
+                {usernameStatus === "taken" && (
+                  <p className="text-xs text-destructive mt-1.5 ml-1">{(t as any)("usernameTaken") || "Username is already taken"}</p>
+                )}
+                {usernameStatus === "invalid" && (
+                  <p className="text-xs text-destructive mt-1.5 ml-1">{(t as any)("usernameInvalid") || "3–24 chars: a–z, 0–9, _"}</p>
+                )}
+                {usernameStatus === "available" && (
+                  <p className="text-xs text-primary mt-1.5 ml-1">{(t as any)("usernameAvailable") || "Username is available"}</p>
+                )}
+              </div>
+            </>
+          )}
 
           {isLogin && (
             <div className="text-right">

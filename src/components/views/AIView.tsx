@@ -12,6 +12,20 @@ import { Switch } from "@/components/ui/switch";
 import { toast } from "@/hooks/use-toast";
 import ReactMarkdown from "react-markdown";
 import { MiniGames } from "@/components/ui/MiniGames";
+import { CodeBlock } from "@/components/ui/CodeBlock";
+
+const mdComponents = {
+  code({ inline, className, children, ...props }: any) {
+    const match = /language-(\w+)/.exec(className || "");
+    const raw = String(children ?? "");
+    if (inline) return <CodeBlock inline code={raw} />;
+    return <CodeBlock code={raw} language={match?.[1]} />;
+  },
+  pre({ children }: any) {
+    // Avoid double-wrapping — CodeBlock already renders its own container
+    return <>{children}</>;
+  },
+};
 
 interface Message {
   id: string;
@@ -437,7 +451,7 @@ export function AIView() {
                       )}
                       {message.role === "assistant" ? (
                         <div className="prose prose-sm prose-invert max-w-none break-words [overflow-wrap:anywhere]">
-                          <ReactMarkdown>{message.content || "..."}</ReactMarkdown>
+                          <ReactMarkdown components={mdComponents}>{message.content || "..."}</ReactMarkdown>
                         </div>
                       ) : (
                         <p className="text-sm whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{message.content}</p>
