@@ -558,6 +558,10 @@ const translations = {
     accountBannedDesc: "Your account has been banned by an administrator. If you believe this is a mistake, contact support.",
     email: "Email",
     password: "Password",
+    usernameHandle: "unique_username",
+    usernameAvailable: "Username is available",
+    usernameInvalid: "3–24 chars: a–z, 0–9, _",
+    checkingUsername: "Checking username...",
 
     // Search
     searchPlaceholder: "Search users...",
