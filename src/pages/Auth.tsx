@@ -15,12 +15,16 @@ const Auth = () => {
   const [showReset, setShowReset] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [displayName, setDisplayName] = useState("");
+  const [username, setUsername] = useState("");
+  const [usernameStatus, setUsernameStatus] = useState<"idle" | "checking" | "available" | "taken" | "invalid">("idle");
   const [newPassword, setNewPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const { signIn, signUp, isBanned } = useAuth();
   const { t, lang, setLang } = useLanguage();
   const navigate = useNavigate();
+  const usernameDebounce = useRef<number | null>(null);
 
   // Check for password recovery token in URL hash
   useEffect(() => {
