@@ -1,11 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { FlameButton } from "@/components/ui/FlameButton";
 import { FlameInput } from "@/components/ui/FlameInput";
 import { GlassCard } from "@/components/ui/GlassCard";
-import { Flame, Mail, Lock, Eye, EyeOff, Globe, ArrowLeft } from "lucide-react";
+import { Flame, Mail, Lock, Eye, EyeOff, Globe, ArrowLeft, User, AtSign, Check, X as XIcon, Loader2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
