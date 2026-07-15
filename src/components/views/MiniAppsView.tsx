@@ -48,6 +48,37 @@ export function MiniAppsView({ open, onOpenChange }: Props) {
   const [editing, setEditing] = useState<Partial<MiniApp> | null>(null);
   const [launching, setLaunching] = useState<MiniApp | null>(null);
   const [loading, setLoading] = useState(false);
+  const [aiPrompt, setAiPrompt] = useState("");
+  const [aiBusy, setAiBusy] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
+
+  const runAI = async () => {
+    if (!aiPrompt.trim() || !editing) return;
+    setAiBusy(true);
+    try {
+      const currentCode = editing.content || DEFAULT_HTML;
+      const { data, error } = await supabase.functions.invoke("flame-ai", {
+        body: {
+          messages: [
+            { role: "system", content: "You are a code generator for a self-contained single-file HTML mini-app (HTML+CSS+JS inline). Return ONLY the full updated HTML document, no explanation, no markdown fences." },
+            { role: "user", content: `Current code:\n\n${currentCode}\n\nUpdate request: ${aiPrompt}\n\nReturn the full updated HTML document only.` },
+          ],
+        },
+      });
+      if (error) throw error;
+      let out: string = (data?.message || data?.content || data?.text || "").trim();
+      out = out.replace(/^```(?:html)?\s*/i, "").replace(/```\s*$/i, "").trim();
+      if (!out || !/</.test(out)) throw new Error("Empty AI response");
+      setEditing({ ...editing, content: out });
+      setAiPrompt("");
+      setShowPreview(true);
+      toast({ title: "Code updated by Flame AI" });
+    } catch (e: any) {
+      toast({ title: t("error"), description: e.message || "AI failed", variant: "destructive" });
+    } finally {
+      setAiBusy(false);
+    }
+  };
 
   useEffect(() => { if (open) load(); }, [open, tab, user]);
 
