@@ -20,7 +20,37 @@ export function AdminPanelView() {
   const [searchResults, setSearchResults] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(false);
 
+  // Mini-app moderation
+  const [appQuery, setAppQuery] = useState("");
+  const [appResults, setAppResults] = useState<Array<{ id: string; handle: string; name: string; suspended: boolean; creator_id: string }>>([]);
+  const [appLoading, setAppLoading] = useState(false);
+
   useEffect(() => { fetchBannedUsers(); fetchVerifiedUsers(); }, []);
+
+  const searchMiniApps = async () => {
+    setAppLoading(true);
+    const q = appQuery.trim().replace(/^@/, "").replace(/[%_\\]/g, '\\$&');
+    let query = supabase.from("mini_apps").select("id, handle, name, suspended, creator_id").order("created_at", { ascending: false }).limit(30);
+    if (q) query = query.or(`handle.ilike.%${q}%,name.ilike.%${q}%`);
+    const { data } = await query;
+    setAppResults((data as any) || []);
+    setAppLoading(false);
+  };
+
+  const toggleSuspend = async (id: string, suspended: boolean) => {
+    const { error } = await supabase.from("mini_apps").update({ suspended: !suspended }).eq("id", id);
+    if (error) { toast({ title: t("error"), description: error.message, variant: "destructive" }); return; }
+    toast({ title: !suspended ? "Mini-app suspended" : "Mini-app unsuspended" });
+    searchMiniApps();
+  };
+
+  const deleteMiniApp = async (id: string) => {
+    if (!confirm("Delete this mini-app permanently?")) return;
+    const { error } = await supabase.from("mini_apps").delete().eq("id", id);
+    if (error) { toast({ title: t("error"), description: error.message, variant: "destructive" }); return; }
+    toast({ title: "Mini-app deleted" });
+    searchMiniApps();
+  };
 
   const fetchBannedUsers = async () => {
     const { data: bans } = await supabase.from("banned_users").select("id, user_id");
