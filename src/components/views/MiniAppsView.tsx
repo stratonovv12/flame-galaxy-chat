@@ -192,13 +192,47 @@ export function MiniAppsView({ open, onOpenChange }: Props) {
               <FlameInput placeholder="unique_handle" value={editing.handle || ""} onChange={e => setEditing({ ...editing, handle: e.target.value })} className="pl-9" />
             </div>
             <FlameInput placeholder={t("appDescription")} value={editing.description || ""} onChange={e => setEditing({ ...editing, description: e.target.value })} />
+
+            <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 space-y-2">
+              <div className="flex items-center gap-2 text-xs font-semibold text-primary">
+                <Sparkles className="w-4 h-4" /> Flame AI Assistant
+              </div>
+              <textarea
+                value={aiPrompt}
+                onChange={e => setAiPrompt(e.target.value)}
+                placeholder="e.g. Add a dark mode toggle and a reset button"
+                className="w-full h-16 bg-background/60 border border-border rounded-md p-2 text-xs resize-none [overflow-wrap:anywhere]"
+              />
+              <FlameButton onClick={runAI} disabled={aiBusy || !aiPrompt.trim()} size="sm" className="w-full">
+                {aiBusy ? "Generating..." : "Generate / Update Code"}
+              </FlameButton>
+            </div>
+
             <textarea
               value={editing.content || DEFAULT_HTML}
               onChange={e => setEditing({ ...editing, content: e.target.value })}
               spellCheck={false}
-              className="w-full h-64 bg-muted/30 border border-border rounded-lg p-3 font-mono text-xs text-foreground"
+              className="w-full h-64 bg-muted/30 border border-border rounded-lg p-3 font-mono text-xs text-foreground [overflow-wrap:anywhere]"
               placeholder={t("appCode")}
             />
+
+            <button onClick={() => setShowPreview(v => !v)} className="flex items-center gap-1.5 text-xs text-primary hover:underline">
+              <Eye className="w-3.5 h-3.5" /> {showPreview ? "Hide" : "Show"} live preview
+            </button>
+            {showPreview && (
+              <div className="relative w-full h-72 rounded-lg overflow-hidden border border-border bg-white">
+                <iframe
+                  sandbox="allow-scripts allow-forms allow-popups allow-same-origin"
+                  srcDoc={editing.content || DEFAULT_HTML}
+                  className="absolute inset-0 w-full h-full border-0"
+                  title="preview"
+                />
+                <div className="pointer-events-none absolute bottom-2 right-2 flex items-center gap-1 rounded-full bg-black/70 backdrop-blur-md px-2.5 py-1 text-[10px] font-semibold text-white border border-primary/40 select-none">
+                  <Flame className="w-3 h-3 text-primary" /> Powered by Flame
+                </div>
+              </div>
+            )}
+
             <label className="flex items-center gap-2 text-sm">
               <input type="checkbox" checked={!!editing.published} onChange={e => setEditing({ ...editing, published: e.target.checked })} />
               <Globe className="w-4 h-4" /> {t("publishApp")}
