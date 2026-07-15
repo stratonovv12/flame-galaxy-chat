@@ -394,7 +394,12 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
         partnerId,
         partnerUsername: profile?.username || null,
         partnerAvatarUrl: profile?.avatar_url || null,
-        lastMessage: data.lastMessage.content,
+        lastMessage: (() => {
+          const c = data.lastMessage.content as string;
+          if (c?.startsWith(POLL_PREFIX)) { const p = parsePoll(c); return p ? `📊 ${p.q}` : "📊 Poll"; }
+          if (isTTTMarker(c)) return "🎮 Tic-Tac-Toe";
+          return c;
+        })(),
         lastMessageAt: data.lastMessage.created_at,
         unreadCount: data.unreadCount,
       };
