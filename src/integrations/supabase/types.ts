@@ -243,6 +243,38 @@ export type Database = {
           },
         ]
       }
+      dm_poll_votes: {
+        Row: {
+          created_at: string
+          id: string
+          message_id: string
+          option_index: number
+          voter_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message_id: string
+          option_index: number
+          voter_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message_id?: string
+          option_index?: number
+          voter_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dm_poll_votes_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "direct_messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       feed_comments: {
         Row: {
           content: string
@@ -426,6 +458,7 @@ export type Database = {
           id: string
           name: string
           published: boolean
+          suspended: boolean
           updated_at: string
         }
         Insert: {
@@ -439,6 +472,7 @@ export type Database = {
           id?: string
           name: string
           published?: boolean
+          suspended?: boolean
           updated_at?: string
         }
         Update: {
@@ -452,6 +486,7 @@ export type Database = {
           id?: string
           name?: string
           published?: boolean
+          suspended?: boolean
           updated_at?: string
         }
         Relationships: []

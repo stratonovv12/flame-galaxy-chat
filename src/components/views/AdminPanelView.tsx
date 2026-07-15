@@ -5,7 +5,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { FlameButton } from "@/components/ui/FlameButton";
 import { UserAvatar } from "@/components/ui/UserAvatar";
-import { Shield, BadgeCheck, Ban, UserX, Search } from "lucide-react";
+import { Shield, BadgeCheck, Ban, UserX, Search, Boxes, Trash2, Play, Pause } from "lucide-react";
 import { FlameInput } from "@/components/ui/FlameInput";
 import { toast } from "@/hooks/use-toast";
 
@@ -20,7 +20,37 @@ export function AdminPanelView() {
   const [searchResults, setSearchResults] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(false);
 
+  // Mini-app moderation
+  const [appQuery, setAppQuery] = useState("");
+  const [appResults, setAppResults] = useState<Array<{ id: string; handle: string; name: string; suspended: boolean; creator_id: string }>>([]);
+  const [appLoading, setAppLoading] = useState(false);
+
   useEffect(() => { fetchBannedUsers(); fetchVerifiedUsers(); }, []);
+
+  const searchMiniApps = async () => {
+    setAppLoading(true);
+    const q = appQuery.trim().replace(/^@/, "").replace(/[%_\\]/g, '\\$&');
+    let query = supabase.from("mini_apps").select("id, handle, name, suspended, creator_id").order("created_at", { ascending: false }).limit(30);
+    if (q) query = query.or(`handle.ilike.%${q}%,name.ilike.%${q}%`);
+    const { data } = await query;
+    setAppResults((data as any) || []);
+    setAppLoading(false);
+  };
+
+  const toggleSuspend = async (id: string, suspended: boolean) => {
+    const { error } = await supabase.from("mini_apps").update({ suspended: !suspended }).eq("id", id);
+    if (error) { toast({ title: t("error"), description: error.message, variant: "destructive" }); return; }
+    toast({ title: !suspended ? "Mini-app suspended" : "Mini-app unsuspended" });
+    searchMiniApps();
+  };
+
+  const deleteMiniApp = async (id: string) => {
+    if (!confirm("Delete this mini-app permanently?")) return;
+    const { error } = await supabase.from("mini_apps").delete().eq("id", id);
+    if (error) { toast({ title: t("error"), description: error.message, variant: "destructive" }); return; }
+    toast({ title: "Mini-app deleted" });
+    searchMiniApps();
+  };
 
   const fetchBannedUsers = async () => {
     const { data: bans } = await supabase.from("banned_users").select("id, user_id");
@@ -112,6 +142,36 @@ export function AdminPanelView() {
           </div>
         )}
       </GlassCard>
+
+      <GlassCard className="p-4">
+        <h3 className="font-semibold mb-3 flex items-center gap-2"><Boxes className="w-5 h-5 text-primary" /> Mini-app moderation</h3>
+        <div className="flex gap-2">
+          <FlameInput placeholder="Search by @handle or name" value={appQuery} onChange={e => setAppQuery(e.target.value)} onKeyDown={e => e.key === "Enter" && searchMiniApps()} className="flex-1" />
+          <FlameButton onClick={searchMiniApps} disabled={appLoading}><Search className="w-4 h-4" /></FlameButton>
+        </div>
+        {appResults.length > 0 && (
+          <div className="mt-3 space-y-2">
+            {appResults.map(a => (
+              <div key={a.id} className="flex items-center gap-3 p-2 rounded-lg bg-muted/20">
+                <div className="w-9 h-9 rounded-lg bg-primary/20 flex items-center justify-center shrink-0">
+                  <Boxes className="w-4 h-4 text-primary" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-sm truncate">{a.name}</p>
+                  <p className="text-xs text-muted-foreground truncate">@{a.handle}{a.suspended ? " · 🚫 suspended" : ""}</p>
+                </div>
+                <button onClick={() => toggleSuspend(a.id, a.suspended)} className={`p-2 rounded-lg ${a.suspended ? "bg-primary/20 text-primary" : "hover:bg-destructive/20 text-destructive"}`} title={a.suspended ? "Unsuspend" : "Suspend"}>
+                  {a.suspended ? <Play className="w-4 h-4" /> : <Pause className="w-4 h-4" />}
+                </button>
+                <button onClick={() => deleteMiniApp(a.id)} className="p-2 rounded-lg hover:bg-destructive/20 text-destructive" title="Delete">
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </GlassCard>
     </div>
   );
 }
+

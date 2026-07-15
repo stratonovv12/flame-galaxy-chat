@@ -20,6 +20,7 @@ import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { MessageCircle, Send, ArrowLeft, Phone, ShieldBan, ShieldCheck, X, Forward, Ghost, ChevronDown, Pin, PinOff, Flame, Gamepad2, MoreVertical } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { parseTTTMessages, isTTTMarker, sendTTTInvite, TTTMessageCard, TTTGameOverlay } from "@/components/ui/TicTacToeMultiplayer";
+import { DMAttachmentsButton, PollBubble, encodePoll, parsePoll, POLL_PREFIX } from "@/components/ui/DMAttachments";
 import { formatDistanceToNow } from "date-fns";
 import { ru, enUS } from "date-fns/locale";
 import { toast } from "@/hooks/use-toast";
@@ -393,7 +394,12 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
         partnerId,
         partnerUsername: profile?.username || null,
         partnerAvatarUrl: profile?.avatar_url || null,
-        lastMessage: data.lastMessage.content,
+        lastMessage: (() => {
+          const c = data.lastMessage.content as string;
+          if (c?.startsWith(POLL_PREFIX)) { const p = parsePoll(c); return p ? `📊 ${p.q}` : "📊 Poll"; }
+          if (isTTTMarker(c)) return "🎮 Tic-Tac-Toe";
+          return c;
+        })(),
         lastMessageAt: data.lastMessage.created_at,
         unreadCount: data.unreadCount,
       };
@@ -498,6 +504,31 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
       });
       sendPush(activeChat.id, t("newMessage" as any) || "New message", `🎤 ${t("voiceMessage")}`, "/");
     });
+  };
+
+  const sendFile = async (url: string, filename: string) => {
+    if (!activeChat || !user) return;
+    if (blockedByThem) { toast({ title: t("error"), description: t("blocked"), variant: "destructive" }); return; }
+    const content = `📎 ${filename}`;
+    const { error } = await supabase.from("direct_messages").insert({
+      sender_id: user.id, receiver_id: activeChat.id,
+      content, media_url: url,
+    });
+    if (error) { toast({ title: t("error"), description: t("sendFailed"), variant: "destructive" }); return; }
+    sendPush(activeChat.id, t("newMessage" as any) || "New message", content, "/");
+    setIsAtBottom(true);
+  };
+
+  const sendPoll = async (question: string, options: string[]) => {
+    if (!activeChat || !user) return;
+    if (blockedByThem) { toast({ title: t("error"), description: t("blocked"), variant: "destructive" }); return; }
+    const content = encodePoll(question, options);
+    const { error } = await supabase.from("direct_messages").insert({
+      sender_id: user.id, receiver_id: activeChat.id, content, media_url: null,
+    });
+    if (error) { toast({ title: t("error"), description: t("sendFailed"), variant: "destructive" }); return; }
+    sendPush(activeChat.id, t("newMessage" as any) || "New message", `📊 ${question}`, "/");
+    setIsAtBottom(true);
   };
 
   const forwardMessage = async (targetUserId: string) => {
@@ -742,9 +773,20 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
                             {getReplyPreview(msg.reply_to_id) || t("message")}
                           </button>
                         )}
-                        {msg.media_url && renderMedia(msg.media_url)}
-                        {msg.content && msg.content !== t("media") && !msg.content.startsWith("🎤") && !msg.content.startsWith("🎥") && (
-                          <p className="text-sm break-words">{msg.content}</p>
+                        {msg.media_url && !msg.content?.startsWith("📎 ") && renderMedia(msg.media_url)}
+                        {msg.content?.startsWith("📎 ") && msg.media_url && (
+                          <a href={msg.media_url} target="_blank" rel="noopener noreferrer"
+                             className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/40 hover:bg-muted/60 text-sm border border-border max-w-full">
+                            <span className="text-lg">📎</span>
+                            <span className="truncate [overflow-wrap:anywhere] underline">{msg.content.slice(2).trim()}</span>
+                          </a>
+                        )}
+                        {msg.content && parsePoll(msg.content) && (() => {
+                          const p = parsePoll(msg.content)!;
+                          return <PollBubble messageId={msg.id} question={p.q} options={p.opts} />;
+                        })()}
+                        {msg.content && !parsePoll(msg.content) && !msg.content.startsWith("📎 ") && msg.content !== t("media") && !msg.content.startsWith("🎤") && !msg.content.startsWith("🎥") && (
+                          <p className="text-sm break-words [overflow-wrap:anywhere]">{msg.content}</p>
                         )}
                         <div className="flex items-center justify-end gap-1 mt-1">
                           <p className={`text-xs ${ghostMode ? "text-zinc-500" : "text-muted-foreground"}`}>
@@ -823,6 +865,7 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
 
         <div className="p-4 glass-card rounded-none border-x-0 border-b-0 ipad-input">
           <div className="flex items-end gap-2">
+            <DMAttachmentsButton onSendFile={sendFile} onSendPoll={sendPoll} />
             <MediaUpload onUpload={setMediaUrl} />
             <VoiceRecorder onRecorded={handleVoiceRecorded} />
             <FlameInput

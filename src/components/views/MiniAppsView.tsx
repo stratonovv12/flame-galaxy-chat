@@ -6,7 +6,7 @@ import { GlassCard } from "@/components/ui/GlassCard";
 import { FlameButton } from "@/components/ui/FlameButton";
 import { FlameInput } from "@/components/ui/FlameInput";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Boxes, Plus, Play, Pencil, Trash2, ArrowLeft, Globe, Hash } from "lucide-react";
+import { Boxes, Plus, Play, Pencil, Trash2, ArrowLeft, Globe, Hash, Sparkles, Eye, Flame } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 interface MiniApp {
@@ -19,6 +19,7 @@ interface MiniApp {
   app_type: "html" | "python";
   content: string;
   published: boolean;
+  suspended?: boolean;
   created_at: string;
 }
 
@@ -47,6 +48,67 @@ export function MiniAppsView({ open, onOpenChange }: Props) {
   const [editing, setEditing] = useState<Partial<MiniApp> | null>(null);
   const [launching, setLaunching] = useState<MiniApp | null>(null);
   const [loading, setLoading] = useState(false);
+  const [aiPrompt, setAiPrompt] = useState("");
+  const [aiBusy, setAiBusy] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
+
+  const runAI = async () => {
+    if (!aiPrompt.trim() || !editing) return;
+    setAiBusy(true);
+    try {
+      const currentCode = editing.content || DEFAULT_HTML;
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Not signed in");
+      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/flame-ai`;
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+        },
+        body: JSON.stringify({
+          messages: [
+            { role: "system", content: "You output ONLY a complete standalone single-file HTML document (HTML+CSS+JS inline). No markdown fences, no commentary. Just raw HTML starting with <!doctype html> or <html." },
+            { role: "user", content: `Current code:\n\n${currentCode}\n\nUpdate request: ${aiPrompt}\n\nReturn ONLY the full updated HTML document.` },
+          ],
+        }),
+      });
+      if (!res.ok || !res.body) throw new Error(`AI error ${res.status}`);
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let full = "";
+      let buffer = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const parts = buffer.split("\n\n");
+        buffer = parts.pop() || "";
+        for (const p of parts) {
+          const line = p.trim();
+          if (!line.startsWith("data:")) continue;
+          const data = line.slice(5).trim();
+          if (data === "[DONE]") continue;
+          try {
+            const json = JSON.parse(data);
+            const delta = json.choices?.[0]?.delta?.content || "";
+            if (delta) full += delta;
+          } catch { /* ignore */ }
+        }
+      }
+      let out = full.trim().replace(/^```(?:html)?\s*/i, "").replace(/```\s*$/i, "").trim();
+      if (!out || !/</.test(out)) throw new Error("Empty AI response");
+      setEditing({ ...editing, content: out });
+      setAiPrompt("");
+      setShowPreview(true);
+      toast({ title: "Code updated by Flame AI" });
+    } catch (e: any) {
+      toast({ title: t("error"), description: e.message || "AI failed", variant: "destructive" });
+    } finally {
+      setAiBusy(false);
+    }
+  };
 
   useEffect(() => { if (open) load(); }, [open, tab, user]);
 
@@ -54,7 +116,7 @@ export function MiniAppsView({ open, onOpenChange }: Props) {
     if (!user) return;
     let q = supabase.from("mini_apps").select("*").order("created_at", { ascending: false });
     if (tab === "mine") q = q.eq("creator_id", user.id);
-    else q = q.eq("published", true);
+    else q = q.eq("published", true).eq("suspended", false);
     const { data } = await q;
     setApps((data as MiniApp[]) || []);
   };
@@ -86,7 +148,12 @@ export function MiniAppsView({ open, onOpenChange }: Props) {
       else { toast({ title: t("appUpdated") }); setEditing(null); load(); }
     } else {
       const { error } = await supabase.from("mini_apps").insert(payload);
-      if (error) toast({ title: t("error"), description: error.message.includes("duplicate") ? t("handleTaken") : error.message, variant: "destructive" });
+      if (error) {
+        const msg = error.message.includes("mini_apps_limit_reached")
+          ? "Limit reached: max 5 mini apps per user"
+          : error.message.includes("duplicate") ? t("handleTaken") : error.message;
+        toast({ title: t("error"), description: msg, variant: "destructive" });
+      }
       else { toast({ title: t("appCreated") }); setEditing(null); load(); }
     }
     setLoading(false);
@@ -118,12 +185,18 @@ export function MiniAppsView({ open, onOpenChange }: Props) {
             </DialogTitle>
             <div className="w-16" />
           </DialogHeader>
-          <iframe
-            sandbox="allow-scripts allow-forms allow-popups allow-same-origin"
-            srcDoc={launching.content}
-            className="flex-1 w-full border-0 bg-white"
-            title={launching.name}
-          />
+          <div className="relative flex-1 w-full">
+            <iframe
+              sandbox="allow-scripts allow-forms allow-popups allow-same-origin"
+              srcDoc={launching.content}
+              className="absolute inset-0 w-full h-full border-0 bg-white"
+              title={launching.name}
+            />
+            <div className="pointer-events-none absolute bottom-3 right-3 z-10 flex items-center gap-1.5 rounded-full bg-black/70 backdrop-blur-md px-3 py-1.5 text-[11px] font-semibold text-white shadow-lg border border-primary/40 select-none">
+              <Flame className="w-3.5 h-3.5 text-primary" />
+              Powered by Flame
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     );
@@ -149,13 +222,47 @@ export function MiniAppsView({ open, onOpenChange }: Props) {
               <FlameInput placeholder="unique_handle" value={editing.handle || ""} onChange={e => setEditing({ ...editing, handle: e.target.value })} className="pl-9" />
             </div>
             <FlameInput placeholder={t("appDescription")} value={editing.description || ""} onChange={e => setEditing({ ...editing, description: e.target.value })} />
+
+            <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 space-y-2">
+              <div className="flex items-center gap-2 text-xs font-semibold text-primary">
+                <Sparkles className="w-4 h-4" /> Flame AI Assistant
+              </div>
+              <textarea
+                value={aiPrompt}
+                onChange={e => setAiPrompt(e.target.value)}
+                placeholder="e.g. Add a dark mode toggle and a reset button"
+                className="w-full h-16 bg-background/60 border border-border rounded-md p-2 text-xs resize-none [overflow-wrap:anywhere]"
+              />
+              <FlameButton onClick={runAI} disabled={aiBusy || !aiPrompt.trim()} size="sm" className="w-full">
+                {aiBusy ? "Generating..." : "Generate / Update Code"}
+              </FlameButton>
+            </div>
+
             <textarea
               value={editing.content || DEFAULT_HTML}
               onChange={e => setEditing({ ...editing, content: e.target.value })}
               spellCheck={false}
-              className="w-full h-64 bg-muted/30 border border-border rounded-lg p-3 font-mono text-xs text-foreground"
+              className="w-full h-64 bg-muted/30 border border-border rounded-lg p-3 font-mono text-xs text-foreground [overflow-wrap:anywhere]"
               placeholder={t("appCode")}
             />
+
+            <button onClick={() => setShowPreview(v => !v)} className="flex items-center gap-1.5 text-xs text-primary hover:underline">
+              <Eye className="w-3.5 h-3.5" /> {showPreview ? "Hide" : "Show"} live preview
+            </button>
+            {showPreview && (
+              <div className="relative w-full h-72 rounded-lg overflow-hidden border border-border bg-white">
+                <iframe
+                  sandbox="allow-scripts allow-forms allow-popups allow-same-origin"
+                  srcDoc={editing.content || DEFAULT_HTML}
+                  className="absolute inset-0 w-full h-full border-0"
+                  title="preview"
+                />
+                <div className="pointer-events-none absolute bottom-2 right-2 flex items-center gap-1 rounded-full bg-black/70 backdrop-blur-md px-2.5 py-1 text-[10px] font-semibold text-white border border-primary/40 select-none">
+                  <Flame className="w-3 h-3 text-primary" /> Powered by Flame
+                </div>
+              </div>
+            )}
+
             <label className="flex items-center gap-2 text-sm">
               <input type="checkbox" checked={!!editing.published} onChange={e => setEditing({ ...editing, published: e.target.checked })} />
               <Globe className="w-4 h-4" /> {t("publishApp")}
