@@ -768,9 +768,20 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
                             {getReplyPreview(msg.reply_to_id) || t("message")}
                           </button>
                         )}
-                        {msg.media_url && renderMedia(msg.media_url)}
-                        {msg.content && msg.content !== t("media") && !msg.content.startsWith("🎤") && !msg.content.startsWith("🎥") && (
-                          <p className="text-sm break-words">{msg.content}</p>
+                        {msg.media_url && !msg.content?.startsWith("📎 ") && renderMedia(msg.media_url)}
+                        {msg.content?.startsWith("📎 ") && msg.media_url && (
+                          <a href={msg.media_url} target="_blank" rel="noopener noreferrer"
+                             className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/40 hover:bg-muted/60 text-sm border border-border max-w-full">
+                            <span className="text-lg">📎</span>
+                            <span className="truncate [overflow-wrap:anywhere] underline">{msg.content.slice(2).trim()}</span>
+                          </a>
+                        )}
+                        {msg.content && parsePoll(msg.content) && (() => {
+                          const p = parsePoll(msg.content)!;
+                          return <PollBubble messageId={msg.id} question={p.q} options={p.opts} />;
+                        })()}
+                        {msg.content && !parsePoll(msg.content) && !msg.content.startsWith("📎 ") && msg.content !== t("media") && !msg.content.startsWith("🎤") && !msg.content.startsWith("🎥") && (
+                          <p className="text-sm break-words [overflow-wrap:anywhere]">{msg.content}</p>
                         )}
                         <div className="flex items-center justify-end gap-1 mt-1">
                           <p className={`text-xs ${ghostMode ? "text-zinc-500" : "text-muted-foreground"}`}>
