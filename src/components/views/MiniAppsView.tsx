@@ -55,7 +55,7 @@ export function MiniAppsView({ open, onOpenChange }: Props) {
     if (!user) return;
     let q = supabase.from("mini_apps").select("*").order("created_at", { ascending: false });
     if (tab === "mine") q = q.eq("creator_id", user.id);
-    else q = q.eq("published", true);
+    else q = q.eq("published", true).eq("suspended", false);
     const { data } = await q;
     setApps((data as MiniApp[]) || []);
   };
