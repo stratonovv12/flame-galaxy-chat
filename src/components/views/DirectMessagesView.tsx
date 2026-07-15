@@ -501,6 +501,31 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
     });
   };
 
+  const sendFile = async (url: string, filename: string) => {
+    if (!activeChat || !user) return;
+    if (blockedByThem) { toast({ title: t("error"), description: t("blocked"), variant: "destructive" }); return; }
+    const content = `📎 ${filename}`;
+    const { error } = await supabase.from("direct_messages").insert({
+      sender_id: user.id, receiver_id: activeChat.id,
+      content, media_url: url,
+    });
+    if (error) { toast({ title: t("error"), description: t("sendFailed"), variant: "destructive" }); return; }
+    sendPush(activeChat.id, t("newMessage" as any) || "New message", content, "/");
+    setIsAtBottom(true);
+  };
+
+  const sendPoll = async (question: string, options: string[]) => {
+    if (!activeChat || !user) return;
+    if (blockedByThem) { toast({ title: t("error"), description: t("blocked"), variant: "destructive" }); return; }
+    const content = encodePoll(question, options);
+    const { error } = await supabase.from("direct_messages").insert({
+      sender_id: user.id, receiver_id: activeChat.id, content, media_url: null,
+    });
+    if (error) { toast({ title: t("error"), description: t("sendFailed"), variant: "destructive" }); return; }
+    sendPush(activeChat.id, t("newMessage" as any) || "New message", `📊 ${question}`, "/");
+    setIsAtBottom(true);
+  };
+
   const forwardMessage = async (targetUserId: string) => {
     if (!forwardMsg || !user) return;
     await supabase.from("direct_messages").insert({
