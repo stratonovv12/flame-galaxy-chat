@@ -57,17 +57,47 @@ export function MiniAppsView({ open, onOpenChange }: Props) {
     setAiBusy(true);
     try {
       const currentCode = editing.content || DEFAULT_HTML;
-      const { data, error } = await supabase.functions.invoke("flame-ai", {
-        body: {
-          messages: [
-            { role: "system", content: "You are a code generator for a self-contained single-file HTML mini-app (HTML+CSS+JS inline). Return ONLY the full updated HTML document, no explanation, no markdown fences." },
-            { role: "user", content: `Current code:\n\n${currentCode}\n\nUpdate request: ${aiPrompt}\n\nReturn the full updated HTML document only.` },
-          ],
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Not signed in");
+      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/flame-ai`;
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
         },
+        body: JSON.stringify({
+          messages: [
+            { role: "system", content: "You output ONLY a complete standalone single-file HTML document (HTML+CSS+JS inline). No markdown fences, no commentary. Just raw HTML starting with <!doctype html> or <html." },
+            { role: "user", content: `Current code:\n\n${currentCode}\n\nUpdate request: ${aiPrompt}\n\nReturn ONLY the full updated HTML document.` },
+          ],
+        }),
       });
-      if (error) throw error;
-      let out: string = (data?.message || data?.content || data?.text || "").trim();
-      out = out.replace(/^```(?:html)?\s*/i, "").replace(/```\s*$/i, "").trim();
+      if (!res.ok || !res.body) throw new Error(`AI error ${res.status}`);
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let full = "";
+      let buffer = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const parts = buffer.split("\n\n");
+        buffer = parts.pop() || "";
+        for (const p of parts) {
+          const line = p.trim();
+          if (!line.startsWith("data:")) continue;
+          const data = line.slice(5).trim();
+          if (data === "[DONE]") continue;
+          try {
+            const json = JSON.parse(data);
+            const delta = json.choices?.[0]?.delta?.content || "";
+            if (delta) full += delta;
+          } catch { /* ignore */ }
+        }
+      }
+      let out = full.trim().replace(/^```(?:html)?\s*/i, "").replace(/```\s*$/i, "").trim();
       if (!out || !/</.test(out)) throw new Error("Empty AI response");
       setEditing({ ...editing, content: out });
       setAiPrompt("");
