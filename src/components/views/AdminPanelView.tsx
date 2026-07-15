@@ -5,7 +5,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { FlameButton } from "@/components/ui/FlameButton";
 import { UserAvatar } from "@/components/ui/UserAvatar";
-import { Shield, BadgeCheck, Ban, UserX, Search } from "lucide-react";
+import { Shield, BadgeCheck, Ban, UserX, Search, Boxes, Trash2, Play, Pause } from "lucide-react";
 import { FlameInput } from "@/components/ui/FlameInput";
 import { toast } from "@/hooks/use-toast";
 
