@@ -433,7 +433,7 @@ interface Comment {
   username?: string | null; display_name?: string | null; avatar_url?: string | null;
 }
 
-function CommentsModal({ post, onClose, onViewProfile }: { post: FeedPost; onClose: () => void; onViewProfile: (id: string) => void }) {
+export function CommentsModal({ post, onClose, onViewProfile }: { post: FeedPost; onClose: () => void; onViewProfile: (id: string) => void }) {
   const { user } = useAuth();
   const { t, lang } = useLanguage();
   const dateLocale = lang === "ru" ? ru : enUS;
