@@ -124,12 +124,18 @@ export function MiniAppsView({ open, onOpenChange }: Props) {
             </DialogTitle>
             <div className="w-16" />
           </DialogHeader>
-          <iframe
-            sandbox="allow-scripts allow-forms allow-popups allow-same-origin"
-            srcDoc={launching.content}
-            className="flex-1 w-full border-0 bg-white"
-            title={launching.name}
-          />
+          <div className="relative flex-1 w-full">
+            <iframe
+              sandbox="allow-scripts allow-forms allow-popups allow-same-origin"
+              srcDoc={launching.content}
+              className="absolute inset-0 w-full h-full border-0 bg-white"
+              title={launching.name}
+            />
+            <div className="pointer-events-none absolute bottom-3 right-3 z-10 flex items-center gap-1.5 rounded-full bg-black/70 backdrop-blur-md px-3 py-1.5 text-[11px] font-semibold text-white shadow-lg border border-primary/40 select-none">
+              <Flame className="w-3.5 h-3.5 text-primary" />
+              Powered by Flame
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     );
