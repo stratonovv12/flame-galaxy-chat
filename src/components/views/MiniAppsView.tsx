@@ -19,6 +19,7 @@ interface MiniApp {
   app_type: "html" | "python";
   content: string;
   published: boolean;
+  suspended?: boolean;
   created_at: string;
 }
 
