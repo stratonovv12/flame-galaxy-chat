@@ -849,6 +849,7 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
 
         <div className="p-4 glass-card rounded-none border-x-0 border-b-0 ipad-input">
           <div className="flex items-end gap-2">
+            <DMAttachmentsButton onSendFile={sendFile} onSendPoll={sendPoll} />
             <MediaUpload onUpload={setMediaUrl} />
             <VoiceRecorder onRecorded={handleVoiceRecorded} />
             <FlameInput
