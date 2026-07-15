@@ -87,7 +87,12 @@ export function MiniAppsView({ open, onOpenChange }: Props) {
       else { toast({ title: t("appUpdated") }); setEditing(null); load(); }
     } else {
       const { error } = await supabase.from("mini_apps").insert(payload);
-      if (error) toast({ title: t("error"), description: error.message.includes("duplicate") ? t("handleTaken") : error.message, variant: "destructive" });
+      if (error) {
+        const msg = error.message.includes("mini_apps_limit_reached")
+          ? "Limit reached: max 5 mini apps per user"
+          : error.message.includes("duplicate") ? t("handleTaken") : error.message;
+        toast({ title: t("error"), description: msg, variant: "destructive" });
+      }
       else { toast({ title: t("appCreated") }); setEditing(null); load(); }
     }
     setLoading(false);
