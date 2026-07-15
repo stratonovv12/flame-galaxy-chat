@@ -20,6 +20,7 @@ import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { MessageCircle, Send, ArrowLeft, Phone, ShieldBan, ShieldCheck, X, Forward, Ghost, ChevronDown, Pin, PinOff, Flame, Gamepad2, MoreVertical } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { parseTTTMessages, isTTTMarker, sendTTTInvite, TTTMessageCard, TTTGameOverlay } from "@/components/ui/TicTacToeMultiplayer";
+import { DMAttachmentsButton, PollBubble, encodePoll, parsePoll, POLL_PREFIX } from "@/components/ui/DMAttachments";
 import { formatDistanceToNow } from "date-fns";
 import { ru, enUS } from "date-fns/locale";
 import { toast } from "@/hooks/use-toast";
