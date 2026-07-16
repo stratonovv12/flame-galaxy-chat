@@ -302,3 +302,129 @@ export function MiniAppsView({ open, onOpenChange }: Props) {
     </Dialog>
   );
 }
+
+// ---------- Full-screen mini-app runner with cloud state bridge ----------
+// Mini-apps can persist per-user state that follows them across devices:
+//   parent.postMessage({ type: "flame:save", state: {...} }, "*")
+//   parent.postMessage({ type: "flame:load" }, "*")
+// On load, we post { type: "flame:state", state } back to the iframe.
+function LaunchedMiniApp({
+  app, userId, onClose, onBack, open, t,
+}: {
+  app: MiniApp;
+  userId?: string;
+  onClose: () => void;
+  onBack: () => void;
+  open: boolean;
+  t: (k: string) => string;
+}) {
+  const [initialState, setInitialState] = useState<any>(null);
+  const [ready, setReady] = useState(false);
+  const iframeRef = (typeof window !== "undefined" ? (window as any) : null);
+
+  // Load cloud state once
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!userId) { setReady(true); return; }
+      const { data } = await supabase
+        .from("mini_app_state")
+        .select("state")
+        .eq("user_id", userId)
+        .eq("app_id", app.id)
+        .maybeSingle();
+      if (cancelled) return;
+      setInitialState((data as any)?.state ?? {});
+      setReady(true);
+    })();
+    return () => { cancelled = true; };
+  }, [userId, app.id]);
+
+  // Inject a tiny bridge into the mini-app so plain window.flame.save/load works too
+  const enhancedContent = `${app.content}
+<script>(function(){
+  if (window.flame) return;
+  var pending = {};
+  window.flame = {
+    save: function(state){ parent.postMessage({ type: "flame:save", state: state }, "*"); },
+    load: function(){
+      return new Promise(function(resolve){
+        var id = Math.random().toString(36).slice(2);
+        pending[id] = resolve;
+        parent.postMessage({ type: "flame:load", id: id }, "*");
+      });
+    },
+    onState: null
+  };
+  window.addEventListener("message", function(e){
+    var d = e.data || {};
+    if (d.type === "flame:state") {
+      if (d.id && pending[d.id]) { pending[d.id](d.state); delete pending[d.id]; }
+      if (typeof window.flame.onState === "function") { try { window.flame.onState(d.state); } catch(_){} }
+      try { window.dispatchEvent(new CustomEvent("flame:state", { detail: d.state })); } catch(_){}
+    }
+  });
+})();</script>`;
+
+  useEffect(() => {
+    if (!userId) return;
+    const handler = async (e: MessageEvent) => {
+      const d: any = e.data || {};
+      if (d.type === "flame:save" && d.state !== undefined) {
+        await supabase.from("mini_app_state").upsert({
+          user_id: userId,
+          app_id: app.id,
+          state: d.state,
+        }, { onConflict: "user_id,app_id" });
+      } else if (d.type === "flame:load") {
+        const { data } = await supabase
+          .from("mini_app_state")
+          .select("state")
+          .eq("user_id", userId)
+          .eq("app_id", app.id)
+          .maybeSingle();
+        const frame = document.getElementById(`mini-app-frame-${app.id}`) as HTMLIFrameElement | null;
+        frame?.contentWindow?.postMessage({ type: "flame:state", id: d.id, state: (data as any)?.state ?? {} }, "*");
+      }
+    };
+    window.addEventListener("message", handler);
+    return () => window.removeEventListener("message", handler);
+  }, [userId, app.id]);
+
+  const onFrameLoad = () => {
+    const frame = document.getElementById(`mini-app-frame-${app.id}`) as HTMLIFrameElement | null;
+    frame?.contentWindow?.postMessage({ type: "flame:state", state: initialState ?? {} }, "*");
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="!fixed !inset-0 !top-0 !left-0 !translate-x-0 !translate-y-0 !w-screen !h-[100dvh] !max-w-none !max-h-none !rounded-none !p-0 !border-0 bg-background z-[100] flex flex-col gap-0">
+        <DialogHeader className="p-3 border-b border-border flex-row items-center justify-between space-y-0 gap-2 shrink-0">
+          <button onClick={onBack} className="p-2 rounded-lg hover:bg-muted/50 text-primary flex items-center gap-1 text-sm">
+            <ArrowLeft className="w-4 h-4" /> {t("back")}
+          </button>
+          <DialogTitle className="text-sm font-semibold truncate flex-1 text-center">
+            {app.name} <span className="text-muted-foreground font-normal">@{app.handle}</span>
+          </DialogTitle>
+          <div className="w-16" />
+        </DialogHeader>
+        <div className="relative flex-1 w-full">
+          {ready && (
+            <iframe
+              id={`mini-app-frame-${app.id}`}
+              sandbox="allow-scripts allow-forms allow-popups allow-same-origin"
+              srcDoc={enhancedContent}
+              onLoad={onFrameLoad}
+              className="absolute inset-0 w-full h-full border-0 bg-white"
+              title={app.name}
+            />
+          )}
+          <div className="pointer-events-none absolute bottom-3 right-3 z-10 flex items-center gap-1.5 rounded-full bg-black/70 backdrop-blur-md px-3 py-1.5 text-[11px] font-semibold text-white shadow-lg border border-primary/40 select-none">
+            <Flame className="w-3.5 h-3.5 text-primary" />
+            Powered by Flame
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
