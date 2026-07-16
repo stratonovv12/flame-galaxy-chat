@@ -171,34 +171,17 @@ export function MiniAppsView({ open, onOpenChange }: Props) {
     load();
   };
 
-  // Full-screen launched app: render outside the Dialog so it truly covers the screen
+  // Full-screen launched app with cloud state bridge (survives device switches)
   if (launching) {
     return (
-      <Dialog open={open} onOpenChange={(o) => { if (!o) { setLaunching(null); onOpenChange(false); } }}>
-        <DialogContent className="!fixed !inset-0 !top-0 !left-0 !translate-x-0 !translate-y-0 !w-screen !h-[100dvh] !max-w-none !max-h-none !rounded-none !p-0 !border-0 bg-background z-[100] flex flex-col gap-0">
-          <DialogHeader className="p-3 border-b border-border flex-row items-center justify-between space-y-0 gap-2 shrink-0">
-            <button onClick={() => setLaunching(null)} className="p-2 rounded-lg hover:bg-muted/50 text-primary flex items-center gap-1 text-sm">
-              <ArrowLeft className="w-4 h-4" /> {t("back")}
-            </button>
-            <DialogTitle className="text-sm font-semibold truncate flex-1 text-center">
-              {launching.name} <span className="text-muted-foreground font-normal">@{launching.handle}</span>
-            </DialogTitle>
-            <div className="w-16" />
-          </DialogHeader>
-          <div className="relative flex-1 w-full">
-            <iframe
-              sandbox="allow-scripts allow-forms allow-popups allow-same-origin"
-              srcDoc={launching.content}
-              className="absolute inset-0 w-full h-full border-0 bg-white"
-              title={launching.name}
-            />
-            <div className="pointer-events-none absolute bottom-3 right-3 z-10 flex items-center gap-1.5 rounded-full bg-black/70 backdrop-blur-md px-3 py-1.5 text-[11px] font-semibold text-white shadow-lg border border-primary/40 select-none">
-              <Flame className="w-3.5 h-3.5 text-primary" />
-              Powered by Flame
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <LaunchedMiniApp
+        app={launching}
+        userId={user?.id}
+        onClose={() => { setLaunching(null); onOpenChange(false); }}
+        onBack={() => setLaunching(null)}
+        open={open}
+        t={t}
+      />
     );
   }
 
