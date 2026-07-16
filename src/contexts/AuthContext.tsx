@@ -47,7 +47,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     });
 
-    return () => subscription.unsubscribe();
+    // Seamless resumption: refresh session on focus / reconnect so switching devices
+    // or reopening the app after idle never forces a re-login.
+    const refresh = () => { supabase.auth.refreshSession().catch(() => {}); };
+    const onVis = () => { if (document.visibilityState === "visible") refresh(); };
+    window.addEventListener("focus", refresh);
+    window.addEventListener("online", refresh);
+    document.addEventListener("visibilitychange", onVis);
+
+    return () => {
+      subscription.unsubscribe();
+      window.removeEventListener("focus", refresh);
+      window.removeEventListener("online", refresh);
+      document.removeEventListener("visibilitychange", onVis);
+    };
   }, []);
 
   // Real-time ban listener — instant redirect on ban
