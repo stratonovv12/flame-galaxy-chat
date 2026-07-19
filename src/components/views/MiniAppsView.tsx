@@ -104,7 +104,7 @@ export function MiniAppsView({ open, onOpenChange }: Props) {
       if (!out || !/</.test(out)) throw new Error("Empty AI response");
       setEditing({ ...editing, content: out });
       setAiPrompt("");
-      setShowPreview(true);
+      setWorkshopTab("preview");
       toast({ title: "Code updated by Flame AI" });
     } catch (e: any) {
       toast({ title: t("error"), description: e.message || "AI failed", variant: "destructive" });
