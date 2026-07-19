@@ -14,6 +14,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Slider } from "@/components/ui/slider";
 import { getVolume, setVolume as persistVolume, playNotificationSound } from "@/lib/notifications";
 import { MiniAppsView } from "@/components/views/MiniAppsView";
+import { FollowListModal } from "@/components/ui/FollowListModal";
 
 interface ProfileViewProps {
   onNavigate?: (tab: string) => void;
