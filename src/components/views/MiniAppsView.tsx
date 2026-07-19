@@ -190,7 +190,7 @@ export function MiniAppsView({ open, onOpenChange }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl glass-card border-primary/30 max-h-[90vh] overflow-y-auto">
+      <DialogContent className={editing && fullscreen ? "!fixed !inset-0 !top-0 !left-0 !translate-x-0 !translate-y-0 !w-screen !h-[100dvh] !max-w-none !max-h-none !rounded-none glass-card border-primary/30 overflow-y-auto p-4" : "max-w-2xl glass-card border-primary/30 max-h-[90vh] overflow-y-auto"}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-glow">
             <Boxes className="w-5 h-5 text-primary" /> {t("miniApps")}
