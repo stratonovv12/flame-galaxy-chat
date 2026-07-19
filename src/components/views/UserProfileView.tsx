@@ -41,6 +41,7 @@ export function UserProfileView({ userId, onBack, onStartChat }: UserProfileView
   const [followBusy, setFollowBusy] = useState(false);
   const [momentsGroup, setMomentsGroup] = useState<Awaited<ReturnType<typeof fetchUserMoments>> | null>(null);
   const [viewingMoments, setViewingMoments] = useState(false);
+  const [followListOpen, setFollowListOpen] = useState<null | "followers" | "following">(null);
 
   const isOwnProfile = user?.id === userId;
 
