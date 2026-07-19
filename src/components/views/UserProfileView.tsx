@@ -10,6 +10,7 @@ import { ArrowLeft, MessageCircle, Calendar, UserPlus, UserMinus, Lock } from "l
 import { toast } from "@/hooks/use-toast";
 import { FeedPostCard, FeedPost } from "@/components/views/FeedView";
 import { MomentsStoryViewer, fetchUserMoments } from "@/components/ui/FlameMoments";
+import { FollowListModal } from "@/components/ui/FollowListModal";
 
 interface Profile {
   id: string;
