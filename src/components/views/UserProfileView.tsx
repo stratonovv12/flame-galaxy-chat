@@ -10,6 +10,7 @@ import { ArrowLeft, MessageCircle, Calendar, UserPlus, UserMinus, Lock } from "l
 import { toast } from "@/hooks/use-toast";
 import { FeedPostCard, FeedPost } from "@/components/views/FeedView";
 import { MomentsStoryViewer, fetchUserMoments } from "@/components/ui/FlameMoments";
+import { FollowListModal } from "@/components/ui/FollowListModal";
 
 interface Profile {
   id: string;
@@ -40,6 +41,7 @@ export function UserProfileView({ userId, onBack, onStartChat }: UserProfileView
   const [followBusy, setFollowBusy] = useState(false);
   const [momentsGroup, setMomentsGroup] = useState<Awaited<ReturnType<typeof fetchUserMoments>> | null>(null);
   const [viewingMoments, setViewingMoments] = useState(false);
+  const [followListOpen, setFollowListOpen] = useState<null | "followers" | "following">(null);
 
   const isOwnProfile = user?.id === userId;
 
@@ -164,10 +166,25 @@ export function UserProfileView({ userId, onBack, onStartChat }: UserProfileView
         </p>
 
         <div className="flex justify-center gap-8 text-sm mb-4">
-          <div className="text-center"><div className="font-bold text-base">{followerCount}</div><div className="text-xs text-muted-foreground">{t("followers")}</div></div>
-          <div className="text-center"><div className="font-bold text-base">{followingCount}</div><div className="text-xs text-muted-foreground">{t("following")}</div></div>
+          <button onClick={() => setFollowListOpen("followers")} className="text-center hover:text-primary transition-colors">
+            <div className="font-bold text-base">{followerCount}</div>
+            <div className="text-xs text-muted-foreground">{t("followers")}</div>
+          </button>
+          <button onClick={() => setFollowListOpen("following")} className="text-center hover:text-primary transition-colors">
+            <div className="font-bold text-base">{followingCount}</div>
+            <div className="text-xs text-muted-foreground">{t("following")}</div>
+          </button>
           <div className="text-center"><div className="font-bold text-base">{posts.length}</div><div className="text-xs text-muted-foreground">{t("posts")}</div></div>
         </div>
+
+        {followListOpen && (
+          <FollowListModal
+            open={!!followListOpen}
+            onOpenChange={(o) => { if (!o) setFollowListOpen(null); }}
+            userId={userId}
+            mode={followListOpen}
+          />
+        )}
 
         {!isOwnProfile && (
           <div className="flex gap-2 max-w-xs mx-auto">

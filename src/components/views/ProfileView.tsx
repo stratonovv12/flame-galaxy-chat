@@ -14,6 +14,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Slider } from "@/components/ui/slider";
 import { getVolume, setVolume as persistVolume, playNotificationSound } from "@/lib/notifications";
 import { MiniAppsView } from "@/components/views/MiniAppsView";
+import { FollowListModal } from "@/components/ui/FollowListModal";
 
 interface ProfileViewProps {
   onNavigate?: (tab: string) => void;
@@ -35,6 +36,7 @@ export function ProfileView({ onNavigate }: ProfileViewProps) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [volume, setVolumeState] = useState(() => getVolume());
   const [workshopOpen, setWorkshopOpen] = useState(false);
+  const [followListOpen, setFollowListOpen] = useState<null | "followers" | "following">(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout>>();
 
   useEffect(() => { if (user) { fetchProfile(); fetchFollowCounts(); } }, [user]);
@@ -116,8 +118,14 @@ export function ProfileView({ onNavigate }: ProfileViewProps) {
           <p className="text-sm text-muted-foreground flex items-center gap-2 mt-1"><Mail className="w-4 h-4" />{user?.email}</p>
 
           <div className="flex gap-6 mt-4 text-sm">
-            <div className="text-center"><div className="font-bold text-lg">{followerCount}</div><div className="text-xs text-muted-foreground">{t("followers")}</div></div>
-            <div className="text-center"><div className="font-bold text-lg">{followingCount}</div><div className="text-xs text-muted-foreground">{t("following")}</div></div>
+            <button onClick={() => setFollowListOpen("followers")} className="text-center hover:text-primary transition-colors">
+              <div className="font-bold text-lg">{followerCount}</div>
+              <div className="text-xs text-muted-foreground">{t("followers")}</div>
+            </button>
+            <button onClick={() => setFollowListOpen("following")} className="text-center hover:text-primary transition-colors">
+              <div className="font-bold text-lg">{followingCount}</div>
+              <div className="text-xs text-muted-foreground">{t("following")}</div>
+            </button>
           </div>
         </div>
 
@@ -222,6 +230,14 @@ export function ProfileView({ onNavigate }: ProfileViewProps) {
       </Sheet>
 
       <MiniAppsView open={workshopOpen} onOpenChange={setWorkshopOpen} />
+      {user && followListOpen && (
+        <FollowListModal
+          open={!!followListOpen}
+          onOpenChange={(o) => { if (!o) setFollowListOpen(null); }}
+          userId={user.id}
+          mode={followListOpen}
+        />
+      )}
     </div>
   );
 }

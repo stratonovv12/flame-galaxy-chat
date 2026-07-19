@@ -6,7 +6,7 @@ import { GlassCard } from "@/components/ui/GlassCard";
 import { FlameButton } from "@/components/ui/FlameButton";
 import { FlameInput } from "@/components/ui/FlameInput";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Boxes, Plus, Play, Pencil, Trash2, ArrowLeft, Globe, Hash, Sparkles, Eye, Flame } from "lucide-react";
+import { Boxes, Plus, Play, Pencil, Trash2, ArrowLeft, Globe, Hash, Sparkles, Eye, Flame, Maximize2, Minimize2, FileCode, MessageSquare, Folder } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 interface MiniApp {
@@ -40,6 +40,15 @@ button{background:#7f5af0;color:#fff;border:0;padding:12px 20px;border-radius:8p
   <script>let c=0;</script>
 </body></html>`;
 
+function parseFileTree(content: string): string[] {
+  const files: string[] = [];
+  const re = /<!--\s*FILE:\s*(.+?)\s*-->/gi;
+  let m;
+  while ((m = re.exec(content)) !== null) files.push(m[1].trim());
+  if (files.length === 0) return ["index.html"];
+  return Array.from(new Set(files));
+}
+
 export function MiniAppsView({ open, onOpenChange }: Props) {
   const { user } = useAuth();
   const { t } = useLanguage();
@@ -50,7 +59,10 @@ export function MiniAppsView({ open, onOpenChange }: Props) {
   const [loading, setLoading] = useState(false);
   const [aiPrompt, setAiPrompt] = useState("");
   const [aiBusy, setAiBusy] = useState(false);
-  const [showPreview, setShowPreview] = useState(false);
+  const [workshopTab, setWorkshopTab] = useState<"files" | "editor" | "preview" | "ai">("editor");
+  const [fullscreen, setFullscreen] = useState(false);
+  const [previewFullscreen, setPreviewFullscreen] = useState(false);
+  const [activeFile, setActiveFile] = useState<string>("index.html");
 
   const runAI = async () => {
     if (!aiPrompt.trim() || !editing) return;
@@ -101,7 +113,7 @@ export function MiniAppsView({ open, onOpenChange }: Props) {
       if (!out || !/</.test(out)) throw new Error("Empty AI response");
       setEditing({ ...editing, content: out });
       setAiPrompt("");
-      setShowPreview(true);
+      setWorkshopTab("preview");
       toast({ title: "Code updated by Flame AI" });
     } catch (e: any) {
       toast({ title: t("error"), description: e.message || "AI failed", variant: "destructive" });
@@ -187,7 +199,7 @@ export function MiniAppsView({ open, onOpenChange }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl glass-card border-primary/30 max-h-[90vh] overflow-y-auto">
+      <DialogContent className={editing && fullscreen ? "!fixed !inset-0 !top-0 !left-0 !translate-x-0 !translate-y-0 !w-screen !h-[100dvh] !max-w-none !max-h-none !rounded-none glass-card border-primary/30 overflow-y-auto p-4" : "max-w-2xl glass-card border-primary/30 max-h-[90vh] overflow-y-auto"}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-glow">
             <Boxes className="w-5 h-5 text-primary" /> {t("miniApps")}
@@ -196,9 +208,18 @@ export function MiniAppsView({ open, onOpenChange }: Props) {
 
         {editing ? (
           <div className="space-y-3">
-            <button onClick={() => setEditing(null)} className="flex items-center gap-1 text-sm text-primary hover:underline">
-              <ArrowLeft className="w-4 h-4" /> {t("back")}
-            </button>
+            <div className="flex items-center justify-between gap-2">
+              <button onClick={() => setEditing(null)} className="flex items-center gap-1 text-sm text-primary hover:underline">
+                <ArrowLeft className="w-4 h-4" /> {t("back")}
+              </button>
+              <button
+                onClick={() => setFullscreen(f => !f)}
+                className="p-1.5 rounded-md hover:bg-primary/10 text-primary"
+                title={fullscreen ? t("exitFullscreen") : t("fullscreen")}>
+                {fullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+              </button>
+            </div>
+
             <FlameInput placeholder={t("appName")} value={editing.name || ""} onChange={e => setEditing({ ...editing, name: e.target.value })} />
             <div className="relative">
               <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -206,43 +227,88 @@ export function MiniAppsView({ open, onOpenChange }: Props) {
             </div>
             <FlameInput placeholder={t("appDescription")} value={editing.description || ""} onChange={e => setEditing({ ...editing, description: e.target.value })} />
 
-            <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 space-y-2">
-              <div className="flex items-center gap-2 text-xs font-semibold text-primary">
-                <Sparkles className="w-4 h-4" /> Flame AI Assistant
-              </div>
-              <textarea
-                value={aiPrompt}
-                onChange={e => setAiPrompt(e.target.value)}
-                placeholder="e.g. Add a dark mode toggle and a reset button"
-                className="w-full h-16 bg-background/60 border border-border rounded-md p-2 text-xs resize-none [overflow-wrap:anywhere]"
-              />
-              <FlameButton onClick={runAI} disabled={aiBusy || !aiPrompt.trim()} size="sm" className="w-full">
-                {aiBusy ? "Generating..." : "Generate / Update Code"}
-              </FlameButton>
+            {/* Tabs */}
+            <div className="grid grid-cols-4 gap-1 p-1 rounded-lg bg-muted/30 border border-border">
+              {([
+                ["files", t("files"), Folder],
+                ["editor", t("editor"), FileCode],
+                ["preview", t("preview"), Eye],
+                ["ai", t("aiChat"), MessageSquare],
+              ] as const).map(([k, label, Icon]) => (
+                <button
+                  key={k}
+                  onClick={() => setWorkshopTab(k)}
+                  className={`flex flex-col items-center justify-center gap-0.5 py-2 rounded-md text-[10px] font-semibold transition-colors ${workshopTab === k ? "bg-primary text-primary-foreground shadow-[0_0_10px_rgba(127,90,240,0.4)]" : "text-muted-foreground hover:bg-muted/50"}`}>
+                  <Icon className="w-4 h-4" />
+                  <span className="truncate w-full text-center">{label}</span>
+                </button>
+              ))}
             </div>
 
-            <textarea
-              value={editing.content || DEFAULT_HTML}
-              onChange={e => setEditing({ ...editing, content: e.target.value })}
-              spellCheck={false}
-              className="w-full h-64 bg-muted/30 border border-border rounded-lg p-3 font-mono text-xs text-foreground [overflow-wrap:anywhere]"
-              placeholder={t("appCode")}
-            />
+            {workshopTab === "files" && (
+              <div className="rounded-lg border border-border bg-muted/20 p-3 space-y-1 min-h-[200px]">
+                {parseFileTree(editing.content || DEFAULT_HTML).map(f => (
+                  <button
+                    key={f}
+                    onClick={() => { setActiveFile(f); setWorkshopTab("editor"); }}
+                    className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-xs text-left transition-colors ${activeFile === f ? "bg-primary/20 text-primary" : "hover:bg-muted/40 text-muted-foreground"}`}>
+                    <FileCode className="w-3.5 h-3.5 shrink-0" />
+                    <span className="truncate">{f}</span>
+                  </button>
+                ))}
+                <p className="text-[10px] text-muted-foreground pt-2 px-1">
+                  Multi-file: wrap sections with <code>&lt;!-- FILE: path --&gt;</code> and <code>&lt;!-- ENDFILE --&gt;</code>.
+                </p>
+              </div>
+            )}
 
-            <button onClick={() => setShowPreview(v => !v)} className="flex items-center gap-1.5 text-xs text-primary hover:underline">
-              <Eye className="w-3.5 h-3.5" /> {showPreview ? "Hide" : "Show"} live preview
-            </button>
-            {showPreview && (
-              <div className="relative w-full h-72 rounded-lg overflow-hidden border border-border bg-white">
+            {workshopTab === "editor" && (
+              <textarea
+                value={editing.content || DEFAULT_HTML}
+                onChange={e => setEditing({ ...editing, content: e.target.value })}
+                spellCheck={false}
+                className={`w-full ${fullscreen ? "h-[60vh]" : "h-64"} bg-muted/30 border border-border rounded-lg p-3 font-mono text-xs text-foreground [overflow-wrap:anywhere]`}
+                placeholder={t("appCode")}
+              />
+            )}
+
+            {workshopTab === "preview" && (
+              <div className={`relative w-full ${previewFullscreen ? "fixed inset-0 z-[200] h-[100dvh] rounded-none" : `${fullscreen ? "h-[60vh]" : "h-72"} rounded-lg`} overflow-hidden border border-border bg-white`}>
                 <iframe
                   sandbox="allow-scripts allow-forms allow-popups allow-same-origin"
                   srcDoc={editing.content || DEFAULT_HTML}
                   className="absolute inset-0 w-full h-full border-0"
                   title="preview"
                 />
+                <button
+                  onClick={() => setPreviewFullscreen(v => !v)}
+                  className="absolute top-2 right-2 p-1.5 rounded-md bg-black/70 text-white hover:bg-black/85 z-10"
+                  title={previewFullscreen ? t("exitFullscreen") : t("fullscreen")}>
+                  {previewFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+                </button>
                 <div className="pointer-events-none absolute bottom-2 right-2 flex items-center gap-1 rounded-full bg-black/70 backdrop-blur-md px-2.5 py-1 text-[10px] font-semibold text-white border border-primary/40 select-none">
                   <Flame className="w-3 h-3 text-primary" /> Powered by Flame
                 </div>
+              </div>
+            )}
+
+            {workshopTab === "ai" && (
+              <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 space-y-2">
+                <div className="flex items-center gap-2 text-xs font-semibold text-primary">
+                  <Sparkles className="w-4 h-4" /> Flame AI Assistant
+                </div>
+                <textarea
+                  value={aiPrompt}
+                  onChange={e => setAiPrompt(e.target.value)}
+                  placeholder="e.g. Add a dark mode toggle and a reset button"
+                  className="w-full h-24 bg-background/60 border border-border rounded-md p-2 text-xs resize-none [overflow-wrap:anywhere]"
+                />
+                <FlameButton onClick={runAI} disabled={aiBusy || !aiPrompt.trim()} size="sm" className="w-full">
+                  {aiBusy ? "Generating..." : "Generate / Update Code"}
+                </FlameButton>
+                <p className="text-[10px] text-muted-foreground">
+                  Unlimited iterative editing — the AI keeps the full current source as context on every prompt.
+                </p>
               </div>
             )}
 
