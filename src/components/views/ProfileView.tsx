@@ -118,8 +118,14 @@ export function ProfileView({ onNavigate }: ProfileViewProps) {
           <p className="text-sm text-muted-foreground flex items-center gap-2 mt-1"><Mail className="w-4 h-4" />{user?.email}</p>
 
           <div className="flex gap-6 mt-4 text-sm">
-            <div className="text-center"><div className="font-bold text-lg">{followerCount}</div><div className="text-xs text-muted-foreground">{t("followers")}</div></div>
-            <div className="text-center"><div className="font-bold text-lg">{followingCount}</div><div className="text-xs text-muted-foreground">{t("following")}</div></div>
+            <button onClick={() => setFollowListOpen("followers")} className="text-center hover:text-primary transition-colors">
+              <div className="font-bold text-lg">{followerCount}</div>
+              <div className="text-xs text-muted-foreground">{t("followers")}</div>
+            </button>
+            <button onClick={() => setFollowListOpen("following")} className="text-center hover:text-primary transition-colors">
+              <div className="font-bold text-lg">{followingCount}</div>
+              <div className="text-xs text-muted-foreground">{t("following")}</div>
+            </button>
           </div>
         </div>
 
