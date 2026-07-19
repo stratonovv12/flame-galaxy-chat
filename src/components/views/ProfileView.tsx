@@ -230,6 +230,14 @@ export function ProfileView({ onNavigate }: ProfileViewProps) {
       </Sheet>
 
       <MiniAppsView open={workshopOpen} onOpenChange={setWorkshopOpen} />
+      {user && followListOpen && (
+        <FollowListModal
+          open={!!followListOpen}
+          onOpenChange={(o) => { if (!o) setFollowListOpen(null); }}
+          userId={user.id}
+          mode={followListOpen}
+        />
+      )}
     </div>
   );
 }
