@@ -9,8 +9,8 @@ const corsHeaders = {
 
 const VALID_ROLES = new Set(["user", "assistant", "system"]);
 const VALID_MODES = new Set(["chat", "image_gen"]);
-const MAX_CONTENT_LENGTH = 10000;
-const MAX_MESSAGES = 50;
+const MAX_CONTENT_LENGTH = 200000; // large enough for full multi-file mini-app source in a single message
+const MAX_MESSAGES = 100;
 const MAX_IMAGES = 10;
 
 function validateMessages(messages: unknown): { valid: boolean; error?: string } {
