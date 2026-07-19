@@ -50,7 +50,10 @@ export function MiniAppsView({ open, onOpenChange }: Props) {
   const [loading, setLoading] = useState(false);
   const [aiPrompt, setAiPrompt] = useState("");
   const [aiBusy, setAiBusy] = useState(false);
-  const [showPreview, setShowPreview] = useState(false);
+  const [workshopTab, setWorkshopTab] = useState<"files" | "editor" | "preview" | "ai">("editor");
+  const [fullscreen, setFullscreen] = useState(false);
+  const [previewFullscreen, setPreviewFullscreen] = useState(false);
+  const [activeFile, setActiveFile] = useState<string>("index.html");
 
   const runAI = async () => {
     if (!aiPrompt.trim() || !editing) return;
