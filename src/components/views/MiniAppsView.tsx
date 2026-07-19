@@ -40,6 +40,15 @@ button{background:#7f5af0;color:#fff;border:0;padding:12px 20px;border-radius:8p
   <script>let c=0;</script>
 </body></html>`;
 
+function parseFileTree(content: string): string[] {
+  const files: string[] = [];
+  const re = /<!--\s*FILE:\s*(.+?)\s*-->/gi;
+  let m;
+  while ((m = re.exec(content)) !== null) files.push(m[1].trim());
+  if (files.length === 0) return ["index.html"];
+  return Array.from(new Set(files));
+}
+
 export function MiniAppsView({ open, onOpenChange }: Props) {
   const { user } = useAuth();
   const { t } = useLanguage();
