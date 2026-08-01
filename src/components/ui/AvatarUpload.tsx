@@ -4,6 +4,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { FlameButton } from "@/components/ui/FlameButton";
 import { Camera, Upload, X } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { moderateImageUrl } from "@/lib/moderation";
+
 
 interface AvatarUploadProps {
   onUpload: (url: string) => void;
