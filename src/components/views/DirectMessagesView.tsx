@@ -17,7 +17,10 @@ import { IncomingCallUI } from "@/components/ui/IncomingCallUI";
 import { OnlineIndicator } from "@/components/ui/OnlineIndicator";
 import { useMediaUpload } from "@/hooks/useMediaUpload";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
-import { MessageCircle, Send, ArrowLeft, Phone, ShieldBan, ShieldCheck, X, Forward, Ghost, ChevronDown, Pin, PinOff, Flame, Gamepad2, MoreVertical } from "lucide-react";
+import { MessageCircle, Send, ArrowLeft, Phone, ShieldBan, ShieldCheck, X, Forward, Ghost, ChevronDown, Pin, PinOff, Flame, Gamepad2, MoreVertical, Maximize2 } from "lucide-react";
+import { RichComposer } from "@/components/ui/RichComposer";
+import { RichContent, encodeRich, parseRich, RichDoc } from "@/components/ui/RichContent";
+
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { parseTTTMessages, isTTTMarker, sendTTTInvite, TTTMessageCard, TTTGameOverlay } from "@/components/ui/TicTacToeMultiplayer";
 import { DMAttachmentsButton, PollBubble, encodePoll, parsePoll, POLL_PREFIX } from "@/components/ui/DMAttachments";
