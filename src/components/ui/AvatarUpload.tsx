@@ -56,8 +56,22 @@ export function AvatarUpload({ onUpload, currentUrl, folder, className }: Avatar
         .from("avatars")
         .getPublicUrl(filePath);
 
+      // AI vision safety check — reject NSFW/18+ avatars before they are saved
+      const verdict = await moderateImageUrl(publicUrlData.publicUrl);
+      if (!verdict.safe) {
+        await supabase.storage.from("avatars").remove([filePath]);
+        setPreview(currentUrl || null);
+        toast({
+          title: "Photo rejected",
+          description: "This image was flagged as unsafe (18+/NSFW) and was not saved.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       onUpload(publicUrlData.publicUrl);
       toast({ title: "Done!", description: "Photo uploaded" });
+
     } catch (error: any) {
       console.error("Upload error:", error);
       toast({ title: "Upload error", description: error.message || "Failed to upload image", variant: "destructive" });
