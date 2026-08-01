@@ -126,12 +126,12 @@ export function AvatarUpload({ onUpload, currentUrl, folder, className }: Avatar
           {uploading ? (
             <>
               <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />
-              Загрузка...
+              Uploading...
             </>
           ) : (
             <>
               <Upload className="w-4 h-4 mr-2" />
-              {preview ? "Изменить фото" : "Загрузить фото"}
+              {preview ? "Change photo" : "Upload photo"}
             </>
           )}
         </FlameButton>
