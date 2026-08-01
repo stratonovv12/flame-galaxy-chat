@@ -5,8 +5,10 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { FlameButton } from "@/components/ui/FlameButton";
 import { FlameInput } from "@/components/ui/FlameInput";
-import { Plus, FileText, BarChart3, X, Check } from "lucide-react";
+import { Plus, FileText, BarChart3, X, Check, Sticker as StickerIcon, Type } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { StickerStudio } from "@/components/ui/StickerStudio";
+
 
 export const POLL_PREFIX = "__POLL__:";
 
@@ -21,14 +23,18 @@ export function parsePoll(content: string): { q: string; opts: string[] } | null
 interface Props {
   onSendFile: (url: string, filename: string) => void;
   onSendPoll: (question: string, options: string[]) => void;
+  onSendSticker?: (url: string, type: string) => void;
+  onOpenRichEditor?: () => void;
 }
 
-export function DMAttachmentsButton({ onSendFile, onSendPoll }: Props) {
+export function DMAttachmentsButton({ onSendFile, onSendPoll, onSendSticker, onOpenRichEditor }: Props) {
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [pollOpen, setPollOpen] = useState(false);
+  const [stickersOpen, setStickersOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
 
   const [q, setQ] = useState("");
   const [opts, setOpts] = useState<string[]>(["", ""]);
@@ -101,9 +107,32 @@ export function DMAttachmentsButton({ onSendFile, onSendPoll }: Props) {
               <BarChart3 className="w-7 h-7 text-primary" />
               <span className="text-sm font-medium">Create Poll</span>
             </button>
+            <button
+              onClick={() => setStickersOpen(true)}
+              className="flex flex-col items-center gap-2 p-4 rounded-xl bg-primary/10 hover:bg-primary/20 border border-primary/30 transition-colors"
+            >
+              <StickerIcon className="w-7 h-7 text-primary" />
+              <span className="text-sm font-medium">Create Sticker</span>
+            </button>
+            {onOpenRichEditor && (
+              <button
+                onClick={() => { setOpen(false); onOpenRichEditor(); }}
+                className="flex flex-col items-center gap-2 p-4 rounded-xl bg-primary/10 hover:bg-primary/20 border border-primary/30 transition-colors"
+              >
+                <Type className="w-7 h-7 text-primary" />
+                <span className="text-sm font-medium">Rich / Presentation</span>
+              </button>
+            )}
           </div>
         </SheetContent>
       </Sheet>
+
+      <StickerStudio
+        open={stickersOpen}
+        onOpenChange={setStickersOpen}
+        onSend={(s) => { onSendSticker?.(s.media_url, s.media_type); setOpen(false); }}
+      />
+
 
       <Dialog open={pollOpen} onOpenChange={setPollOpen}>
         <DialogContent className="glass-card border-primary/30 max-w-md">

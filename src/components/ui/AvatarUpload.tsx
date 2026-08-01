@@ -4,6 +4,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { FlameButton } from "@/components/ui/FlameButton";
 import { Camera, Upload, X } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { moderateImageUrl } from "@/lib/moderation";
+
 
 interface AvatarUploadProps {
   onUpload: (url: string) => void;
@@ -54,8 +56,22 @@ export function AvatarUpload({ onUpload, currentUrl, folder, className }: Avatar
         .from("avatars")
         .getPublicUrl(filePath);
 
+      // AI vision safety check — reject NSFW/18+ avatars before they are saved
+      const verdict = await moderateImageUrl(publicUrlData.publicUrl);
+      if (!verdict.safe) {
+        await supabase.storage.from("avatars").remove([filePath]);
+        setPreview(currentUrl || null);
+        toast({
+          title: "Photo rejected",
+          description: "This image was flagged as unsafe (18+/NSFW) and was not saved.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       onUpload(publicUrlData.publicUrl);
       toast({ title: "Done!", description: "Photo uploaded" });
+
     } catch (error: any) {
       console.error("Upload error:", error);
       toast({ title: "Upload error", description: error.message || "Failed to upload image", variant: "destructive" });
@@ -110,12 +126,12 @@ export function AvatarUpload({ onUpload, currentUrl, folder, className }: Avatar
           {uploading ? (
             <>
               <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />
-              Загрузка...
+              Uploading...
             </>
           ) : (
             <>
               <Upload className="w-4 h-4 mr-2" />
-              {preview ? "Изменить фото" : "Загрузить фото"}
+              {preview ? "Change photo" : "Upload photo"}
             </>
           )}
         </FlameButton>

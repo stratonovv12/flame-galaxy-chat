@@ -17,7 +17,10 @@ import { IncomingCallUI } from "@/components/ui/IncomingCallUI";
 import { OnlineIndicator } from "@/components/ui/OnlineIndicator";
 import { useMediaUpload } from "@/hooks/useMediaUpload";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
-import { MessageCircle, Send, ArrowLeft, Phone, ShieldBan, ShieldCheck, X, Forward, Ghost, ChevronDown, Pin, PinOff, Flame, Gamepad2, MoreVertical } from "lucide-react";
+import { MessageCircle, Send, ArrowLeft, Phone, ShieldBan, ShieldCheck, X, Forward, Ghost, ChevronDown, Pin, PinOff, Flame, Gamepad2, MoreVertical, Maximize2 } from "lucide-react";
+import { RichComposer } from "@/components/ui/RichComposer";
+import { RichContent, encodeRich, parseRich, RichDoc } from "@/components/ui/RichContent";
+
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { parseTTTMessages, isTTTMarker, sendTTTInvite, TTTMessageCard, TTTGameOverlay } from "@/components/ui/TicTacToeMultiplayer";
 import { DMAttachmentsButton, PollBubble, encodePoll, parsePoll, POLL_PREFIX } from "@/components/ui/DMAttachments";
@@ -68,6 +71,8 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
   const [messages, setMessages] = useState<Message[]>([]);
   const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
   const [newMessage, setNewMessage] = useState("");
+  const [richOpen, setRichOpen] = useState(false);
+
   const [mediaUrl, setMediaUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [isBlocked, setIsBlocked] = useState(false);
@@ -519,7 +524,31 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
     setIsAtBottom(true);
   };
 
+  const sendSticker = async (url: string, type: string) => {
+    if (!activeChat || !user) return;
+    if (blockedByThem) { toast({ title: t("error"), description: t("blocked"), variant: "destructive" }); return; }
+    const { error } = await supabase.from("direct_messages").insert({
+      sender_id: user.id, receiver_id: activeChat.id, content: t("media"), media_url: url,
+    });
+    if (error) { toast({ title: t("error"), description: t("sendFailed"), variant: "destructive" }); return; }
+    sendPush(activeChat.id, t("newMessage" as any) || "New message", "Sticker", "/");
+    setIsAtBottom(true);
+  };
+
+  const sendRich = async (doc: RichDoc) => {
+    if (!activeChat || !user) return;
+    if (blockedByThem) { toast({ title: t("error"), description: t("blocked"), variant: "destructive" }); return; }
+    const { error } = await supabase.from("direct_messages").insert({
+      sender_id: user.id, receiver_id: activeChat.id, content: encodeRich(doc), reply_to_id: replyTo?.id || null,
+    });
+    if (error) { toast({ title: t("error"), description: t("sendFailed"), variant: "destructive" }); return; }
+    setReplyTo(null);
+    sendPush(activeChat.id, t("newMessage" as any) || "New message", doc.md.slice(0, 80), "/");
+    setIsAtBottom(true);
+  };
+
   const sendPoll = async (question: string, options: string[]) => {
+
     if (!activeChat || !user) return;
     if (blockedByThem) { toast({ title: t("error"), description: t("blocked"), variant: "destructive" }); return; }
     const content = encodePoll(question, options);
@@ -785,7 +814,11 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
                           const p = parsePoll(msg.content)!;
                           return <PollBubble messageId={msg.id} question={p.q} options={p.opts} />;
                         })()}
-                        {msg.content && !parsePoll(msg.content) && !msg.content.startsWith("📎 ") && msg.content !== t("media") && !msg.content.startsWith("🎤") && !msg.content.startsWith("🎥") && (
+                        {parseRich(msg.content) && (
+                          <RichContent doc={parseRich(msg.content)!} compact className="mb-1 max-w-[75vw]" />
+                        )}
+                        {msg.content && !parseRich(msg.content) && !parsePoll(msg.content) && !msg.content.startsWith("📎 ") && msg.content !== t("media") && !msg.content.startsWith("🎤") && !msg.content.startsWith("🎥") && (
+
                           <p className="text-sm break-words [overflow-wrap:anywhere]">{msg.content}</p>
                         )}
                         <div className="flex items-center justify-end gap-1 mt-1">
@@ -863,21 +896,45 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
         )}
 
 
-        <div className="p-4 glass-card rounded-none border-x-0 border-b-0 ipad-input">
+        <div className="p-3 glass-card rounded-none border-x-0 border-b-0 ipad-input">
           <div className="flex items-end gap-2">
-            <DMAttachmentsButton onSendFile={sendFile} onSendPoll={sendPoll} />
+            <DMAttachmentsButton
+              onSendFile={sendFile}
+              onSendPoll={sendPoll}
+              onSendSticker={sendSticker}
+              onOpenRichEditor={() => setRichOpen(true)}
+            />
             <MediaUpload onUpload={setMediaUrl} />
             <VoiceRecorder onRecorded={handleVoiceRecorded} />
-            <FlameInput
-              placeholder={t("writeMessage")}
-              value={newMessage}
-              onChange={e => { setNewMessage(e.target.value); broadcastTyping(); }}
-              onKeyDown={e => e.key === "Enter" && sendMessage()}
-              className="flex-1"
-            />
+            <div className="flex-1 relative">
+              <textarea
+                rows={1}
+                placeholder={t("writeMessage")}
+                value={newMessage}
+                onChange={e => { setNewMessage(e.target.value); broadcastTyping(); }}
+                onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
+                className="w-full max-h-40 min-h-[44px] overflow-y-auto resize-none px-4 py-3 pr-10 rounded-lg bg-input border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm [overflow-wrap:anywhere]"
+              />
+              <button
+                onClick={() => setRichOpen(true)}
+                className="absolute right-2 bottom-2 p-1.5 rounded-md text-muted-foreground hover:text-primary hover:bg-primary/10"
+                aria-label="Expand editor">
+                <Maximize2 className="w-4 h-4" />
+              </button>
+            </div>
             <FlameButton onClick={sendMessage} size="md"><Send className="w-5 h-5" /></FlameButton>
           </div>
         </div>
+
+        <RichComposer
+          open={richOpen}
+          onOpenChange={setRichOpen}
+          initial={{ md: newMessage }}
+          title={t("writeMessage")}
+          submitLabel="Send"
+          onSubmit={(doc) => { setNewMessage(""); sendRich(doc); }}
+        />
+
 
         {activeTTTGame && (
           <TTTGameOverlay
