@@ -21,14 +21,18 @@ export function parsePoll(content: string): { q: string; opts: string[] } | null
 interface Props {
   onSendFile: (url: string, filename: string) => void;
   onSendPoll: (question: string, options: string[]) => void;
+  onSendSticker?: (url: string, type: string) => void;
+  onOpenRichEditor?: () => void;
 }
 
-export function DMAttachmentsButton({ onSendFile, onSendPoll }: Props) {
+export function DMAttachmentsButton({ onSendFile, onSendPoll, onSendSticker, onOpenRichEditor }: Props) {
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [pollOpen, setPollOpen] = useState(false);
+  const [stickersOpen, setStickersOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
 
   const [q, setQ] = useState("");
   const [opts, setOpts] = useState<string[]>(["", ""]);
