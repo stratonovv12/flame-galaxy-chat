@@ -105,9 +105,32 @@ export function DMAttachmentsButton({ onSendFile, onSendPoll, onSendSticker, onO
               <BarChart3 className="w-7 h-7 text-primary" />
               <span className="text-sm font-medium">Create Poll</span>
             </button>
+            <button
+              onClick={() => setStickersOpen(true)}
+              className="flex flex-col items-center gap-2 p-4 rounded-xl bg-primary/10 hover:bg-primary/20 border border-primary/30 transition-colors"
+            >
+              <StickerIcon className="w-7 h-7 text-primary" />
+              <span className="text-sm font-medium">Create Sticker</span>
+            </button>
+            {onOpenRichEditor && (
+              <button
+                onClick={() => { setOpen(false); onOpenRichEditor(); }}
+                className="flex flex-col items-center gap-2 p-4 rounded-xl bg-primary/10 hover:bg-primary/20 border border-primary/30 transition-colors"
+              >
+                <Type className="w-7 h-7 text-primary" />
+                <span className="text-sm font-medium">Rich / Presentation</span>
+              </button>
+            )}
           </div>
         </SheetContent>
       </Sheet>
+
+      <StickerStudio
+        open={stickersOpen}
+        onOpenChange={setStickersOpen}
+        onSend={(s) => { onSendSticker?.(s.media_url, s.media_type); setOpen(false); }}
+      />
+
 
       <Dialog open={pollOpen} onOpenChange={setPollOpen}>
         <DialogContent className="glass-card border-primary/30 max-w-md">
