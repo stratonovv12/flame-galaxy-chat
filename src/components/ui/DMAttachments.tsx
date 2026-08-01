@@ -5,8 +5,10 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { FlameButton } from "@/components/ui/FlameButton";
 import { FlameInput } from "@/components/ui/FlameInput";
-import { Plus, FileText, BarChart3, X, Check } from "lucide-react";
+import { Plus, FileText, BarChart3, X, Check, Sticker as StickerIcon, Type } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { StickerStudio } from "@/components/ui/StickerStudio";
+
 
 export const POLL_PREFIX = "__POLL__:";
 
