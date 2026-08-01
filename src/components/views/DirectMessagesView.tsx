@@ -814,7 +814,11 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
                           const p = parsePoll(msg.content)!;
                           return <PollBubble messageId={msg.id} question={p.q} options={p.opts} />;
                         })()}
-                        {msg.content && !parsePoll(msg.content) && !msg.content.startsWith("📎 ") && msg.content !== t("media") && !msg.content.startsWith("🎤") && !msg.content.startsWith("🎥") && (
+                        {parseRich(msg.content) && (
+                          <RichContent doc={parseRich(msg.content)!} compact className="mb-1 max-w-[75vw]" />
+                        )}
+                        {msg.content && !parseRich(msg.content) && !parsePoll(msg.content) && !msg.content.startsWith("📎 ") && msg.content !== t("media") && !msg.content.startsWith("🎤") && !msg.content.startsWith("🎥") && (
+
                           <p className="text-sm break-words [overflow-wrap:anywhere]">{msg.content}</p>
                         )}
                         <div className="flex items-center justify-end gap-1 mt-1">
