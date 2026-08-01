@@ -524,7 +524,31 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
     setIsAtBottom(true);
   };
 
+  const sendSticker = async (url: string, type: string) => {
+    if (!activeChat || !user) return;
+    if (blockedByThem) { toast({ title: t("error"), description: t("blocked"), variant: "destructive" }); return; }
+    const { error } = await supabase.from("direct_messages").insert({
+      sender_id: user.id, receiver_id: activeChat.id, content: t("media"), media_url: url,
+    });
+    if (error) { toast({ title: t("error"), description: t("sendFailed"), variant: "destructive" }); return; }
+    sendPush(activeChat.id, t("newMessage" as any) || "New message", "Sticker", "/");
+    setIsAtBottom(true);
+  };
+
+  const sendRich = async (doc: RichDoc) => {
+    if (!activeChat || !user) return;
+    if (blockedByThem) { toast({ title: t("error"), description: t("blocked"), variant: "destructive" }); return; }
+    const { error } = await supabase.from("direct_messages").insert({
+      sender_id: user.id, receiver_id: activeChat.id, content: encodeRich(doc), reply_to_id: replyTo?.id || null,
+    });
+    if (error) { toast({ title: t("error"), description: t("sendFailed"), variant: "destructive" }); return; }
+    setReplyTo(null);
+    sendPush(activeChat.id, t("newMessage" as any) || "New message", doc.md.slice(0, 80), "/");
+    setIsAtBottom(true);
+  };
+
   const sendPoll = async (question: string, options: string[]) => {
+
     if (!activeChat || !user) return;
     if (blockedByThem) { toast({ title: t("error"), description: t("blocked"), variant: "destructive" }); return; }
     const content = encodePoll(question, options);
