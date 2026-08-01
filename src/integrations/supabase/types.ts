@@ -14,6 +14,27 @@ export type Database = {
   }
   public: {
     Tables: {
+      account_registrations: {
+        Row: {
+          created_at: string
+          device_id: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          device_id: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          device_id?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       ai_conversations: {
         Row: {
           content: string
@@ -275,6 +296,47 @@ export type Database = {
           },
         ]
       }
+      escrow_orders: {
+        Row: {
+          amount: number
+          buyer_id: string
+          created_at: string
+          id: string
+          listing_id: string
+          seller_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          buyer_id: string
+          created_at?: string
+          id?: string
+          listing_id: string
+          seller_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          buyer_id?: string
+          created_at?: string
+          id?: string
+          listing_id?: string
+          seller_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "escrow_orders_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_listings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       feed_comments: {
         Row: {
           content: string
@@ -371,6 +433,83 @@ export type Database = {
           },
         ]
       }
+      figurine_items: {
+        Row: {
+          created_at: string
+          figurine_id: string
+          id: string
+          owner_id: string
+          serial: number
+          showcased: boolean
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          figurine_id: string
+          id?: string
+          owner_id: string
+          serial?: number
+          showcased?: boolean
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          figurine_id?: string
+          id?: string
+          owner_id?: string
+          serial?: number
+          showcased?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "figurine_items_figurine_id_fkey"
+            columns: ["figurine_id"]
+            isOneToOne: false
+            referencedRelation: "figurines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      figurines: {
+        Row: {
+          created_at: string
+          created_by: string
+          description: string | null
+          id: string
+          image_url: string | null
+          name: string
+          price: number
+          rarity: string
+          supply: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          name: string
+          price?: number
+          rarity?: string
+          supply?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          name?: string
+          price?: number
+          rarity?: string
+          supply?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       flame_moments: {
         Row: {
           created_at: string
@@ -421,6 +560,44 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      marketplace_listings: {
+        Row: {
+          created_at: string
+          id: string
+          item_id: string
+          price: number
+          seller_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          item_id: string
+          price: number
+          seller_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          item_id?: string
+          price?: number
+          seller_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_listings_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "figurine_items"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       message_reactions: {
         Row: {
@@ -495,6 +672,7 @@ export type Database = {
           published: boolean
           suspended: boolean
           updated_at: string
+          verified: boolean
         }
         Insert: {
           app_type?: string
@@ -509,6 +687,7 @@ export type Database = {
           published?: boolean
           suspended?: boolean
           updated_at?: string
+          verified?: boolean
         }
         Update: {
           app_type?: string
@@ -523,6 +702,7 @@ export type Database = {
           published?: boolean
           suspended?: boolean
           updated_at?: string
+          verified?: boolean
         }
         Relationships: []
       }
@@ -558,6 +738,45 @@ export type Database = {
           },
         ]
       }
+      profile_items: {
+        Row: {
+          archived: boolean
+          content: string
+          created_at: string
+          id: string
+          kind: string
+          media_url: string | null
+          pinned: boolean
+          title: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          archived?: boolean
+          content?: string
+          created_at?: string
+          id?: string
+          kind?: string
+          media_url?: string | null
+          pinned?: boolean
+          title?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          archived?: boolean
+          content?: string
+          created_at?: string
+          id?: string
+          kind?: string
+          media_url?: string | null
+          pinned?: boolean
+          title?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -566,6 +785,9 @@ export type Database = {
           display_name: string | null
           id: string
           messages_privacy: string
+          phone: string | null
+          phone_public: boolean
+          phone_verified: boolean
           updated_at: string
           user_id: string
           username: string | null
@@ -577,6 +799,9 @@ export type Database = {
           display_name?: string | null
           id?: string
           messages_privacy?: string
+          phone?: string | null
+          phone_public?: boolean
+          phone_verified?: boolean
           updated_at?: string
           user_id: string
           username?: string | null
@@ -588,6 +813,9 @@ export type Database = {
           display_name?: string | null
           id?: string
           messages_privacy?: string
+          phone?: string | null
+          phone_public?: boolean
+          phone_verified?: boolean
           updated_at?: string
           user_id?: string
           username?: string | null
@@ -617,6 +845,33 @@ export type Database = {
           endpoint?: string
           id?: string
           p256dh?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      stickers: {
+        Row: {
+          created_at: string
+          emoji: string | null
+          id: string
+          media_type: string
+          media_url: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          emoji?: string | null
+          id?: string
+          media_type?: string
+          media_url: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          emoji?: string | null
+          id?: string
+          media_type?: string
+          media_url?: string
           user_id?: string
         }
         Relationships: []
