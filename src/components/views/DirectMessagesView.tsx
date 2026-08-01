@@ -863,21 +863,45 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
         )}
 
 
-        <div className="p-4 glass-card rounded-none border-x-0 border-b-0 ipad-input">
+        <div className="p-3 glass-card rounded-none border-x-0 border-b-0 ipad-input">
           <div className="flex items-end gap-2">
-            <DMAttachmentsButton onSendFile={sendFile} onSendPoll={sendPoll} />
+            <DMAttachmentsButton
+              onSendFile={sendFile}
+              onSendPoll={sendPoll}
+              onSendSticker={sendSticker}
+              onOpenRichEditor={() => setRichOpen(true)}
+            />
             <MediaUpload onUpload={setMediaUrl} />
             <VoiceRecorder onRecorded={handleVoiceRecorded} />
-            <FlameInput
-              placeholder={t("writeMessage")}
-              value={newMessage}
-              onChange={e => { setNewMessage(e.target.value); broadcastTyping(); }}
-              onKeyDown={e => e.key === "Enter" && sendMessage()}
-              className="flex-1"
-            />
+            <div className="flex-1 relative">
+              <textarea
+                rows={1}
+                placeholder={t("writeMessage")}
+                value={newMessage}
+                onChange={e => { setNewMessage(e.target.value); broadcastTyping(); }}
+                onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
+                className="w-full max-h-40 min-h-[44px] overflow-y-auto resize-none px-4 py-3 pr-10 rounded-lg bg-input border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm [overflow-wrap:anywhere]"
+              />
+              <button
+                onClick={() => setRichOpen(true)}
+                className="absolute right-2 bottom-2 p-1.5 rounded-md text-muted-foreground hover:text-primary hover:bg-primary/10"
+                aria-label="Expand editor">
+                <Maximize2 className="w-4 h-4" />
+              </button>
+            </div>
             <FlameButton onClick={sendMessage} size="md"><Send className="w-5 h-5" /></FlameButton>
           </div>
         </div>
+
+        <RichComposer
+          open={richOpen}
+          onOpenChange={setRichOpen}
+          initial={{ md: newMessage }}
+          title={t("writeMessage")}
+          submitLabel="Send"
+          onSubmit={(doc) => { setNewMessage(""); sendRich(doc); }}
+        />
+
 
         {activeTTTGame && (
           <TTTGameOverlay
