@@ -15,6 +15,11 @@ import { Slider } from "@/components/ui/slider";
 import { getVolume, setVolume as persistVolume, playNotificationSound } from "@/lib/notifications";
 import { MiniAppsView } from "@/components/views/MiniAppsView";
 import { FollowListModal } from "@/components/ui/FollowListModal";
+import { ProfileItems } from "@/components/ui/ProfileItems";
+import { FigurineShowcase } from "@/components/views/FigurinesView";
+import { PhoneSettings } from "@/components/ui/PhoneSettings";
+import { AccountSwitcher } from "@/components/ui/AccountSwitcher";
+
 
 interface ProfileViewProps {
   onNavigate?: (tab: string) => void;
