@@ -88,7 +88,7 @@ export function RichComposer({ open, onOpenChange, initial, onSubmit, submitLabe
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-1 px-3 py-2 border-b border-border shrink-0">
+        <div className="flex flex-wrap items-center gap-1 px-3 py-2 border-b border-border shrink-0">
           {[
             [Bold, () => wrap("**")],
             [Italic, () => wrap("*")],
@@ -96,13 +96,21 @@ export function RichComposer({ open, onOpenChange, initial, onSubmit, submitLabe
             [List, () => insert("- item 1\n- item 2")],
             [Quote, () => insert("> quote")],
             [TableIcon, () => insert("| Col A | Col B |\n| --- | --- |\n| 1 | 2 |")],
-            [ImageIcon, () => insert("![alt](https://)")],
           ].map(([Icon, fn]: any, i) => (
             <button key={i} onClick={fn} className="p-2 rounded-md hover:bg-primary/10 text-muted-foreground hover:text-primary">
               <Icon className="w-4 h-4" />
             </button>
           ))}
+          <button onClick={() => photoInput.current?.click()} disabled={uploading}
+            className="flex items-center gap-1 px-2 py-2 rounded-md hover:bg-primary/10 text-muted-foreground hover:text-primary text-[11px]">
+            {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImageIcon className="w-4 h-4" />} Add photo
+          </button>
+          <input ref={photoInput} type="file" accept="image/*" className="hidden"
+            onChange={e => { pickImage(e.target.files?.[0], "inline"); e.currentTarget.value = ""; }} />
+          <input ref={bgInput} type="file" accept="image/*" className="hidden"
+            onChange={e => { pickImage(e.target.files?.[0], "bg"); e.currentTarget.value = ""; }} />
         </div>
+
 
         <div className="flex-1 min-h-0 overflow-y-auto p-3">
           {mode === "edit" ? (
