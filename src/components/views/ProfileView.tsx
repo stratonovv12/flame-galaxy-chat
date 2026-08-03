@@ -144,6 +144,10 @@ export function ProfileView({ onNavigate }: ProfileViewProps) {
         </div>
       </GlassCard>
 
+      {user && <FigurineShowcase userId={user.id} />}
+      {user && <ProfileItems userId={user.id} editable />}
+
+
       <button
         onClick={() => setSettingsOpen(true)}
         className="w-full group relative overflow-hidden rounded-xl p-[2px] bg-gradient-to-r from-[#a87cff] via-[#7f5af0] to-[#5b3fe0] shadow-[0_0_18px_rgba(127,90,240,0.45)] hover:shadow-[0_0_28px_rgba(127,90,240,0.65)] transition-all">
