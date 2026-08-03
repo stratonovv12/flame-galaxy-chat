@@ -221,6 +221,15 @@ export function ProfileView({ onNavigate }: ProfileViewProps) {
               />
             </div>
 
+            <div className="py-2 border-t border-border/50">
+              <PhoneSettings />
+            </div>
+
+            <div className="py-2 border-t border-border/50">
+              <AccountSwitcher />
+            </div>
+
+
             <button
               onClick={() => { setSettingsOpen(false); setWorkshopOpen(true); }}
               className="w-full flex items-center justify-between gap-3 py-3 px-3 rounded-lg bg-muted/30 hover:bg-muted/50 border border-border transition-colors">
