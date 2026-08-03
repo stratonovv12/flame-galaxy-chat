@@ -184,6 +184,8 @@ export function MiniAppsView({ open, onOpenChange }: Props) {
       handle,
       name: editing.name,
       description: editing.description || null,
+      icon: editing.icon || null,
+
       app_type: "html" as const,
       content: editing.content || DEFAULT_HTML,
       published: editing.published ?? false,
