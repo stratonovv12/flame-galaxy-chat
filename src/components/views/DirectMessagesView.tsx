@@ -480,13 +480,15 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
     fetchPinned(activeChat.id);
   };
 
-  const sendMessage = async () => {
-    if ((!newMessage.trim() && !mediaUrl) || !activeChat || !user) return;
+  const sendMessage = async (override?: string) => {
+    const text = typeof override === "string" ? override : newMessage;
+    if ((!text.trim() && !mediaUrl) || !activeChat || !user) return;
     if (blockedByThem) {
       toast({ title: t("error"), description: t("blocked"), variant: "destructive" });
       return;
     }
-    const content = newMessage.trim() || (mediaUrl ? t("media") : "");
+    const content = text.trim() || (mediaUrl ? t("media") : "");
+
     const { error } = await supabase.from("direct_messages").insert({
       sender_id: user.id,
       receiver_id: activeChat.id,
