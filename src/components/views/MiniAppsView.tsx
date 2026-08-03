@@ -262,6 +262,25 @@ export function MiniAppsView({ open, onOpenChange }: Props) {
             </div>
             <FlameInput placeholder={t("appDescription")} value={editing.description || ""} onChange={e => setEditing({ ...editing, description: e.target.value })} />
 
+            {/* App avatar / logo */}
+            <div className="flex items-center gap-3 p-2 rounded-lg border border-border bg-muted/20">
+              <div className="w-12 h-12 rounded-lg bg-primary/15 border border-primary/30 overflow-hidden flex items-center justify-center shrink-0">
+                {editing.icon
+                  ? <img src={editing.icon} alt="" className="w-full h-full object-cover" />
+                  : <Boxes className="w-5 h-5 text-primary" />}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium">{t("appAvatar")}</p>
+                <p className="text-[11px] text-muted-foreground truncate">PNG / JPG</p>
+              </div>
+              <button onClick={() => iconInput.current?.click()} disabled={iconUploading}
+                className="p-2 rounded-lg bg-primary/20 hover:bg-primary/30 text-primary shrink-0">
+                {iconUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImagePlus className="w-4 h-4" />}
+              </button>
+              <input ref={iconInput} type="file" accept="image/*" className="hidden"
+                onChange={e => { uploadIcon(e.target.files?.[0]); e.currentTarget.value = ""; }} />
+            </div>
+
             {/* Tabs */}
             <div className="grid grid-cols-4 gap-1 p-1 rounded-lg bg-muted/30 border border-border">
               {([
@@ -280,8 +299,8 @@ export function MiniAppsView({ open, onOpenChange }: Props) {
               ))}
             </div>
 
-            {workshopTab === "files" && (
-              <div className="rounded-lg border border-border bg-muted/20 p-3 space-y-1 min-h-[200px]">
+            {workshopTab === "files" && panelWrap("files", (
+              <div className={`rounded-lg border border-border bg-muted/20 p-3 space-y-1 ${panelFull === "files" ? "min-h-[80vh]" : "min-h-[200px]"}`}>
                 {parseFileTree(editing.content || DEFAULT_HTML).map(f => (
                   <button
                     key={f}
@@ -295,40 +314,34 @@ export function MiniAppsView({ open, onOpenChange }: Props) {
                   Multi-file: wrap sections with <code>&lt;!-- FILE: path --&gt;</code> and <code>&lt;!-- ENDFILE --&gt;</code>.
                 </p>
               </div>
-            )}
+            ))}
 
-            {workshopTab === "editor" && (
+            {workshopTab === "editor" && panelWrap("editor", (
               <textarea
                 value={editing.content || DEFAULT_HTML}
                 onChange={e => setEditing({ ...editing, content: e.target.value })}
                 spellCheck={false}
-                className={`w-full ${fullscreen ? "h-[60vh]" : "h-64"} bg-muted/30 border border-border rounded-lg p-3 font-mono text-xs text-foreground [overflow-wrap:anywhere]`}
+                className={`w-full ${panelFull === "editor" ? "h-[85vh]" : fullscreen ? "h-[60vh]" : "h-64"} bg-muted/30 border border-border rounded-lg p-3 font-mono text-xs text-foreground [overflow-wrap:anywhere]`}
                 placeholder={t("appCode")}
               />
-            )}
+            ))}
 
-            {workshopTab === "preview" && (
-              <div className={`relative w-full ${previewFullscreen ? "fixed inset-0 z-[200] h-[100dvh] rounded-none" : `${fullscreen ? "h-[60vh]" : "h-72"} rounded-lg`} overflow-hidden border border-border bg-white`}>
+            {workshopTab === "preview" && panelWrap("preview", (
+              <div className={`relative w-full ${panelFull === "preview" ? "h-[85vh]" : fullscreen ? "h-[60vh]" : "h-72"} rounded-lg overflow-hidden border border-border bg-white`}>
                 <iframe
                   sandbox="allow-scripts allow-forms allow-popups allow-same-origin"
                   srcDoc={editing.content || DEFAULT_HTML}
                   className="absolute inset-0 w-full h-full border-0"
                   title="preview"
                 />
-                <button
-                  onClick={() => setPreviewFullscreen(v => !v)}
-                  className="absolute top-2 right-2 p-1.5 rounded-md bg-black/70 text-white hover:bg-black/85 z-10"
-                  title={previewFullscreen ? t("exitFullscreen") : t("fullscreen")}>
-                  {previewFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
-                </button>
                 <div className="pointer-events-none absolute bottom-2 right-2 flex items-center gap-1 rounded-full bg-black/70 backdrop-blur-md px-2.5 py-1 text-[10px] font-semibold text-white border border-primary/40 select-none">
                   <Flame className="w-3 h-3 text-primary" /> Powered by Flame
                 </div>
               </div>
-            )}
+            ))}
 
-            {workshopTab === "ai" && (
-              <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 space-y-2">
+            {workshopTab === "ai" && panelWrap("ai", (
+              <div className={`rounded-lg border border-primary/30 bg-primary/5 p-3 space-y-2 ${panelFull === "ai" ? "min-h-[80vh]" : ""}`}>
                 <div className="flex items-center gap-2 text-xs font-semibold text-primary">
                   <Sparkles className="w-4 h-4" /> Flame AI Assistant
                 </div>
@@ -336,7 +349,7 @@ export function MiniAppsView({ open, onOpenChange }: Props) {
                   value={aiPrompt}
                   onChange={e => setAiPrompt(e.target.value)}
                   placeholder="e.g. Add a dark mode toggle and a reset button"
-                  className="w-full h-24 bg-background/60 border border-border rounded-md p-2 text-xs resize-none [overflow-wrap:anywhere]"
+                  className={`w-full ${panelFull === "ai" ? "h-[60vh]" : "h-24"} bg-background/60 border border-border rounded-md p-2 text-xs resize-none [overflow-wrap:anywhere]`}
                 />
                 <FlameButton onClick={runAI} disabled={aiBusy || !aiPrompt.trim()} size="sm" className="w-full">
                   {aiBusy ? "Generating..." : "Generate / Update Code"}
@@ -345,7 +358,8 @@ export function MiniAppsView({ open, onOpenChange }: Props) {
                   Unlimited iterative editing — the AI keeps the full current source as context on every prompt.
                 </p>
               </div>
-            )}
+            ))}
+
 
             <label className="flex items-center gap-2 text-sm">
               <input type="checkbox" checked={!!editing.published} onChange={e => setEditing({ ...editing, published: e.target.checked })} />
