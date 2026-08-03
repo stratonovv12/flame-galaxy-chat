@@ -203,9 +203,15 @@ export function AdminPanelView() {
                   <Boxes className="w-4 h-4 text-primary" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm truncate">{a.name}</p>
+                  <p className="font-medium text-sm truncate flex items-center gap-1">
+                    {a.name}
+                    {a.verified && <BadgeCheck className="w-3.5 h-3.5 text-blue-400 shrink-0" />}
+                  </p>
                   <p className="text-xs text-muted-foreground truncate">@{a.handle}{a.suspended ? " · 🚫 suspended" : ""}</p>
                 </div>
+                <button onClick={() => toggleAppVerified(a.id, a.verified)} className={`p-2 rounded-lg ${a.verified ? "bg-blue-500/20 text-blue-400" : "hover:bg-muted/50 text-muted-foreground"}`} title={t("grantVerifiedBadge")}>
+                  <BadgeCheck className="w-4 h-4" />
+                </button>
                 <button onClick={() => toggleSuspend(a.id, a.suspended)} className={`p-2 rounded-lg ${a.suspended ? "bg-primary/20 text-primary" : "hover:bg-destructive/20 text-destructive"}`} title={a.suspended ? "Unsuspend" : "Suspend"}>
                   {a.suspended ? <Play className="w-4 h-4" /> : <Pause className="w-4 h-4" />}
                 </button>
@@ -217,7 +223,36 @@ export function AdminPanelView() {
           </div>
         )}
       </GlassCard>
+
+      <GlassCard className="p-4 space-y-3">
+        <h3 className="font-semibold flex items-center gap-2"><Gem className="w-5 h-5 text-primary" /> {t("mintFigurine")}</h3>
+        <FlameInput placeholder="Name" value={figName} onChange={e => setFigName(e.target.value)} />
+        <FlameInput placeholder="Description" value={figDesc} onChange={e => setFigDesc(e.target.value)} />
+        <div className="grid grid-cols-3 gap-2">
+          <select value={figRarity} onChange={e => setFigRarity(e.target.value)}
+            className="px-3 py-2 rounded-lg bg-input border border-border text-sm">
+            {["common", "rare", "epic", "legendary"].map(r => <option key={r} value={r}>{r}</option>)}
+          </select>
+          <FlameInput placeholder="Supply" type="number" value={figSupply} onChange={e => setFigSupply(e.target.value)} />
+          <FlameInput placeholder="Price (FLM)" type="number" value={figPrice} onChange={e => setFigPrice(e.target.value)} />
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 rounded-lg bg-primary/15 border border-primary/30 overflow-hidden flex items-center justify-center shrink-0">
+            {figImage ? <img src={figImage} alt="" className="w-full h-full object-cover" /> : <Gem className="w-5 h-5 text-primary" />}
+          </div>
+          <button onClick={() => figFile.current?.click()} disabled={figBusy}
+            className="p-2 rounded-lg bg-primary/20 hover:bg-primary/30 text-primary">
+            {figBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImagePlus className="w-4 h-4" />}
+          </button>
+          <input ref={figFile} type="file" accept="image/*" className="hidden"
+            onChange={e => { uploadFigImage(e.target.files?.[0]); e.currentTarget.value = ""; }} />
+        </div>
+        <FlameButton onClick={mintFigurine} disabled={figBusy || !figName.trim()} className="w-full">
+          <Gem className="w-4 h-4 mr-2" />{t("mintFigurine")}
+        </FlameButton>
+      </GlassCard>
     </div>
+
   );
 }
 
