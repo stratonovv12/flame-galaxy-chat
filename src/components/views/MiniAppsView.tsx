@@ -399,11 +399,16 @@ export function MiniAppsView({ open, onOpenChange }: Props) {
 
                 <GlassCard key={a.id} className="p-3">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center">
-                      <Boxes className="w-5 h-5 text-primary" />
+                    <div className="w-10 h-10 rounded-lg bg-primary/20 overflow-hidden flex items-center justify-center">
+                      {a.icon
+                        ? <img src={a.icon} alt="" className="w-full h-full object-cover" />
+                        : <Boxes className="w-5 h-5 text-primary" />}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-sm truncate">{a.name}</h3>
+                      <h3 className="font-semibold text-sm truncate flex items-center gap-1">
+                        {a.name}
+                        {(a as any).verified && <BadgeCheck className="w-3.5 h-3.5 text-blue-400 shrink-0" />}
+                      </h3>
                       <p className="text-[11px] text-muted-foreground truncate">@{a.handle}{a.description ? ` · ${a.description}` : ""}</p>
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
@@ -430,8 +435,10 @@ export function MiniAppsView({ open, onOpenChange }: Props) {
             </div>
           </>
         )}
+        <FigurinesView open={collectiblesOpen} onOpenChange={setCollectiblesOpen} />
       </DialogContent>
     </Dialog>
+
   );
 }
 
