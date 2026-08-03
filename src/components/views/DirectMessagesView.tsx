@@ -75,6 +75,8 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
   const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
   const [newMessage, setNewMessage] = useState("");
   const [richOpen, setRichOpen] = useState(false);
+  const [textExpandOpen, setTextExpandOpen] = useState(false);
+
 
   const [mediaUrl, setMediaUrl] = useState("");
   const [loading, setLoading] = useState(false);
