@@ -936,7 +936,7 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
                 <Maximize2 className="w-4 h-4" />
               </button>
             </div>
-            <FlameButton onClick={sendMessage} size="md"><Send className="w-5 h-5" /></FlameButton>
+            <FlameButton onClick={() => sendMessage()} size="md"><Send className="w-5 h-5" /></FlameButton>
           </div>
         </div>
 
