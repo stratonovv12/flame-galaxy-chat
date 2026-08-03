@@ -945,7 +945,7 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
           onOpenChange={setTextExpandOpen}
           value={newMessage}
           onChange={setNewMessage}
-          onSend={sendMessage}
+          onSend={(text) => sendMessage(text)}
         />
 
         <RichComposer

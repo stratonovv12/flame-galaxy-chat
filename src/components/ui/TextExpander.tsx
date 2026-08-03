@@ -9,7 +9,7 @@ interface Props {
   onOpenChange: (o: boolean) => void;
   value: string;
   onChange: (v: string) => void;
-  onSend: () => void;
+  onSend: (text: string) => void;
 }
 
 /** Full-screen plain text editor for long messages (no formatting, no presentation). */
@@ -20,7 +20,7 @@ export function TextExpander({ open, onOpenChange, value, onChange, onSend }: Pr
   useEffect(() => { if (open) setDraft(value); }, [open]);
 
   const apply = () => { onChange(draft); onOpenChange(false); };
-  const send = () => { onChange(draft); onOpenChange(false); setTimeout(onSend, 0); };
+  const send = () => { onChange(""); onOpenChange(false); onSend(draft); };
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) apply(); else onOpenChange(o); }}>
