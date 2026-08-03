@@ -199,6 +199,11 @@ export function UserProfileView({ userId, onBack, onStartChat }: UserProfileView
         )}
       </GlassCard>
 
+      <FigurineShowcase userId={userId} />
+      <ProfileItems userId={userId} />
+
+
+
       <div>
         <h3 className="font-semibold mb-3">{t("posts")} ({posts.length})</h3>
         {posts.length === 0 ? (
