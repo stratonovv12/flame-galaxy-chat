@@ -19,6 +19,9 @@ import { useMediaUpload } from "@/hooks/useMediaUpload";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { MessageCircle, Send, ArrowLeft, Phone, ShieldBan, ShieldCheck, X, Forward, Ghost, ChevronDown, Pin, PinOff, Flame, Gamepad2, MoreVertical, Maximize2 } from "lucide-react";
 import { RichComposer } from "@/components/ui/RichComposer";
+import { TextExpander } from "@/components/ui/TextExpander";
+import { isStickerUrl } from "@/lib/uploads";
+
 import { RichContent, encodeRich, parseRich, RichDoc } from "@/components/ui/RichContent";
 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
