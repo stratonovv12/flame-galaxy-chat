@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -6,8 +6,11 @@ import { GlassCard } from "@/components/ui/GlassCard";
 import { FlameButton } from "@/components/ui/FlameButton";
 import { FlameInput } from "@/components/ui/FlameInput";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Boxes, Plus, Play, Pencil, Trash2, ArrowLeft, Globe, Hash, Sparkles, Eye, Flame, Maximize2, Minimize2, FileCode, MessageSquare, Folder } from "lucide-react";
+import { Boxes, Plus, Play, Pencil, Trash2, ArrowLeft, Globe, Hash, Sparkles, Eye, Flame, Maximize2, Minimize2, FileCode, MessageSquare, Folder, Gem, BadgeCheck, ImagePlus, Loader2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { FigurinesView } from "@/components/views/FigurinesView";
+import { uploadToMedia } from "@/lib/uploads";
+
 
 interface MiniApp {
   id: string;
@@ -61,8 +64,39 @@ export function MiniAppsView({ open, onOpenChange }: Props) {
   const [aiBusy, setAiBusy] = useState(false);
   const [workshopTab, setWorkshopTab] = useState<"files" | "editor" | "preview" | "ai">("editor");
   const [fullscreen, setFullscreen] = useState(false);
-  const [previewFullscreen, setPreviewFullscreen] = useState(false);
   const [activeFile, setActiveFile] = useState<string>("index.html");
+  const [collectiblesOpen, setCollectiblesOpen] = useState(false);
+  const [iconUploading, setIconUploading] = useState(false);
+  const iconInput = useRef<HTMLInputElement>(null);
+  // Per-tab full screen: the currently expanded workshop panel (null = normal layout)
+  const [panelFull, setPanelFull] = useState<null | "files" | "editor" | "preview" | "ai">(null);
+
+  const panelWrap = (key: "files" | "editor" | "preview" | "ai", children: React.ReactNode) => (
+    <div className={panelFull === key
+      ? "fixed inset-0 z-[200] bg-background p-3 pt-12 overflow-y-auto"
+      : "relative"}>
+      <button
+        onClick={() => setPanelFull(p => (p === key ? null : key))}
+        className="absolute top-2 right-2 z-10 p-1.5 rounded-md bg-black/60 text-white hover:bg-black/80"
+        title={panelFull === key ? t("exitFullScreen") : t("fullScreen")}>
+        {panelFull === key ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+      </button>
+      {children}
+    </div>
+  );
+
+  const uploadIcon = async (file?: File) => {
+    if (!file || !user || !editing) return;
+    setIconUploading(true);
+    try {
+      const url = await uploadToMedia(file, user.id, "app-icons");
+      setEditing({ ...editing, icon: url });
+    } catch (e: any) {
+      toast({ title: t("error"), description: e.message, variant: "destructive" });
+    }
+    setIconUploading(false);
+  };
+
 
   const runAI = async () => {
     if (!aiPrompt.trim() || !editing) return;
@@ -150,6 +184,8 @@ export function MiniAppsView({ open, onOpenChange }: Props) {
       handle,
       name: editing.name,
       description: editing.description || null,
+      icon: editing.icon || null,
+
       app_type: "html" as const,
       content: editing.content || DEFAULT_HTML,
       published: editing.published ?? false,
@@ -227,6 +263,25 @@ export function MiniAppsView({ open, onOpenChange }: Props) {
             </div>
             <FlameInput placeholder={t("appDescription")} value={editing.description || ""} onChange={e => setEditing({ ...editing, description: e.target.value })} />
 
+            {/* App avatar / logo */}
+            <div className="flex items-center gap-3 p-2 rounded-lg border border-border bg-muted/20">
+              <div className="w-12 h-12 rounded-lg bg-primary/15 border border-primary/30 overflow-hidden flex items-center justify-center shrink-0">
+                {editing.icon
+                  ? <img src={editing.icon} alt="" className="w-full h-full object-cover" />
+                  : <Boxes className="w-5 h-5 text-primary" />}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium">{t("appAvatar")}</p>
+                <p className="text-[11px] text-muted-foreground truncate">PNG / JPG</p>
+              </div>
+              <button onClick={() => iconInput.current?.click()} disabled={iconUploading}
+                className="p-2 rounded-lg bg-primary/20 hover:bg-primary/30 text-primary shrink-0">
+                {iconUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImagePlus className="w-4 h-4" />}
+              </button>
+              <input ref={iconInput} type="file" accept="image/*" className="hidden"
+                onChange={e => { uploadIcon(e.target.files?.[0]); e.currentTarget.value = ""; }} />
+            </div>
+
             {/* Tabs */}
             <div className="grid grid-cols-4 gap-1 p-1 rounded-lg bg-muted/30 border border-border">
               {([
@@ -245,8 +300,8 @@ export function MiniAppsView({ open, onOpenChange }: Props) {
               ))}
             </div>
 
-            {workshopTab === "files" && (
-              <div className="rounded-lg border border-border bg-muted/20 p-3 space-y-1 min-h-[200px]">
+            {workshopTab === "files" && panelWrap("files", (
+              <div className={`rounded-lg border border-border bg-muted/20 p-3 space-y-1 ${panelFull === "files" ? "min-h-[80vh]" : "min-h-[200px]"}`}>
                 {parseFileTree(editing.content || DEFAULT_HTML).map(f => (
                   <button
                     key={f}
@@ -260,40 +315,34 @@ export function MiniAppsView({ open, onOpenChange }: Props) {
                   Multi-file: wrap sections with <code>&lt;!-- FILE: path --&gt;</code> and <code>&lt;!-- ENDFILE --&gt;</code>.
                 </p>
               </div>
-            )}
+            ))}
 
-            {workshopTab === "editor" && (
+            {workshopTab === "editor" && panelWrap("editor", (
               <textarea
                 value={editing.content || DEFAULT_HTML}
                 onChange={e => setEditing({ ...editing, content: e.target.value })}
                 spellCheck={false}
-                className={`w-full ${fullscreen ? "h-[60vh]" : "h-64"} bg-muted/30 border border-border rounded-lg p-3 font-mono text-xs text-foreground [overflow-wrap:anywhere]`}
+                className={`w-full ${panelFull === "editor" ? "h-[85vh]" : fullscreen ? "h-[60vh]" : "h-64"} bg-muted/30 border border-border rounded-lg p-3 font-mono text-xs text-foreground [overflow-wrap:anywhere]`}
                 placeholder={t("appCode")}
               />
-            )}
+            ))}
 
-            {workshopTab === "preview" && (
-              <div className={`relative w-full ${previewFullscreen ? "fixed inset-0 z-[200] h-[100dvh] rounded-none" : `${fullscreen ? "h-[60vh]" : "h-72"} rounded-lg`} overflow-hidden border border-border bg-white`}>
+            {workshopTab === "preview" && panelWrap("preview", (
+              <div className={`relative w-full ${panelFull === "preview" ? "h-[85vh]" : fullscreen ? "h-[60vh]" : "h-72"} rounded-lg overflow-hidden border border-border bg-white`}>
                 <iframe
                   sandbox="allow-scripts allow-forms allow-popups allow-same-origin"
                   srcDoc={editing.content || DEFAULT_HTML}
                   className="absolute inset-0 w-full h-full border-0"
                   title="preview"
                 />
-                <button
-                  onClick={() => setPreviewFullscreen(v => !v)}
-                  className="absolute top-2 right-2 p-1.5 rounded-md bg-black/70 text-white hover:bg-black/85 z-10"
-                  title={previewFullscreen ? t("exitFullscreen") : t("fullscreen")}>
-                  {previewFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
-                </button>
                 <div className="pointer-events-none absolute bottom-2 right-2 flex items-center gap-1 rounded-full bg-black/70 backdrop-blur-md px-2.5 py-1 text-[10px] font-semibold text-white border border-primary/40 select-none">
                   <Flame className="w-3 h-3 text-primary" /> Powered by Flame
                 </div>
               </div>
-            )}
+            ))}
 
-            {workshopTab === "ai" && (
-              <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 space-y-2">
+            {workshopTab === "ai" && panelWrap("ai", (
+              <div className={`rounded-lg border border-primary/30 bg-primary/5 p-3 space-y-2 ${panelFull === "ai" ? "min-h-[80vh]" : ""}`}>
                 <div className="flex items-center gap-2 text-xs font-semibold text-primary">
                   <Sparkles className="w-4 h-4" /> Flame AI Assistant
                 </div>
@@ -301,7 +350,7 @@ export function MiniAppsView({ open, onOpenChange }: Props) {
                   value={aiPrompt}
                   onChange={e => setAiPrompt(e.target.value)}
                   placeholder="e.g. Add a dark mode toggle and a reset button"
-                  className="w-full h-24 bg-background/60 border border-border rounded-md p-2 text-xs resize-none [overflow-wrap:anywhere]"
+                  className={`w-full ${panelFull === "ai" ? "h-[60vh]" : "h-24"} bg-background/60 border border-border rounded-md p-2 text-xs resize-none [overflow-wrap:anywhere]`}
                 />
                 <FlameButton onClick={runAI} disabled={aiBusy || !aiPrompt.trim()} size="sm" className="w-full">
                   {aiBusy ? "Generating..." : "Generate / Update Code"}
@@ -310,7 +359,8 @@ export function MiniAppsView({ open, onOpenChange }: Props) {
                   Unlimited iterative editing — the AI keeps the full current source as context on every prompt.
                 </p>
               </div>
-            )}
+            ))}
+
 
             <label className="flex items-center gap-2 text-sm">
               <input type="checkbox" checked={!!editing.published} onChange={e => setEditing({ ...editing, published: e.target.checked })} />
@@ -328,16 +378,39 @@ export function MiniAppsView({ open, onOpenChange }: Props) {
               <Plus className="w-4 h-4 mr-2" /> {t("createMiniApp")}
             </FlameButton>
             <div className="space-y-2 max-h-[50vh] overflow-y-auto">
+              {/* Official built-in mini-app */}
+              <GlassCard className="p-3 border-primary/40">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center">
+                    <Gem className="w-5 h-5 text-primary" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-sm truncate flex items-center gap-1">
+                      {t("flameCollectibles")} <BadgeCheck className="w-3.5 h-3.5 text-blue-400" />
+                    </h3>
+                    <p className="text-[11px] text-muted-foreground truncate">{t("officialApp")} · @collectibles</p>
+                  </div>
+                  <button onClick={() => setCollectiblesOpen(true)} className="p-2 rounded-lg bg-primary/20 hover:bg-primary/30 text-primary shrink-0" title={t("launch")}>
+                    <Play className="w-4 h-4" />
+                  </button>
+                </div>
+              </GlassCard>
               {apps.length === 0 ? (
                 <p className="text-center text-sm text-muted-foreground py-8">{t("noMiniApps")}</p>
               ) : apps.map(a => (
+
                 <GlassCard key={a.id} className="p-3">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center">
-                      <Boxes className="w-5 h-5 text-primary" />
+                    <div className="w-10 h-10 rounded-lg bg-primary/20 overflow-hidden flex items-center justify-center">
+                      {a.icon
+                        ? <img src={a.icon} alt="" className="w-full h-full object-cover" />
+                        : <Boxes className="w-5 h-5 text-primary" />}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-sm truncate">{a.name}</h3>
+                      <h3 className="font-semibold text-sm truncate flex items-center gap-1">
+                        {a.name}
+                        {(a as any).verified && <BadgeCheck className="w-3.5 h-3.5 text-blue-400 shrink-0" />}
+                      </h3>
                       <p className="text-[11px] text-muted-foreground truncate">@{a.handle}{a.description ? ` · ${a.description}` : ""}</p>
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
@@ -364,8 +437,10 @@ export function MiniAppsView({ open, onOpenChange }: Props) {
             </div>
           </>
         )}
+        <FigurinesView open={collectiblesOpen} onOpenChange={setCollectiblesOpen} />
       </DialogContent>
     </Dialog>
+
   );
 }
 

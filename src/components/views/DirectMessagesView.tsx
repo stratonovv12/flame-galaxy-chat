@@ -19,6 +19,9 @@ import { useMediaUpload } from "@/hooks/useMediaUpload";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { MessageCircle, Send, ArrowLeft, Phone, ShieldBan, ShieldCheck, X, Forward, Ghost, ChevronDown, Pin, PinOff, Flame, Gamepad2, MoreVertical, Maximize2 } from "lucide-react";
 import { RichComposer } from "@/components/ui/RichComposer";
+import { TextExpander } from "@/components/ui/TextExpander";
+import { isStickerUrl } from "@/lib/uploads";
+
 import { RichContent, encodeRich, parseRich, RichDoc } from "@/components/ui/RichContent";
 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -72,6 +75,8 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
   const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
   const [newMessage, setNewMessage] = useState("");
   const [richOpen, setRichOpen] = useState(false);
+  const [textExpandOpen, setTextExpandOpen] = useState(false);
+
 
   const [mediaUrl, setMediaUrl] = useState("");
   const [loading, setLoading] = useState(false);
@@ -475,13 +480,15 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
     fetchPinned(activeChat.id);
   };
 
-  const sendMessage = async () => {
-    if ((!newMessage.trim() && !mediaUrl) || !activeChat || !user) return;
+  const sendMessage = async (override?: string) => {
+    const text = typeof override === "string" ? override : newMessage;
+    if ((!text.trim() && !mediaUrl) || !activeChat || !user) return;
     if (blockedByThem) {
       toast({ title: t("error"), description: t("blocked"), variant: "destructive" });
       return;
     }
-    const content = newMessage.trim() || (mediaUrl ? t("media") : "");
+    const content = text.trim() || (mediaUrl ? t("media") : "");
+
     const { error } = await supabase.from("direct_messages").insert({
       sender_id: user.id,
       receiver_id: activeChat.id,
@@ -591,9 +598,16 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
   };
 
   const renderMedia = (url: string) => {
+    // Stickers render instantly: autoplaying muted loop / plain image, no download step.
+    if (isStickerUrl(url)) {
+      return url.match(/\.(mp4|mov|webm)/i)
+        ? <video src={url} autoPlay loop muted playsInline preload="auto" className="w-32 h-32 object-contain mb-1 drop-shadow-[0_0_10px_rgba(127,90,240,0.35)]" />
+        : <img src={url} alt="sticker" loading="eager" decoding="async" className="w-32 h-32 object-contain mb-1 drop-shadow-[0_0_10px_rgba(127,90,240,0.35)]" />;
+    }
     if (url.includes("_circle")) {
       return <video src={url} controls playsInline className="w-48 h-48 rounded-full object-cover mb-2 border-2 border-primary" style={{ aspectRatio: "1/1" }} />;
     }
+
     if (url.includes("_voice")) {
       return <audio src={url} controls className="mb-2 max-w-full" />;
     }
@@ -916,24 +930,33 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
                 className="w-full max-h-40 min-h-[44px] overflow-y-auto resize-none px-4 py-3 pr-10 rounded-lg bg-input border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm [overflow-wrap:anywhere]"
               />
               <button
-                onClick={() => setRichOpen(true)}
+                onClick={() => setTextExpandOpen(true)}
                 className="absolute right-2 bottom-2 p-1.5 rounded-md text-muted-foreground hover:text-primary hover:bg-primary/10"
-                aria-label="Expand editor">
+                aria-label={t("expandText")}>
                 <Maximize2 className="w-4 h-4" />
               </button>
             </div>
-            <FlameButton onClick={sendMessage} size="md"><Send className="w-5 h-5" /></FlameButton>
+            <FlameButton onClick={() => sendMessage()} size="md"><Send className="w-5 h-5" /></FlameButton>
           </div>
         </div>
+
+        <TextExpander
+          open={textExpandOpen}
+          onOpenChange={setTextExpandOpen}
+          value={newMessage}
+          onChange={setNewMessage}
+          onSend={(text) => sendMessage(text)}
+        />
 
         <RichComposer
           open={richOpen}
           onOpenChange={setRichOpen}
-          initial={{ md: newMessage }}
-          title={t("writeMessage")}
-          submitLabel="Send"
-          onSubmit={(doc) => { setNewMessage(""); sendRich(doc); }}
+          initial={{ md: "" }}
+          title={t("presentationBuilder")}
+          submitLabel={t("send")}
+          onSubmit={(doc) => sendRich(doc)}
         />
+
 
 
         {activeTTTGame && (

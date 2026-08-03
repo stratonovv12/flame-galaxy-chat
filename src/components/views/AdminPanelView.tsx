@@ -1,13 +1,15 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { FlameButton } from "@/components/ui/FlameButton";
 import { UserAvatar } from "@/components/ui/UserAvatar";
-import { Shield, BadgeCheck, Ban, UserX, Search, Boxes, Trash2, Play, Pause } from "lucide-react";
+import { Shield, BadgeCheck, Ban, UserX, Search, Boxes, Trash2, Play, Pause, Gem, ImagePlus, Loader2 } from "lucide-react";
 import { FlameInput } from "@/components/ui/FlameInput";
 import { toast } from "@/hooks/use-toast";
+import { uploadToMedia } from "@/lib/uploads";
+
 
 interface UserProfile { user_id: string; username: string | null; avatar_url: string | null; }
 
@@ -22,19 +24,62 @@ export function AdminPanelView() {
 
   // Mini-app moderation
   const [appQuery, setAppQuery] = useState("");
-  const [appResults, setAppResults] = useState<Array<{ id: string; handle: string; name: string; suspended: boolean; creator_id: string }>>([]);
+  const [appResults, setAppResults] = useState<Array<{ id: string; handle: string; name: string; suspended: boolean; verified: boolean; creator_id: string }>>([]);
   const [appLoading, setAppLoading] = useState(false);
+
+  // Figurine minting (admin only)
+  const [figName, setFigName] = useState("");
+  const [figDesc, setFigDesc] = useState("");
+  const [figRarity, setFigRarity] = useState("common");
+  const [figSupply, setFigSupply] = useState("10");
+  const [figPrice, setFigPrice] = useState("100");
+  const [figImage, setFigImage] = useState("");
+  const [figBusy, setFigBusy] = useState(false);
+  const figFile = useRef<HTMLInputElement>(null);
 
   useEffect(() => { fetchBannedUsers(); fetchVerifiedUsers(); }, []);
 
   const searchMiniApps = async () => {
     setAppLoading(true);
     const q = appQuery.trim().replace(/^@/, "").replace(/[%_\\]/g, '\\$&');
-    let query = supabase.from("mini_apps").select("id, handle, name, suspended, creator_id").order("created_at", { ascending: false }).limit(30);
+    let query = supabase.from("mini_apps").select("id, handle, name, suspended, verified, creator_id").order("created_at", { ascending: false }).limit(30);
     if (q) query = query.or(`handle.ilike.%${q}%,name.ilike.%${q}%`);
     const { data } = await query;
     setAppResults((data as any) || []);
     setAppLoading(false);
+  };
+
+  const toggleAppVerified = async (id: string, verified: boolean) => {
+    const { error } = await supabase.from("mini_apps").update({ verified: !verified }).eq("id", id);
+    if (error) { toast({ title: t("error"), description: error.message, variant: "destructive" }); return; }
+    toast({ title: !verified ? t("grantVerifiedBadge") : t("verificationRemoved") });
+    setAppResults(prev => prev.map(a => (a.id === id ? { ...a, verified: !verified } : a)));
+  };
+
+  const uploadFigImage = async (file?: File) => {
+    if (!file || !user) return;
+    setFigBusy(true);
+    try { setFigImage(await uploadToMedia(file, user.id, "figurines")); }
+    catch (e: any) { toast({ title: t("error"), description: e.message, variant: "destructive" }); }
+    setFigBusy(false);
+  };
+
+  const mintFigurine = async () => {
+    if (!user || !figName.trim()) return;
+    setFigBusy(true);
+    const { error } = await supabase.from("figurines").insert({
+      name: figName.trim(),
+      description: figDesc.trim() || null,
+      image_url: figImage || null,
+      rarity: figRarity,
+      supply: parseInt(figSupply) || 1,
+      price: parseFloat(figPrice) || 0,
+      created_by: user.id,
+    });
+    setFigBusy(false);
+    if (error) { toast({ title: t("error"), description: error.message, variant: "destructive" }); return; }
+    toast({ title: t("mintFigurine"), description: figName });
+    setFigName(""); setFigDesc(""); setFigImage("");
   };
 
   const toggleSuspend = async (id: string, suspended: boolean) => {
@@ -43,6 +88,7 @@ export function AdminPanelView() {
     toast({ title: !suspended ? "Mini-app suspended" : "Mini-app unsuspended" });
     searchMiniApps();
   };
+
 
   const deleteMiniApp = async (id: string) => {
     if (!confirm("Delete this mini-app permanently?")) return;
@@ -157,9 +203,15 @@ export function AdminPanelView() {
                   <Boxes className="w-4 h-4 text-primary" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm truncate">{a.name}</p>
+                  <p className="font-medium text-sm truncate flex items-center gap-1">
+                    {a.name}
+                    {a.verified && <BadgeCheck className="w-3.5 h-3.5 text-blue-400 shrink-0" />}
+                  </p>
                   <p className="text-xs text-muted-foreground truncate">@{a.handle}{a.suspended ? " · 🚫 suspended" : ""}</p>
                 </div>
+                <button onClick={() => toggleAppVerified(a.id, a.verified)} className={`p-2 rounded-lg ${a.verified ? "bg-blue-500/20 text-blue-400" : "hover:bg-muted/50 text-muted-foreground"}`} title={t("grantVerifiedBadge")}>
+                  <BadgeCheck className="w-4 h-4" />
+                </button>
                 <button onClick={() => toggleSuspend(a.id, a.suspended)} className={`p-2 rounded-lg ${a.suspended ? "bg-primary/20 text-primary" : "hover:bg-destructive/20 text-destructive"}`} title={a.suspended ? "Unsuspend" : "Suspend"}>
                   {a.suspended ? <Play className="w-4 h-4" /> : <Pause className="w-4 h-4" />}
                 </button>
@@ -171,7 +223,36 @@ export function AdminPanelView() {
           </div>
         )}
       </GlassCard>
+
+      <GlassCard className="p-4 space-y-3">
+        <h3 className="font-semibold flex items-center gap-2"><Gem className="w-5 h-5 text-primary" /> {t("mintFigurine")}</h3>
+        <FlameInput placeholder="Name" value={figName} onChange={e => setFigName(e.target.value)} />
+        <FlameInput placeholder="Description" value={figDesc} onChange={e => setFigDesc(e.target.value)} />
+        <div className="grid grid-cols-3 gap-2">
+          <select value={figRarity} onChange={e => setFigRarity(e.target.value)}
+            className="px-3 py-2 rounded-lg bg-input border border-border text-sm">
+            {["common", "rare", "epic", "legendary"].map(r => <option key={r} value={r}>{r}</option>)}
+          </select>
+          <FlameInput placeholder="Supply" type="number" value={figSupply} onChange={e => setFigSupply(e.target.value)} />
+          <FlameInput placeholder="Price (FLM)" type="number" value={figPrice} onChange={e => setFigPrice(e.target.value)} />
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 rounded-lg bg-primary/15 border border-primary/30 overflow-hidden flex items-center justify-center shrink-0">
+            {figImage ? <img src={figImage} alt="" className="w-full h-full object-cover" /> : <Gem className="w-5 h-5 text-primary" />}
+          </div>
+          <button onClick={() => figFile.current?.click()} disabled={figBusy}
+            className="p-2 rounded-lg bg-primary/20 hover:bg-primary/30 text-primary">
+            {figBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImagePlus className="w-4 h-4" />}
+          </button>
+          <input ref={figFile} type="file" accept="image/*" className="hidden"
+            onChange={e => { uploadFigImage(e.target.files?.[0]); e.currentTarget.value = ""; }} />
+        </div>
+        <FlameButton onClick={mintFigurine} disabled={figBusy || !figName.trim()} className="w-full">
+          <Gem className="w-4 h-4 mr-2" />{t("mintFigurine")}
+        </FlameButton>
+      </GlassCard>
     </div>
+
   );
 }
 

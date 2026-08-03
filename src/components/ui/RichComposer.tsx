@@ -1,11 +1,15 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { FlameButton } from "@/components/ui/FlameButton";
 import { RichContent, RichDoc } from "@/components/ui/RichContent";
+import { useAuth } from "@/contexts/AuthContext";
+import { uploadToMedia } from "@/lib/uploads";
+import { toast } from "@/hooks/use-toast";
 import {
   Bold, Italic, Heading1, Table as TableIcon, Image as ImageIcon, List, Quote,
-  Palette, X, Eye, Pencil, Send,
+  Palette, X, Eye, Pencil, Send, Loader2,
 } from "lucide-react";
+
 
 const BG_PRESETS = [
   { label: "None", value: "" },
@@ -36,9 +40,28 @@ export function RichComposer({ open, onOpenChange, initial, onSubmit, submitLabe
   const [color, setColor] = useState(initial?.color || "");
   const [font, setFont] = useState(initial?.font || "");
   const [mode, setMode] = useState<"edit" | "preview">("edit");
+  const [uploading, setUploading] = useState(false);
+  const { user } = useAuth();
+  const bgInput = useRef<HTMLInputElement>(null);
+  const photoInput = useRef<HTMLInputElement>(null);
 
   const wrap = (before: string, after = before) => setMd(v => `${v}${before}text${after}`);
   const insert = (snippet: string) => setMd(v => (v ? `${v}\n${snippet}` : snippet));
+
+  const pickImage = async (file: File | undefined, target: "bg" | "inline") => {
+    if (!file || !user) return;
+    if (file.size > 50 * 1024 * 1024) { toast({ title: "File too large", variant: "destructive" }); return; }
+    setUploading(true);
+    try {
+      const url = await uploadToMedia(file, user.id, "presentations");
+      if (target === "bg") setBg(`url("${url}") center/cover no-repeat`);
+      else insert(`![photo](${url})`);
+    } catch (e: any) {
+      toast({ title: "Upload failed", description: e.message, variant: "destructive" });
+    }
+    setUploading(false);
+  };
+
 
   const submit = () => {
     if (!md.trim()) return;
@@ -65,7 +88,7 @@ export function RichComposer({ open, onOpenChange, initial, onSubmit, submitLabe
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-1 px-3 py-2 border-b border-border shrink-0">
+        <div className="flex flex-wrap items-center gap-1 px-3 py-2 border-b border-border shrink-0">
           {[
             [Bold, () => wrap("**")],
             [Italic, () => wrap("*")],
@@ -73,13 +96,21 @@ export function RichComposer({ open, onOpenChange, initial, onSubmit, submitLabe
             [List, () => insert("- item 1\n- item 2")],
             [Quote, () => insert("> quote")],
             [TableIcon, () => insert("| Col A | Col B |\n| --- | --- |\n| 1 | 2 |")],
-            [ImageIcon, () => insert("![alt](https://)")],
           ].map(([Icon, fn]: any, i) => (
             <button key={i} onClick={fn} className="p-2 rounded-md hover:bg-primary/10 text-muted-foreground hover:text-primary">
               <Icon className="w-4 h-4" />
             </button>
           ))}
+          <button onClick={() => photoInput.current?.click()} disabled={uploading}
+            className="flex items-center gap-1 px-2 py-2 rounded-md hover:bg-primary/10 text-muted-foreground hover:text-primary text-[11px]">
+            {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImageIcon className="w-4 h-4" />} Add photo
+          </button>
+          <input ref={photoInput} type="file" accept="image/*" className="hidden"
+            onChange={e => { pickImage(e.target.files?.[0], "inline"); e.currentTarget.value = ""; }} />
+          <input ref={bgInput} type="file" accept="image/*" className="hidden"
+            onChange={e => { pickImage(e.target.files?.[0], "bg"); e.currentTarget.value = ""; }} />
         </div>
+
 
         <div className="flex-1 min-h-0 overflow-y-auto p-3">
           {mode === "edit" ? (
@@ -97,12 +128,17 @@ export function RichComposer({ open, onOpenChange, initial, onSubmit, submitLabe
         <div className="px-3 py-2 border-t border-border space-y-2 shrink-0">
           <div className="flex items-center gap-2 overflow-x-auto">
             <Palette className="w-4 h-4 text-muted-foreground shrink-0" />
+            <button onClick={() => bgInput.current?.click()} disabled={uploading}
+              className={`px-2 py-1 rounded-md text-[11px] border shrink-0 ${bg.startsWith("url(") ? "border-primary text-primary" : "border-border text-muted-foreground"}`}>
+              {uploading ? "Uploading…" : "Background photo"}
+            </button>
             {BG_PRESETS.map(p => (
               <button key={p.label} onClick={() => setBg(p.value)}
                 className={`px-2 py-1 rounded-md text-[11px] border shrink-0 ${bg === p.value ? "border-primary text-primary" : "border-border text-muted-foreground"}`}>
                 {p.label}
               </button>
             ))}
+
             {COLOR_PRESETS.map(c => (
               <button key={c || "auto"} onClick={() => setColor(c)}
                 className={`w-6 h-6 rounded-full border shrink-0 ${color === c ? "border-primary" : "border-border"}`}

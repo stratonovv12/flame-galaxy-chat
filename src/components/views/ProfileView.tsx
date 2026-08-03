@@ -15,6 +15,11 @@ import { Slider } from "@/components/ui/slider";
 import { getVolume, setVolume as persistVolume, playNotificationSound } from "@/lib/notifications";
 import { MiniAppsView } from "@/components/views/MiniAppsView";
 import { FollowListModal } from "@/components/ui/FollowListModal";
+import { ProfileItems } from "@/components/ui/ProfileItems";
+import { FigurineShowcase } from "@/components/views/FigurinesView";
+import { PhoneSettings } from "@/components/ui/PhoneSettings";
+import { AccountSwitcher } from "@/components/ui/AccountSwitcher";
+
 
 interface ProfileViewProps {
   onNavigate?: (tab: string) => void;
@@ -139,6 +144,10 @@ export function ProfileView({ onNavigate }: ProfileViewProps) {
         </div>
       </GlassCard>
 
+      {user && <FigurineShowcase userId={user.id} />}
+      {user && <ProfileItems userId={user.id} editable />}
+
+
       <button
         onClick={() => setSettingsOpen(true)}
         className="w-full group relative overflow-hidden rounded-xl p-[2px] bg-gradient-to-r from-[#a87cff] via-[#7f5af0] to-[#5b3fe0] shadow-[0_0_18px_rgba(127,90,240,0.45)] hover:shadow-[0_0_28px_rgba(127,90,240,0.65)] transition-all">
@@ -211,6 +220,15 @@ export function ProfileView({ onNavigate }: ProfileViewProps) {
                 onValueCommit={() => playNotificationSound()}
               />
             </div>
+
+            <div className="py-2 border-t border-border/50">
+              <PhoneSettings />
+            </div>
+
+            <div className="py-2 border-t border-border/50">
+              <AccountSwitcher />
+            </div>
+
 
             <button
               onClick={() => { setSettingsOpen(false); setWorkshopOpen(true); }}
