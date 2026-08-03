@@ -64,7 +64,6 @@ export function MiniAppsView({ open, onOpenChange }: Props) {
   const [aiBusy, setAiBusy] = useState(false);
   const [workshopTab, setWorkshopTab] = useState<"files" | "editor" | "preview" | "ai">("editor");
   const [fullscreen, setFullscreen] = useState(false);
-  const [previewFullscreen, setPreviewFullscreen] = useState(false);
   const [activeFile, setActiveFile] = useState<string>("index.html");
   const [collectiblesOpen, setCollectiblesOpen] = useState(false);
   const [iconUploading, setIconUploading] = useState(false);
