@@ -1,11 +1,15 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { FlameButton } from "@/components/ui/FlameButton";
 import { RichContent, RichDoc } from "@/components/ui/RichContent";
+import { useAuth } from "@/contexts/AuthContext";
+import { uploadToMedia } from "@/lib/uploads";
+import { toast } from "@/hooks/use-toast";
 import {
   Bold, Italic, Heading1, Table as TableIcon, Image as ImageIcon, List, Quote,
-  Palette, X, Eye, Pencil, Send,
+  Palette, X, Eye, Pencil, Send, Loader2,
 } from "lucide-react";
+
 
 const BG_PRESETS = [
   { label: "None", value: "" },
