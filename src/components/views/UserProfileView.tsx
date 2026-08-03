@@ -11,6 +11,9 @@ import { toast } from "@/hooks/use-toast";
 import { FeedPostCard, FeedPost } from "@/components/views/FeedView";
 import { MomentsStoryViewer, fetchUserMoments } from "@/components/ui/FlameMoments";
 import { FollowListModal } from "@/components/ui/FollowListModal";
+import { FigurineShowcase } from "@/components/views/FigurinesView";
+import { ProfileItems } from "@/components/ui/ProfileItems";
+
 
 interface Profile {
   id: string;
