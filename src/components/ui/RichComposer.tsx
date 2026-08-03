@@ -128,12 +128,17 @@ export function RichComposer({ open, onOpenChange, initial, onSubmit, submitLabe
         <div className="px-3 py-2 border-t border-border space-y-2 shrink-0">
           <div className="flex items-center gap-2 overflow-x-auto">
             <Palette className="w-4 h-4 text-muted-foreground shrink-0" />
+            <button onClick={() => bgInput.current?.click()} disabled={uploading}
+              className={`px-2 py-1 rounded-md text-[11px] border shrink-0 ${bg.startsWith("url(") ? "border-primary text-primary" : "border-border text-muted-foreground"}`}>
+              {uploading ? "Uploading…" : "Background photo"}
+            </button>
             {BG_PRESETS.map(p => (
               <button key={p.label} onClick={() => setBg(p.value)}
                 className={`px-2 py-1 rounded-md text-[11px] border shrink-0 ${bg === p.value ? "border-primary text-primary" : "border-border text-muted-foreground"}`}>
                 {p.label}
               </button>
             ))}
+
             {COLOR_PRESETS.map(c => (
               <button key={c || "auto"} onClick={() => setColor(c)}
                 className={`w-6 h-6 rounded-full border shrink-0 ${color === c ? "border-primary" : "border-border"}`}
