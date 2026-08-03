@@ -40,9 +40,28 @@ export function RichComposer({ open, onOpenChange, initial, onSubmit, submitLabe
   const [color, setColor] = useState(initial?.color || "");
   const [font, setFont] = useState(initial?.font || "");
   const [mode, setMode] = useState<"edit" | "preview">("edit");
+  const [uploading, setUploading] = useState(false);
+  const { user } = useAuth();
+  const bgInput = useRef<HTMLInputElement>(null);
+  const photoInput = useRef<HTMLInputElement>(null);
 
   const wrap = (before: string, after = before) => setMd(v => `${v}${before}text${after}`);
   const insert = (snippet: string) => setMd(v => (v ? `${v}\n${snippet}` : snippet));
+
+  const pickImage = async (file: File | undefined, target: "bg" | "inline") => {
+    if (!file || !user) return;
+    if (file.size > 50 * 1024 * 1024) { toast({ title: "File too large", variant: "destructive" }); return; }
+    setUploading(true);
+    try {
+      const url = await uploadToMedia(file, user.id, "presentations");
+      if (target === "bg") setBg(`url("${url}") center/cover no-repeat`);
+      else insert(`![photo](${url})`);
+    } catch (e: any) {
+      toast({ title: "Upload failed", description: e.message, variant: "destructive" });
+    }
+    setUploading(false);
+  };
+
 
   const submit = () => {
     if (!md.trim()) return;
