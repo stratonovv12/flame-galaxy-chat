@@ -596,9 +596,16 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
   };
 
   const renderMedia = (url: string) => {
+    // Stickers render instantly: autoplaying muted loop / plain image, no download step.
+    if (isStickerUrl(url)) {
+      return url.match(/\.(mp4|mov|webm)/i)
+        ? <video src={url} autoPlay loop muted playsInline preload="auto" className="w-32 h-32 object-contain mb-1 drop-shadow-[0_0_10px_rgba(127,90,240,0.35)]" />
+        : <img src={url} alt="sticker" loading="eager" decoding="async" className="w-32 h-32 object-contain mb-1 drop-shadow-[0_0_10px_rgba(127,90,240,0.35)]" />;
+    }
     if (url.includes("_circle")) {
       return <video src={url} controls playsInline className="w-48 h-48 rounded-full object-cover mb-2 border-2 border-primary" style={{ aspectRatio: "1/1" }} />;
     }
+
     if (url.includes("_voice")) {
       return <audio src={url} controls className="mb-2 max-w-full" />;
     }
