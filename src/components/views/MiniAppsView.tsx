@@ -66,6 +66,38 @@ export function MiniAppsView({ open, onOpenChange }: Props) {
   const [fullscreen, setFullscreen] = useState(false);
   const [previewFullscreen, setPreviewFullscreen] = useState(false);
   const [activeFile, setActiveFile] = useState<string>("index.html");
+  const [collectiblesOpen, setCollectiblesOpen] = useState(false);
+  const [iconUploading, setIconUploading] = useState(false);
+  const iconInput = useRef<HTMLInputElement>(null);
+  // Per-tab full screen: the currently expanded workshop panel (null = normal layout)
+  const [panelFull, setPanelFull] = useState<null | "files" | "editor" | "preview" | "ai">(null);
+
+  const panelWrap = (key: "files" | "editor" | "preview" | "ai", children: React.ReactNode) => (
+    <div className={panelFull === key
+      ? "fixed inset-0 z-[200] bg-background p-3 pt-12 overflow-y-auto"
+      : "relative"}>
+      <button
+        onClick={() => setPanelFull(p => (p === key ? null : key))}
+        className="absolute top-2 right-2 z-10 p-1.5 rounded-md bg-black/60 text-white hover:bg-black/80"
+        title={panelFull === key ? t("exitFullScreen") : t("fullScreen")}>
+        {panelFull === key ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+      </button>
+      {children}
+    </div>
+  );
+
+  const uploadIcon = async (file?: File) => {
+    if (!file || !user || !editing) return;
+    setIconUploading(true);
+    try {
+      const url = await uploadToMedia(file, user.id, "app-icons");
+      setEditing({ ...editing, icon: url });
+    } catch (e: any) {
+      toast({ title: t("error"), description: e.message, variant: "destructive" });
+    }
+    setIconUploading(false);
+  };
+
 
   const runAI = async () => {
     if (!aiPrompt.trim() || !editing) return;
