@@ -328,9 +328,27 @@ export function MiniAppsView({ open, onOpenChange }: Props) {
               <Plus className="w-4 h-4 mr-2" /> {t("createMiniApp")}
             </FlameButton>
             <div className="space-y-2 max-h-[50vh] overflow-y-auto">
+              {/* Official built-in mini-app */}
+              <GlassCard className="p-3 border-primary/40">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center">
+                    <Gem className="w-5 h-5 text-primary" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-sm truncate flex items-center gap-1">
+                      {t("flameCollectibles")} <BadgeCheck className="w-3.5 h-3.5 text-blue-400" />
+                    </h3>
+                    <p className="text-[11px] text-muted-foreground truncate">{t("officialApp")} · @collectibles</p>
+                  </div>
+                  <button onClick={() => setCollectiblesOpen(true)} className="p-2 rounded-lg bg-primary/20 hover:bg-primary/30 text-primary shrink-0" title={t("launch")}>
+                    <Play className="w-4 h-4" />
+                  </button>
+                </div>
+              </GlassCard>
               {apps.length === 0 ? (
                 <p className="text-center text-sm text-muted-foreground py-8">{t("noMiniApps")}</p>
               ) : apps.map(a => (
+
                 <GlassCard key={a.id} className="p-3">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center">
