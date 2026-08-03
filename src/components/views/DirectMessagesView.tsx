@@ -928,9 +928,9 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
                 className="w-full max-h-40 min-h-[44px] overflow-y-auto resize-none px-4 py-3 pr-10 rounded-lg bg-input border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm [overflow-wrap:anywhere]"
               />
               <button
-                onClick={() => setRichOpen(true)}
+                onClick={() => setTextExpandOpen(true)}
                 className="absolute right-2 bottom-2 p-1.5 rounded-md text-muted-foreground hover:text-primary hover:bg-primary/10"
-                aria-label="Expand editor">
+                aria-label={t("expandText")}>
                 <Maximize2 className="w-4 h-4" />
               </button>
             </div>
@@ -938,14 +938,23 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
           </div>
         </div>
 
+        <TextExpander
+          open={textExpandOpen}
+          onOpenChange={setTextExpandOpen}
+          value={newMessage}
+          onChange={setNewMessage}
+          onSend={sendMessage}
+        />
+
         <RichComposer
           open={richOpen}
           onOpenChange={setRichOpen}
-          initial={{ md: newMessage }}
-          title={t("writeMessage")}
-          submitLabel="Send"
-          onSubmit={(doc) => { setNewMessage(""); sendRich(doc); }}
+          initial={{ md: "" }}
+          title={t("presentationBuilder")}
+          submitLabel={t("send")}
+          onSubmit={(doc) => sendRich(doc)}
         />
+
 
 
         {activeTTTGame && (
