@@ -22,19 +22,62 @@ export function AdminPanelView() {
 
   // Mini-app moderation
   const [appQuery, setAppQuery] = useState("");
-  const [appResults, setAppResults] = useState<Array<{ id: string; handle: string; name: string; suspended: boolean; creator_id: string }>>([]);
+  const [appResults, setAppResults] = useState<Array<{ id: string; handle: string; name: string; suspended: boolean; verified: boolean; creator_id: string }>>([]);
   const [appLoading, setAppLoading] = useState(false);
+
+  // Figurine minting (admin only)
+  const [figName, setFigName] = useState("");
+  const [figDesc, setFigDesc] = useState("");
+  const [figRarity, setFigRarity] = useState("common");
+  const [figSupply, setFigSupply] = useState("10");
+  const [figPrice, setFigPrice] = useState("100");
+  const [figImage, setFigImage] = useState("");
+  const [figBusy, setFigBusy] = useState(false);
+  const figFile = useRef<HTMLInputElement>(null);
 
   useEffect(() => { fetchBannedUsers(); fetchVerifiedUsers(); }, []);
 
   const searchMiniApps = async () => {
     setAppLoading(true);
     const q = appQuery.trim().replace(/^@/, "").replace(/[%_\\]/g, '\\$&');
-    let query = supabase.from("mini_apps").select("id, handle, name, suspended, creator_id").order("created_at", { ascending: false }).limit(30);
+    let query = supabase.from("mini_apps").select("id, handle, name, suspended, verified, creator_id").order("created_at", { ascending: false }).limit(30);
     if (q) query = query.or(`handle.ilike.%${q}%,name.ilike.%${q}%`);
     const { data } = await query;
     setAppResults((data as any) || []);
     setAppLoading(false);
+  };
+
+  const toggleAppVerified = async (id: string, verified: boolean) => {
+    const { error } = await supabase.from("mini_apps").update({ verified: !verified }).eq("id", id);
+    if (error) { toast({ title: t("error"), description: error.message, variant: "destructive" }); return; }
+    toast({ title: !verified ? t("grantVerifiedBadge") : t("verificationRemoved") });
+    setAppResults(prev => prev.map(a => (a.id === id ? { ...a, verified: !verified } : a)));
+  };
+
+  const uploadFigImage = async (file?: File) => {
+    if (!file || !user) return;
+    setFigBusy(true);
+    try { setFigImage(await uploadToMedia(file, user.id, "figurines")); }
+    catch (e: any) { toast({ title: t("error"), description: e.message, variant: "destructive" }); }
+    setFigBusy(false);
+  };
+
+  const mintFigurine = async () => {
+    if (!user || !figName.trim()) return;
+    setFigBusy(true);
+    const { error } = await supabase.from("figurines").insert({
+      name: figName.trim(),
+      description: figDesc.trim() || null,
+      image_url: figImage || null,
+      rarity: figRarity,
+      supply: parseInt(figSupply) || 1,
+      price: parseFloat(figPrice) || 0,
+      created_by: user.id,
+    });
+    setFigBusy(false);
+    if (error) { toast({ title: t("error"), description: error.message, variant: "destructive" }); return; }
+    toast({ title: t("mintFigurine"), description: figName });
+    setFigName(""); setFigDesc(""); setFigImage("");
   };
 
   const toggleSuspend = async (id: string, suspended: boolean) => {
@@ -43,6 +86,7 @@ export function AdminPanelView() {
     toast({ title: !suspended ? "Mini-app suspended" : "Mini-app unsuspended" });
     searchMiniApps();
   };
+
 
   const deleteMiniApp = async (id: string) => {
     if (!confirm("Delete this mini-app permanently?")) return;
