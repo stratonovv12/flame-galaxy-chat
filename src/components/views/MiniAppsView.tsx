@@ -10,6 +10,7 @@ import { Boxes, Plus, Play, Pencil, Trash2, ArrowLeft, Globe, Hash, Sparkles, Ey
 import { toast } from "@/hooks/use-toast";
 import { FigurinesView } from "@/components/views/FigurinesView";
 import { uploadToMedia } from "@/lib/uploads";
+import flameLogo from "@/assets/flame-logo.png";
 
 
 interface MiniApp {
@@ -235,10 +236,13 @@ export function MiniAppsView({ open, onOpenChange }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className={editing && fullscreen ? "!fixed !inset-0 !top-0 !left-0 !translate-x-0 !translate-y-0 !w-screen !h-[100dvh] !max-w-none !max-h-none !rounded-none glass-card border-primary/30 overflow-y-auto p-4" : "max-w-2xl glass-card border-primary/30 max-h-[90vh] overflow-y-auto"}>
+      <DialogContent className="!fixed !inset-0 !top-0 !left-0 !translate-x-0 !translate-y-0 !w-screen !h-[100dvh] !max-w-none !max-h-none !rounded-none glass-card border-primary/30 overflow-y-auto p-4">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-glow">
-            <Boxes className="w-5 h-5 text-primary" /> {t("miniApps")}
+            <img src={flameLogo} alt="" width={28} height={28} loading="lazy"
+              className="w-7 h-7 rounded-lg drop-shadow-[0_0_10px_rgba(127,90,240,0.6)]" />
+            <span className="bg-gradient-to-r from-[#a87cff] to-[#7f5af0] bg-clip-text text-transparent">{t("flameMarketplace")}</span>
+            <BadgeCheck className="w-4 h-4 text-blue-400" />
           </DialogTitle>
         </DialogHeader>
 
@@ -377,7 +381,7 @@ export function MiniAppsView({ open, onOpenChange }: Props) {
             <FlameButton onClick={() => setEditing({ name: "", handle: "", content: DEFAULT_HTML, published: false })} className="w-full">
               <Plus className="w-4 h-4 mr-2" /> {t("createMiniApp")}
             </FlameButton>
-            <div className="space-y-2 max-h-[50vh] overflow-y-auto">
+            <div className="space-y-2 flex-1 overflow-y-auto">
               {/* Official built-in mini-app */}
               <GlassCard className="p-3 border-primary/40">
                 <div className="flex items-center gap-3">
