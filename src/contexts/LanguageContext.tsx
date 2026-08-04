@@ -540,7 +540,6 @@ const translations = {
     tabPrivacy: "Уведомления и приватность",
     tabGeneral: "Основное",
     myCollection: "Моя коллекция",
-    posts: "Посты",
   },
   en: {
     // Nav & global
@@ -1079,7 +1078,6 @@ const translations = {
     tabPrivacy: "Notifications & Privacy",
     tabGeneral: "General",
     myCollection: "My collection",
-    posts: "Posts",
   },
 } as const;
 
