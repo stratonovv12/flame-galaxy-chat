@@ -75,7 +75,7 @@ export function ProfileItems({ userId, editable }: Props) {
       {isOwner && (
         <div className="flex gap-2">
           <FlameButton onClick={() => setComposerOpen(true)} className="flex-1" size="sm">
-            <Plus className="w-4 h-4 mr-2" />New presentation
+            <Plus className="w-4 h-4 mr-2" />Create Post in Profile
           </FlameButton>
           <FlameButton variant="outline" size="sm" onClick={() => setShowArchived(v => !v)}>
             {showArchived ? <ArchiveRestore className="w-4 h-4" /> : <Archive className="w-4 h-4" />}
@@ -86,7 +86,7 @@ export function ProfileItems({ userId, editable }: Props) {
       {items.length === 0 ? (
         <GlassCard className="text-center py-8">
           <FileText className="w-10 h-10 mx-auto mb-2 text-primary/50" />
-          <p className="text-sm text-muted-foreground">{showArchived ? "Nothing archived." : "No presentations yet."}</p>
+          <p className="text-sm text-muted-foreground">{showArchived ? "Nothing archived." : "No posts yet."}</p>
         </GlassCard>
       ) : items.map(it => {
         const doc = parseRich(it.content) || { md: it.content };
@@ -114,8 +114,8 @@ export function ProfileItems({ userId, editable }: Props) {
       <RichComposer
         open={composerOpen}
         onOpenChange={setComposerOpen}
-        title="New profile presentation"
-        submitLabel="Publish to profile"
+        title="Create Post in Profile"
+        submitLabel="Publish"
         onSubmit={(doc) => publish(doc.md, doc.bg, doc.color, doc.font)}
       />
     </div>

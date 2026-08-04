@@ -2,12 +2,13 @@ import { useRef, useState } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { FlameButton } from "@/components/ui/FlameButton";
 import { RichContent, RichDoc } from "@/components/ui/RichContent";
+import { PresentationViewer } from "@/components/ui/PresentationViewer";
 import { useAuth } from "@/contexts/AuthContext";
 import { uploadToMedia } from "@/lib/uploads";
 import { toast } from "@/hooks/use-toast";
 import {
   Bold, Italic, Heading1, Table as TableIcon, Image as ImageIcon, List, Quote,
-  Palette, X, Eye, Pencil, Send, Loader2,
+  Palette, X, Eye, Pencil, Send, Loader2, Presentation, Play,
 } from "lucide-react";
 
 
@@ -41,6 +42,7 @@ export function RichComposer({ open, onOpenChange, initial, onSubmit, submitLabe
   const [font, setFont] = useState(initial?.font || "");
   const [mode, setMode] = useState<"edit" | "preview">("edit");
   const [uploading, setUploading] = useState(false);
+  const [presenting, setPresenting] = useState(false);
   const { user } = useAuth();
   const bgInput = useRef<HTMLInputElement>(null);
   const photoInput = useRef<HTMLInputElement>(null);
@@ -77,6 +79,12 @@ export function RichComposer({ open, onOpenChange, initial, onSubmit, submitLabe
           <h2 className="text-sm font-semibold text-glow">{title}</h2>
           <div className="flex items-center gap-2">
             <button
+              onClick={() => setPresenting(true)}
+              className="p-2 rounded-lg hover:bg-primary/10 text-primary"
+              aria-label="Present">
+              <Play className="w-4 h-4" />
+            </button>
+            <button
               onClick={() => setMode(m => (m === "edit" ? "preview" : "edit"))}
               className="p-2 rounded-lg hover:bg-primary/10 text-primary"
               aria-label="Toggle preview">
@@ -96,6 +104,7 @@ export function RichComposer({ open, onOpenChange, initial, onSubmit, submitLabe
             [List, () => insert("- item 1\n- item 2")],
             [Quote, () => insert("> quote")],
             [TableIcon, () => insert("| Col A | Col B |\n| --- | --- |\n| 1 | 2 |")],
+            [Presentation, () => insert("\n---\n\n# New slide")],
           ].map(([Icon, fn]: any, i) => (
             <button key={i} onClick={fn} className="p-2 rounded-md hover:bg-primary/10 text-muted-foreground hover:text-primary">
               <Icon className="w-4 h-4" />
@@ -154,6 +163,11 @@ export function RichComposer({ open, onOpenChange, initial, onSubmit, submitLabe
             <Send className="w-4 h-4 mr-2" />{submitLabel}
           </FlameButton>
         </div>
+        <PresentationViewer
+          doc={{ md: md || "# Empty", bg, color, font }}
+          open={presenting}
+          onOpenChange={setPresenting}
+        />
       </DialogContent>
     </Dialog>
   );
