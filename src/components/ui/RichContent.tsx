@@ -2,6 +2,7 @@ import { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Play } from "lucide-react";
+import { PresentationViewer } from "@/components/ui/PresentationViewer";
 
 export const RICH_PREFIX = "__RICH__:";
 
@@ -56,8 +57,8 @@ export function RichContent({ doc, className = "", compact, presentable = true }
           </button>
         </div>
       )}
-      {showPresent && (
-        <LazyPresentation doc={doc} open={presenting} onOpenChange={setPresenting} />
+      {showPresent && presenting && (
+        <PresentationViewer doc={doc} open onOpenChange={setPresenting} />
       )}
       <div className={`prose prose-invert max-w-none ${compact ? "p-3 text-sm" : "p-4"} [overflow-wrap:anywhere]`}>
         <ReactMarkdown
@@ -84,9 +85,4 @@ export function RichContent({ doc, className = "", compact, presentable = true }
       </div>
     </div>
   );
-}
-
-function LazyPresentation({ doc, open, onOpenChange }: { doc: RichDoc; open: boolean; onOpenChange: (o: boolean) => void }) {
-  const { PresentationViewer } = require("@/components/ui/PresentationViewer");
-  return <PresentationViewer doc={doc} open={open} onOpenChange={onOpenChange} />;
 }
