@@ -8,7 +8,7 @@ import { FlameInput } from "@/components/ui/FlameInput";
 import { UserBadge } from "@/components/ui/UserBadge";
 import { AvatarUpload } from "@/components/ui/AvatarUpload";
 import { AdminPanelView } from "@/components/views/AdminPanelView";
-import { LogOut, Settings, Mail, Shield, Globe, Users as UsersIcon, ArrowLeft, Volume2, Boxes } from "lucide-react";
+import { LogOut, Settings, Mail, Shield, Globe, Users as UsersIcon, ArrowLeft, Volume2, Boxes, User, Palette, Bell, SlidersHorizontal } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Slider } from "@/components/ui/slider";
@@ -19,11 +19,13 @@ import { ProfileItems } from "@/components/ui/ProfileItems";
 import { FigurineShowcase } from "@/components/views/FigurinesView";
 import { PhoneSettings } from "@/components/ui/PhoneSettings";
 import { AccountSwitcher } from "@/components/ui/AccountSwitcher";
-
+import flameLogo from "@/assets/flame-logo.png";
 
 interface ProfileViewProps {
   onNavigate?: (tab: string) => void;
 }
+
+type SettingsTab = "account" | "appearance" | "privacy" | "general";
 
 export function ProfileView({ onNavigate }: ProfileViewProps) {
   const { user, signOut, isAdmin } = useAuth();
@@ -39,6 +41,7 @@ export function ProfileView({ onNavigate }: ProfileViewProps) {
   const [followerCount, setFollowerCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsTab, setSettingsTab] = useState<SettingsTab>("account");
   const [volume, setVolumeState] = useState(() => getVolume());
   const [workshopOpen, setWorkshopOpen] = useState(false);
   const [followListOpen, setFollowListOpen] = useState<null | "followers" | "following">(null);
@@ -106,23 +109,38 @@ export function ProfileView({ onNavigate }: ProfileViewProps) {
     );
   }
 
+  const TABS: { key: SettingsTab; label: string; icon: typeof User }[] = [
+    { key: "account", label: t("tabAccount"), icon: User },
+    { key: "appearance", label: t("tabAppearance"), icon: Palette },
+    { key: "privacy", label: t("tabPrivacy"), icon: Bell },
+    { key: "general", label: t("tabGeneral"), icon: SlidersHorizontal },
+  ];
+
   return (
-    <div className="p-4 space-y-6 max-w-2xl mx-auto">
-      <h2 className="text-xl font-bold">{t("profile")}</h2>
+    <div className="p-4 space-y-5 max-w-2xl mx-auto">
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-bold">{t("profile")}</h2>
+        <button onClick={() => { setSettingsTab("account"); setSettingsOpen(true); }}
+          className="p-2 rounded-lg hover:bg-primary/10 text-primary" aria-label={t("settings")}>
+          <Settings className="w-5 h-5" />
+        </button>
+      </div>
 
+      {/* Minimalist identity card */}
       <GlassCard className="p-6" glow>
-        <div className="flex flex-col items-center mb-6">
-          <AvatarUpload currentUrl={avatarUrl} onUpload={(url) => { setAvatarUrl(url); autoSave({ avatar_url: url || null }); }} />
-          {(displayName || username) && (
-            <div className="flex items-center gap-1.5 mt-4">
-              <h3 className="text-lg font-semibold">{displayName || username}</h3>
-              {user && <UserBadge userId={user.id} />}
-            </div>
-          )}
+        <div className="flex flex-col items-center">
+          <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-primary/40 bg-muted/30 flex items-center justify-center">
+            {avatarUrl
+              ? <img src={avatarUrl} alt="" className="w-full h-full object-cover" />
+              : <User className="w-8 h-8 text-muted-foreground" />}
+          </div>
+          <div className="flex items-center gap-1.5 mt-3">
+            <h3 className="text-lg font-semibold">{displayName || username || t("profile")}</h3>
+            {user && <UserBadge userId={user.id} />}
+          </div>
           {username && <p className="text-sm text-primary/80 mt-0.5">@{username.replace(/^@/, "")}</p>}
-          <p className="text-sm text-muted-foreground flex items-center gap-2 mt-1"><Mail className="w-4 h-4" />{user?.email}</p>
 
-          <div className="flex gap-6 mt-4 text-sm">
+          <div className="flex gap-8 mt-4 text-sm">
             <button onClick={() => setFollowListOpen("followers")} className="text-center hover:text-primary transition-colors">
               <div className="font-bold text-lg">{followerCount}</div>
               <div className="text-xs text-muted-foreground">{t("followers")}</div>
@@ -133,46 +151,16 @@ export function ProfileView({ onNavigate }: ProfileViewProps) {
             </button>
           </div>
         </div>
-
-        <div className="space-y-4">
-          <FlameInput label={t("displayName")} placeholder={t("displayNamePlaceholder")} value={displayName} onChange={e => { setDisplayName(e.target.value); debouncedSave({ display_name: e.target.value }); }} disabled={loading} />
-          <FlameInput label="@Username" placeholder="unique_handle" value={username} onChange={e => { setUsername(e.target.value); setUsernameError(""); debouncedSave({ username: e.target.value }); }} disabled={loading} error={usernameError} />
-          <div className="w-full">
-            <label className="block text-sm font-medium text-foreground/80 mb-2">{t("aboutMe")}</label>
-            <textarea className="w-full touch-target px-4 py-3 rounded-lg bg-input border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all duration-200 resize-none" placeholder={t("aboutMePlaceholder")} rows={3} value={bio} onChange={e => { setBio(e.target.value); debouncedSave({ bio: e.target.value }); }} disabled={loading} />
-          </div>
-        </div>
       </GlassCard>
 
-      {user && <FigurineShowcase userId={user.id} />}
-      {user && <ProfileItems userId={user.id} editable />}
-
-
-      <button
-        onClick={() => setSettingsOpen(true)}
-        className="w-full group relative overflow-hidden rounded-xl p-[2px] bg-gradient-to-r from-[#a87cff] via-[#7f5af0] to-[#5b3fe0] shadow-[0_0_18px_rgba(127,90,240,0.45)] hover:shadow-[0_0_28px_rgba(127,90,240,0.65)] transition-all">
-        <div className="flex items-center justify-between bg-background/90 hover:bg-background/80 rounded-[10px] px-5 py-4 transition-colors">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary/30 to-accent/30 flex items-center justify-center">
-              <Settings className="w-5 h-5 text-primary group-hover:rotate-90 transition-transform duration-500" />
-            </div>
-            <div className="text-left">
-              <p className="font-semibold">{t("settings")}</p>
-              <p className="text-xs text-muted-foreground">{t("openSettings")}</p>
-            </div>
-          </div>
-          <span className="text-primary text-xl">›</span>
-        </div>
-      </button>
-
-
       {isAdmin && (
-        <FlameButton onClick={() => setShowAdmin(true)} className="w-full" variant="outline"><Shield className="w-4 h-4 mr-2" />{t("adminPanel")}</FlameButton>
+        <FlameButton onClick={() => setShowAdmin(true)} className="w-full" variant="outline">
+          <Shield className="w-4 h-4 mr-2" />{t("adminPanel")}
+        </FlameButton>
       )}
 
-      <FlameButton variant="outline" className="w-full border-destructive/50 text-destructive hover:bg-destructive/10" onClick={signOut}>
-        <LogOut className="w-4 h-4 mr-2" />{t("logout")}
-      </FlameButton>
+      {/* Create Post in Profile + published posts */}
+      {user && <ProfileItems userId={user.id} editable />}
 
       <Sheet open={settingsOpen} onOpenChange={setSettingsOpen}>
         <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto bg-background/95 backdrop-blur-xl border-l border-primary/20">
@@ -183,66 +171,113 @@ export function ProfileView({ onNavigate }: ProfileViewProps) {
             <SheetTitle className="flex items-center gap-2"><Settings className="w-5 h-5" />{t("settings")}</SheetTitle>
           </SheetHeader>
 
-          <div className="space-y-5 mt-6">
-            <div className="py-2 border-b border-border/50">
-              <p className="font-medium text-sm">{t("email")}</p>
-              <p className="text-xs text-muted-foreground">{user?.email}</p>
-            </div>
+          {/* Tabs */}
+          <div className="grid grid-cols-4 gap-1 p-1 mt-4 rounded-xl bg-muted/30 border border-border">
+            {TABS.map(({ key, label, icon: Icon }) => (
+              <button key={key} onClick={() => setSettingsTab(key)}
+                className={`flex flex-col items-center gap-1 py-2 rounded-lg text-[10px] font-semibold transition-colors ${settingsTab === key ? "bg-primary text-primary-foreground shadow-[0_0_10px_rgba(127,90,240,0.4)]" : "text-muted-foreground hover:bg-muted/50"}`}>
+                <Icon className="w-4 h-4" />
+                <span className="leading-tight text-center">{label.split(" ")[0]}</span>
+              </button>
+            ))}
+          </div>
 
-            <div className="py-2">
-              <div className="flex items-center gap-2 mb-2"><Globe className="w-4 h-4 text-muted-foreground" /><p className="font-medium text-sm">{t("language")}</p></div>
-              <select
-                value={lang}
-                onChange={e => setLang(e.target.value as any)}
-                className="w-full px-3 py-2 rounded-lg bg-input border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm">
-                <option value="ru">{t("russian")}</option>
-                <option value="en">{t("english")}</option>
-              </select>
-            </div>
+          <div className="space-y-5 mt-5">
+            {settingsTab === "account" && (
+              <>
+                <div className="flex flex-col items-center">
+                  <AvatarUpload currentUrl={avatarUrl} onUpload={(url) => { setAvatarUrl(url); autoSave({ avatar_url: url || null }); }} />
+                </div>
+                <FlameInput label={t("displayName")} placeholder={t("displayNamePlaceholder")} value={displayName} onChange={e => { setDisplayName(e.target.value); debouncedSave({ display_name: e.target.value }); }} disabled={loading} />
+                <FlameInput label="@Username" placeholder="unique_handle" value={username} onChange={e => { setUsername(e.target.value); setUsernameError(""); debouncedSave({ username: e.target.value }); }} disabled={loading} error={usernameError} />
+                <div className="w-full">
+                  <label className="block text-sm font-medium text-foreground/80 mb-2">{t("aboutMe")}</label>
+                  <textarea className="w-full touch-target px-4 py-3 rounded-lg bg-input border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all duration-200 resize-none" placeholder={t("aboutMePlaceholder")} rows={3} value={bio} onChange={e => { setBio(e.target.value); debouncedSave({ bio: e.target.value }); }} disabled={loading} />
+                </div>
 
-            <div className="py-2">
-              <div className="flex items-center gap-2 mb-2"><UsersIcon className="w-4 h-4 text-muted-foreground" /><p className="font-medium text-sm">{t("messagesPrivacy")}</p></div>
-              <div className="flex gap-2">
-                <button onClick={() => updatePrivacy("everyone")} className={`flex-1 px-3 py-2 rounded-lg text-sm transition-colors ${messagesPrivacy === "everyone" ? "bg-primary text-primary-foreground" : "bg-muted/50 text-muted-foreground hover:text-foreground"}`}>{t("privacyPublic")}</button>
-                <button onClick={() => updatePrivacy("followers")} className={`flex-1 px-3 py-2 rounded-lg text-sm transition-colors ${messagesPrivacy === "followers" ? "bg-primary text-primary-foreground" : "bg-muted/50 text-muted-foreground hover:text-foreground"}`}>{t("privacyFriendsOnly")}</button>
+                <div className="py-2 border-t border-border/50">
+                  <p className="font-medium text-sm flex items-center gap-2"><Mail className="w-4 h-4 text-muted-foreground" />{t("email")}</p>
+                  <p className="text-xs text-muted-foreground mt-1">{user?.email}</p>
+                </div>
+
+                <div className="py-2 border-t border-border/50">
+                  <AccountSwitcher />
+                </div>
+
+                {user && (
+                  <div className="py-2 border-t border-border/50">
+                    <p className="font-medium text-sm mb-2">{t("myCollection")}</p>
+                    <FigurineShowcase userId={user.id} />
+                  </div>
+                )}
+              </>
+            )}
+
+            {settingsTab === "appearance" && (
+              <div className="py-2">
+                <div className="flex items-center gap-2 mb-2"><Globe className="w-4 h-4 text-muted-foreground" /><p className="font-medium text-sm">{t("language")}</p></div>
+                <select
+                  value={lang}
+                  onChange={e => setLang(e.target.value as any)}
+                  className="w-full px-3 py-2 rounded-lg bg-input border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm">
+                  <option value="ru">{t("russian")}</option>
+                  <option value="en">{t("english")}</option>
+                </select>
               </div>
-            </div>
+            )}
 
-            <div className="py-2">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2"><Volume2 className="w-4 h-4 text-muted-foreground" /><p className="font-medium text-sm">{t("soundVolume")}</p></div>
-                <span className="text-xs text-muted-foreground">{Math.round(volume * 100)}%</span>
-              </div>
-              <Slider
-                value={[volume * 100]}
-                min={0} max={100} step={1}
-                onValueChange={(v) => { const nv = v[0] / 100; setVolumeState(nv); persistVolume(nv); }}
-                onValueCommit={() => playNotificationSound()}
-              />
-            </div>
+            {settingsTab === "privacy" && (
+              <>
+                <div className="py-2">
+                  <div className="flex items-center gap-2 mb-2"><UsersIcon className="w-4 h-4 text-muted-foreground" /><p className="font-medium text-sm">{t("messagesPrivacy")}</p></div>
+                  <div className="flex gap-2">
+                    <button onClick={() => updatePrivacy("everyone")} className={`flex-1 px-3 py-2 rounded-lg text-sm transition-colors ${messagesPrivacy === "everyone" ? "bg-primary text-primary-foreground" : "bg-muted/50 text-muted-foreground hover:text-foreground"}`}>{t("privacyPublic")}</button>
+                    <button onClick={() => updatePrivacy("followers")} className={`flex-1 px-3 py-2 rounded-lg text-sm transition-colors ${messagesPrivacy === "followers" ? "bg-primary text-primary-foreground" : "bg-muted/50 text-muted-foreground hover:text-foreground"}`}>{t("privacyFriendsOnly")}</button>
+                  </div>
+                </div>
 
-            <div className="py-2 border-t border-border/50">
-              <PhoneSettings />
-            </div>
+                <div className="py-2 border-t border-border/50">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2"><Volume2 className="w-4 h-4 text-muted-foreground" /><p className="font-medium text-sm">{t("soundVolume")}</p></div>
+                    <span className="text-xs text-muted-foreground">{Math.round(volume * 100)}%</span>
+                  </div>
+                  <Slider
+                    value={[volume * 100]}
+                    min={0} max={100} step={1}
+                    onValueChange={(v) => { const nv = v[0] / 100; setVolumeState(nv); persistVolume(nv); }}
+                    onValueCommit={() => playNotificationSound()}
+                  />
+                </div>
 
-            <div className="py-2 border-t border-border/50">
-              <AccountSwitcher />
-            </div>
+                <div className="py-2 border-t border-border/50">
+                  <PhoneSettings />
+                </div>
+              </>
+            )}
 
+            {settingsTab === "general" && (
+              <>
+                <button
+                  onClick={() => { setSettingsOpen(false); setWorkshopOpen(true); }}
+                  className="w-full flex items-center justify-between gap-3 py-3 px-3 rounded-lg bg-muted/30 hover:bg-muted/50 border border-border transition-colors">
+                  <div className="flex items-center gap-2">
+                    <img src={flameLogo} alt="" width={20} height={20} loading="lazy" className="w-5 h-5" />
+                    <p className="font-medium text-sm">{t("flameMarketplace")}</p>
+                  </div>
+                  <span className="text-primary text-lg">›</span>
+                </button>
 
-            <button
-              onClick={() => { setSettingsOpen(false); setWorkshopOpen(true); }}
-              className="w-full flex items-center justify-between gap-3 py-3 px-3 rounded-lg bg-muted/30 hover:bg-muted/50 border border-border transition-colors">
-              <div className="flex items-center gap-2">
-                <Boxes className="w-4 h-4 text-primary" />
-                <p className="font-medium text-sm">{t("miniApps")}</p>
-              </div>
-              <span className="text-primary text-lg">›</span>
-            </button>
+                {isAdmin && (
+                  <FlameButton onClick={() => { setSettingsOpen(false); setShowAdmin(true); }} className="w-full" variant="outline">
+                    <Shield className="w-4 h-4 mr-2" />{t("adminPanel")}
+                  </FlameButton>
+                )}
 
-            <FlameButton variant="outline" className="w-full mt-6" onClick={() => setSettingsOpen(false)}>
-              <ArrowLeft className="w-4 h-4 mr-2" />{t("backToProfile")}
-            </FlameButton>
+                <FlameButton variant="outline" className="w-full border-destructive/50 text-destructive hover:bg-destructive/10" onClick={signOut}>
+                  <LogOut className="w-4 h-4 mr-2" />{t("logout")}
+                </FlameButton>
+              </>
+            )}
           </div>
         </SheetContent>
       </Sheet>
