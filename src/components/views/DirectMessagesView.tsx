@@ -20,7 +20,7 @@ import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { MessageCircle, Send, ArrowLeft, Phone, ShieldBan, ShieldCheck, X, Forward, Ghost, ChevronDown, Pin, PinOff, Flame, Gamepad2, MoreVertical, Maximize2 } from "lucide-react";
 import { RichComposer } from "@/components/ui/RichComposer";
 import { TextExpander } from "@/components/ui/TextExpander";
-import { isStickerUrl } from "@/lib/uploads";
+import { isStickerUrl, isMediaPlaceholder } from "@/lib/uploads";
 
 import { RichContent, encodeRich, parseRich, RichDoc } from "@/components/ui/RichContent";
 
@@ -487,7 +487,7 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
       toast({ title: t("error"), description: t("blocked"), variant: "destructive" });
       return;
     }
-    const content = text.trim() || (mediaUrl ? t("media") : "");
+    const content = text.trim();
 
     const { error } = await supabase.from("direct_messages").insert({
       sender_id: user.id,
@@ -535,7 +535,7 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
     if (!activeChat || !user) return;
     if (blockedByThem) { toast({ title: t("error"), description: t("blocked"), variant: "destructive" }); return; }
     const { error } = await supabase.from("direct_messages").insert({
-      sender_id: user.id, receiver_id: activeChat.id, content: t("media"), media_url: url,
+      sender_id: user.id, receiver_id: activeChat.id, content: "", media_url: url,
     });
     if (error) { toast({ title: t("error"), description: t("sendFailed"), variant: "destructive" }); return; }
     sendPush(activeChat.id, t("newMessage" as any) || "New message", "Sticker", "/");
@@ -745,7 +745,7 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
               <div key={p.id} className="flex items-center gap-2">
                 <Pin className={`w-3.5 h-3.5 shrink-0 ${ghostMode ? "text-zinc-300" : "text-primary"}`} />
                 <button onClick={() => scrollToMessage(p.message_id)} className="flex-1 text-left text-xs truncate hover:underline">
-                  {p.message.content || (p.message.media_url ? t("media") : "")}
+                  {isMediaPlaceholder(p.message.content) ? "" : p.message.content}
                 </button>
                 <button onClick={() => unpinMessage(p.id)} className="p-1 hover:bg-muted/50 rounded">
                   <PinOff className="w-3.5 h-3.5 text-muted-foreground" />
@@ -831,7 +831,7 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
                         {parseRich(msg.content) && (
                           <RichContent doc={parseRich(msg.content)!} compact className="mb-1 max-w-[75vw]" />
                         )}
-                        {msg.content && !parseRich(msg.content) && !parsePoll(msg.content) && !msg.content.startsWith("📎 ") && msg.content !== t("media") && !msg.content.startsWith("🎤") && !msg.content.startsWith("🎥") && (
+                        {msg.content && !parseRich(msg.content) && !parsePoll(msg.content) && !msg.content.startsWith("📎 ") && !isMediaPlaceholder(msg.content) && !msg.content.startsWith("🎤") && !msg.content.startsWith("🎥") && (
 
                           <p className="text-sm break-words [overflow-wrap:anywhere]">{msg.content}</p>
                         )}
