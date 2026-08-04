@@ -202,7 +202,7 @@ export function FigurinesView({ open, onOpenChange }: { open: boolean; onOpenCha
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="glass-card border-primary/30 max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="!fixed !inset-0 !top-0 !left-0 !translate-x-0 !translate-y-0 !w-screen !h-[100dvh] !max-w-none !max-h-none !rounded-none glass-card border-primary/30 overflow-y-auto p-4">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-glow"><Gem className="w-5 h-5 text-primary" /> Flame Collectibles</DialogTitle>
         </DialogHeader>
