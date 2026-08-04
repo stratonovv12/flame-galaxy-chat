@@ -1,5 +1,8 @@
+import { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { Play } from "lucide-react";
+import { PresentationViewer } from "@/components/ui/PresentationViewer";
 
 export const RICH_PREFIX = "__RICH__:";
 
@@ -29,15 +32,34 @@ interface Props {
   doc: RichDoc;
   className?: string;
   compact?: boolean;
+  /** Show the PowerPoint-style "Present" control for multi-slide docs. */
+  presentable?: boolean;
 }
 
 /** Renders a rich markdown presentation (tables, images, styling) safely. */
-export function RichContent({ doc, className = "", compact }: Props) {
+export function RichContent({ doc, className = "", compact, presentable = true }: Props) {
+  const [presenting, setPresenting] = useState(false);
+  const slideCount = doc.md.split(/^\s*---\s*$/m).map(s => s.trim()).filter(Boolean).length;
+  const showPresent = presentable && slideCount > 1;
+
   return (
     <div
       className={`rounded-xl overflow-hidden border border-border/60 ${className}`}
       style={{ background: doc.bg || "transparent", color: doc.color || undefined, fontFamily: doc.font || undefined }}
     >
+      {showPresent && (
+        <div className="flex items-center justify-between px-3 pt-2">
+          <span className="text-[11px] text-muted-foreground">{slideCount} slides</span>
+          <button
+            onClick={() => setPresenting(true)}
+            className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-primary/20 text-primary text-[11px] hover:bg-primary/30">
+            <Play className="w-3 h-3" /> Present
+          </button>
+        </div>
+      )}
+      {showPresent && presenting && (
+        <PresentationViewer doc={doc} open onOpenChange={setPresenting} />
+      )}
       <div className={`prose prose-invert max-w-none ${compact ? "p-3 text-sm" : "p-4"} [overflow-wrap:anywhere]`}>
         <ReactMarkdown
           remarkPlugins={[remarkGfm]}
