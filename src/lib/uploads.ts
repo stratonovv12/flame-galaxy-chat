@@ -11,3 +11,8 @@ export async function uploadToMedia(file: File, userId: string, folder = "upload
 
 export const STICKER_MARKER = "/stickers/";
 export const isStickerUrl = (url?: string | null) => !!url && url.includes(STICKER_MARKER);
+
+/** Legacy "media" caption placeholders that must never be shown as message text. */
+export const isMediaPlaceholder = (content?: string | null) =>
+  !content || /^(📎|📷|#)?\s*(media|медиа)$/i.test(content.trim());
+
