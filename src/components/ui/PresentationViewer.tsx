@@ -66,9 +66,9 @@ export function PresentationViewer({ doc, open, onOpenChange }: Props) {
       <div className="flex-1 min-h-0 overflow-hidden flex items-center justify-center p-3 sm:p-8">
         <div
           key={index}
-          className="w-full max-w-4xl max-h-full overflow-y-auto transition-all duration-300"
-          style={{ animation: `${dir > 0 ? "slide-in-right" : "slide-in-left"} 300ms ease-out` }}
+          className={`w-full max-w-4xl max-h-full overflow-y-auto ${dir > 0 ? "animate-slide-in-right" : "animate-slide-in-left"}`}
         >
+
           <RichContent doc={{ ...doc, md: slides[index] }} className="min-h-[45vh]" />
         </div>
       </div>
