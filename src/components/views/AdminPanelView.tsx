@@ -27,7 +27,12 @@ export function AdminPanelView() {
   const [appResults, setAppResults] = useState<Array<{ id: string; handle: string; name: string; suspended: boolean; verified: boolean; creator_id: string }>>([]);
   const [appLoading, setAppLoading] = useState(false);
 
-  // Figurine minting (admin only)
+  // Token minting (admin only)
+  const [collections, setCollections] = useState<Array<{ id: string; name: string }>>([]);
+  const [colName, setColName] = useState("");
+  const [colDesc, setColDesc] = useState("");
+  const [colBusy, setColBusy] = useState(false);
+  const [figCollection, setFigCollection] = useState("");
   const [figName, setFigName] = useState("");
   const [figDesc, setFigDesc] = useState("");
   const [figRarity, setFigRarity] = useState("common");
@@ -37,7 +42,28 @@ export function AdminPanelView() {
   const [figBusy, setFigBusy] = useState(false);
   const figFile = useRef<HTMLInputElement>(null);
 
-  useEffect(() => { fetchBannedUsers(); fetchVerifiedUsers(); }, []);
+  useEffect(() => { fetchBannedUsers(); fetchVerifiedUsers(); loadCollections(); }, []);
+
+  const loadCollections = async () => {
+    const { data } = await supabase.from("token_collections").select("id, name").order("created_at", { ascending: false });
+    setCollections(data || []);
+    if (data?.length && !figCollection) setFigCollection(data[0].id);
+  };
+
+  const createCollection = async () => {
+    if (!user || !colName.trim()) return;
+    setColBusy(true);
+    const { data, error } = await supabase.from("token_collections")
+      .insert({ name: colName.trim(), description: colDesc.trim() || null, created_by: user.id })
+      .select("id, name").single();
+    setColBusy(false);
+    if (error) { toast({ title: t("error"), description: error.message, variant: "destructive" }); return; }
+    toast({ title: t("createCollection"), description: data.name });
+    setColName(""); setColDesc("");
+    setCollections(prev => [data, ...prev]);
+    setFigCollection(data.id);
+  };
+
 
   const searchMiniApps = async () => {
     setAppLoading(true);
