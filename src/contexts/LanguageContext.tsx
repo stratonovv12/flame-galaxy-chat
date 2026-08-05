@@ -60,7 +60,6 @@ const translations = {
     addPresentation: "Добавить презентацию",
     buildPresentation: "Создать презентацию",
     uploadPresentation: "Загрузить файл презентации",
-    createPost: "Создать пост",
     whatsOnYourMind: "Что нового?",
     addPhotosVideos: "Фото / видео",
 
@@ -610,7 +609,6 @@ const translations = {
     addPresentation: "Add presentation",
     buildPresentation: "Build a presentation",
     uploadPresentation: "Upload presentation file",
-    createPost: "Create post",
     whatsOnYourMind: "What's on your mind?",
     addPhotosVideos: "Photos / videos",
 
