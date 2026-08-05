@@ -5,10 +5,11 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { FlameButton } from "@/components/ui/FlameButton";
 import { UserAvatar } from "@/components/ui/UserAvatar";
-import { Shield, BadgeCheck, Ban, UserX, Search, Boxes, Trash2, Play, Pause, Gem, ImagePlus, Loader2 } from "lucide-react";
+import { Shield, BadgeCheck, Ban, UserX, Search, Boxes, Trash2, Play, Pause, Gem, ImagePlus, Loader2, Layers, Coins, Plus } from "lucide-react";
 import { FlameInput } from "@/components/ui/FlameInput";
 import { toast } from "@/hooks/use-toast";
 import { uploadToMedia } from "@/lib/uploads";
+import flameLogo from "@/assets/flame-logo.png";
 
 
 interface UserProfile { user_id: string; username: string | null; avatar_url: string | null; }
