@@ -11,6 +11,7 @@ import { toast } from "@/hooks/use-toast";
 import { FigurinesView } from "@/components/views/FigurinesView";
 import { uploadToMedia } from "@/lib/uploads";
 import flameLogo from "@/assets/flame-logo.png";
+import { FlameBadge } from "@/components/ui/FlameBadge";
 
 
 interface MiniApp {
@@ -241,8 +242,7 @@ export function MiniAppsView({ open, onOpenChange }: Props) {
           <DialogTitle className="flex items-center gap-2 text-glow">
             <img src={flameLogo} alt="" width={28} height={28} loading="lazy"
               className="w-7 h-7 rounded-lg drop-shadow-[0_0_10px_rgba(127,90,240,0.6)]" />
-            <span className="bg-gradient-to-r from-[#a87cff] to-[#7f5af0] bg-clip-text text-transparent">{t("flameMarketplace")}</span>
-            <BadgeCheck className="w-4 h-4 text-blue-400" />
+            <span className="bg-gradient-to-r from-[#a87cff] to-[#7f5af0] bg-clip-text text-transparent">{t("miniAppWorkshop")}</span>
           </DialogTitle>
         </DialogHeader>
 
@@ -385,14 +385,14 @@ export function MiniAppsView({ open, onOpenChange }: Props) {
               {/* Official built-in mini-app */}
               <GlassCard className="p-3 border-primary/40">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center">
-                    <Gem className="w-5 h-5 text-primary" />
+                  <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center overflow-hidden">
+                    <img src={flameLogo} alt="" className="w-full h-full object-cover" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <h3 className="font-semibold text-sm truncate flex items-center gap-1">
-                      {t("flameCollectibles")} <BadgeCheck className="w-3.5 h-3.5 text-blue-400" />
+                      {t("flameMarketplace")} <FlameBadge size={14} />
                     </h3>
-                    <p className="text-[11px] text-muted-foreground truncate">{t("officialApp")} · @collectibles</p>
+                    <p className="text-[11px] text-muted-foreground truncate">{t("officialApp")} · @marketplace</p>
                   </div>
                   <button onClick={() => setCollectiblesOpen(true)} className="p-2 rounded-lg bg-primary/20 hover:bg-primary/30 text-primary shrink-0" title={t("launch")}>
                     <Play className="w-4 h-4" />
