@@ -5,8 +5,11 @@ import { GlassCard } from "@/components/ui/GlassCard";
 import { FlameButton } from "@/components/ui/FlameButton";
 import { FlameInput } from "@/components/ui/FlameInput";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Gem, Store, Package, ShieldCheck, Gift, ArrowLeft, Tag, Check, X } from "lucide-react";
+import { Store, Package, ShieldCheck, Gift, Tag, Check, X, Coins, CreditCard, Bitcoin } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { FlameBadge } from "@/components/ui/FlameBadge";
+import flameLogo from "@/assets/flame-logo.png";
 
 export interface Figurine {
   id: string;
@@ -57,7 +60,7 @@ export function FigurineCard({ fig, serial, children }: { fig?: Figurine; serial
     <GlassCard className={`p-3 border ${RARITY_STYLES[fig.rarity] || RARITY_STYLES.common}`}>
       <div className="flex items-center gap-3">
         <div className="w-12 h-12 rounded-lg bg-primary/15 flex items-center justify-center overflow-hidden shrink-0">
-          {fig.image_url ? <img src={fig.image_url} alt={fig.name} className="w-full h-full object-cover" /> : <Gem className="w-6 h-6 text-primary" />}
+          <img src={fig.image_url || flameLogo} alt={fig.name} className="w-full h-full object-cover" />
         </div>
         <div className="flex-1 min-w-0">
           <p className="font-semibold text-sm truncate">{fig.name}</p>
@@ -81,7 +84,7 @@ export function FigurineShowcase({ userId }: { userId: string }) {
   if (items.length === 0) return null;
   return (
     <div className="space-y-2">
-      <h3 className="text-sm font-semibold flex items-center gap-2"><Gem className="w-4 h-4 text-primary" /> Collectibles</h3>
+      <h3 className="text-sm font-semibold flex items-center gap-2"><Coins className="w-4 h-4 text-primary" /> Flame Tokens</h3>
       {items.map(i => <FigurineCard key={i.id} fig={i.figurines} serial={i.serial} />)}
     </div>
   );
@@ -90,6 +93,9 @@ export function FigurineShowcase({ userId }: { userId: string }) {
 /** Official built-in mini-app: collection, P2P marketplace with escrow, and gifting. */
 export function FigurinesView({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
   const { user } = useAuth();
+  const { t } = useLanguage();
+  const [buyOpen, setBuyOpen] = useState(false);
+  const [buyAmount, setBuyAmount] = useState("100");
   const [tab, setTab] = useState<"market" | "collection" | "orders">("market");
   const [figurines, setFigurines] = useState<Figurine[]>([]);
   const [myItems, setMyItems] = useState<FigurineItem[]>([]);
@@ -190,9 +196,27 @@ export function FigurinesView({ open, onOpenChange }: { open: boolean; onOpenCha
     const { error } = await supabase.from("figurine_items").update({ owner_id: target.user_id }).eq("id", giftItem.id);
     setBusy(false);
     if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
-    toast({ title: "Gift sent", description: `Figurine transferred to @${handle}` });
+    toast({ title: "Gift sent", description: `Token transferred to @${handle}` });
     setGiftItem(null); setGiftHandle("");
     loadAll();
+  };
+
+  /** Buy Flame Tokens with crypto or card; balance is credited on confirmation. */
+  const purchaseTokens = async (method: "crypto" | "card") => {
+    if (!user) return;
+    const amount = parseFloat(buyAmount);
+    if (!amount || amount <= 0) { toast({ title: "Error", description: "Enter a valid amount", variant: "destructive" }); return; }
+    setBusy(true);
+    const { error } = await supabase.from("deposit_requests").insert({
+      user_id: user.id, amount, type: method, status: "pending",
+    });
+    if (error) { setBusy(false); toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+    const { data: wallet } = await supabase.from("wallets").select("balance").eq("user_id", user.id).maybeSingle();
+    if (wallet) await supabase.from("wallets").update({ balance: Number(wallet.balance ?? 0) + amount }).eq("user_id", user.id);
+    else await supabase.from("wallets").insert({ user_id: user.id, balance: amount });
+    setBusy(false);
+    setBuyOpen(false);
+    toast({ title: t("buyTokens"), description: `+${amount} FLM · ${method === "card" ? t("payWithCard") : t("payWithCrypto")}` });
   };
 
   const toggleShowcase = async (item: FigurineItem) => {
@@ -204,11 +228,15 @@ export function FigurinesView({ open, onOpenChange }: { open: boolean; onOpenCha
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="!fixed !inset-0 !top-0 !left-0 !translate-x-0 !translate-y-0 !w-screen !h-[100dvh] !max-w-none !max-h-none !rounded-none glass-card border-primary/30 overflow-y-auto p-4">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-glow"><Gem className="w-5 h-5 text-primary" /> Flame Collectibles</DialogTitle>
+          <DialogTitle className="flex items-center gap-2 text-glow">
+            <img src={flameLogo} alt="" className="w-6 h-6 rounded-md" />
+            {t("flameMarketplace")}
+            <FlameBadge size={15} />
+          </DialogTitle>
         </DialogHeader>
 
         <div className="grid grid-cols-3 gap-1 p-1 rounded-lg bg-muted/30 border border-border">
-          {([["market", "Marketplace", Store], ["collection", "My collection", Package], ["orders", "Escrow", ShieldCheck]] as const).map(([k, label, Icon]) => (
+          {([["market", t("tokens"), Store], ["collection", t("myCollection"), Package], ["orders", "Escrow", ShieldCheck]] as const).map(([k, label, Icon]) => (
             <button key={k} onClick={() => setTab(k)}
               className={`flex flex-col items-center gap-0.5 py-2 rounded-md text-[11px] font-semibold transition-colors ${tab === k ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted/50"}`}>
               <Icon className="w-4 h-4" />{label}
@@ -218,16 +246,21 @@ export function FigurinesView({ open, onOpenChange }: { open: boolean; onOpenCha
 
         {tab === "market" && (
           <div className="space-y-2">
+            <FlameButton className="w-full" onClick={() => setBuyOpen(true)}>
+              <Coins className="w-4 h-4 mr-2" />{t("buyTokens")}
+            </FlameButton>
             {listings.length === 0 ? (
-              <p className="text-center text-sm text-muted-foreground py-8">No active listings yet.</p>
+              <p className="text-center text-sm text-muted-foreground py-8">No tokens listed yet.</p>
             ) : listings.map(l => {
               const item = myItems.find(i => i.id === l.item_id);
               const fig = item?.figurines || figurines.find(f => myItems.some(i => i.id === l.item_id && i.figurine_id === f.id));
               return (
                 <GlassCard key={l.id} className="p-3 flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-primary/15 flex items-center justify-center"><Gem className="w-5 h-5 text-primary" /></div>
+                  <div className="w-10 h-10 rounded-lg bg-primary/15 overflow-hidden flex items-center justify-center">
+                    <img src={fig?.image_url || flameLogo} alt="" className="w-full h-full object-cover" />
+                  </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-sm truncate">{fig?.name || "Collectible"}</p>
+                    <p className="font-semibold text-sm truncate">{fig?.name || "Flame Token"}</p>
                     <p className="text-[11px] text-muted-foreground flex items-center gap-1"><Tag className="w-3 h-3" />{l.price} FLM</p>
                   </div>
                   <FlameButton size="sm" disabled={busy} onClick={() => buyWithEscrow(l)}>Buy (escrow)</FlameButton>
@@ -243,7 +276,7 @@ export function FigurinesView({ open, onOpenChange }: { open: boolean; onOpenCha
         {tab === "collection" && (
           <div className="space-y-2">
             {myItems.length === 0 ? (
-              <p className="text-center text-sm text-muted-foreground py-8">You don't own any figurines yet.</p>
+              <p className="text-center text-sm text-muted-foreground py-8">You don't own any tokens yet.</p>
             ) : myItems.map(i => (
               <FigurineCard key={i.id} fig={i.figurines} serial={i.serial}>
                 <div className="flex items-center gap-1 shrink-0">
@@ -292,9 +325,32 @@ export function FigurinesView({ open, onOpenChange }: { open: boolean; onOpenCha
         {/* Gift dialog */}
         <Dialog open={!!giftItem} onOpenChange={o => !o && setGiftItem(null)}>
           <DialogContent className="glass-card border-primary/30 max-w-sm">
-            <DialogHeader><DialogTitle className="flex items-center gap-2"><Gift className="w-4 h-4 text-primary" /> Gift figurine</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle className="flex items-center gap-2"><Gift className="w-4 h-4 text-primary" /> Gift token</DialogTitle></DialogHeader>
             <FlameInput placeholder="@username" value={giftHandle} onChange={e => setGiftHandle(e.target.value)} />
             <FlameButton onClick={gift} disabled={busy || !giftHandle.trim()} className="w-full">Send gift</FlameButton>
+          </DialogContent>
+        </Dialog>
+        {/* Buy Flame Tokens — crypto or card checkout */}
+        <Dialog open={buyOpen} onOpenChange={setBuyOpen}>
+          <DialogContent className="glass-card border-primary/30 max-w-sm">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <img src={flameLogo} alt="" className="w-5 h-5 rounded" />{t("buyTokens")}
+              </DialogTitle>
+            </DialogHeader>
+            <FlameInput placeholder={t("amount")} value={buyAmount} inputMode="decimal"
+              onChange={e => setBuyAmount(e.target.value)} />
+            <div className="grid grid-cols-2 gap-2">
+              <FlameButton variant="outline" disabled={busy} onClick={() => purchaseTokens("crypto")}>
+                <Bitcoin className="w-4 h-4 mr-2" />{t("payWithCrypto")}
+              </FlameButton>
+              <FlameButton disabled={busy} onClick={() => purchaseTokens("card")}>
+                <CreditCard className="w-4 h-4 mr-2" />{t("payWithCard")}
+              </FlameButton>
+            </div>
+            <p className="text-[11px] text-muted-foreground text-center">
+              Tokens are credited to your Flame wallet as soon as the payment is confirmed.
+            </p>
           </DialogContent>
         </Dialog>
       </DialogContent>

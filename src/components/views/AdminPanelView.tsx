@@ -5,10 +5,11 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { FlameButton } from "@/components/ui/FlameButton";
 import { UserAvatar } from "@/components/ui/UserAvatar";
-import { Shield, BadgeCheck, Ban, UserX, Search, Boxes, Trash2, Play, Pause, Gem, ImagePlus, Loader2 } from "lucide-react";
+import { Shield, BadgeCheck, Ban, UserX, Search, Boxes, Trash2, Play, Pause, Gem, ImagePlus, Loader2, Layers, Coins, Plus } from "lucide-react";
 import { FlameInput } from "@/components/ui/FlameInput";
 import { toast } from "@/hooks/use-toast";
 import { uploadToMedia } from "@/lib/uploads";
+import flameLogo from "@/assets/flame-logo.png";
 
 
 interface UserProfile { user_id: string; username: string | null; avatar_url: string | null; }
@@ -27,7 +28,12 @@ export function AdminPanelView() {
   const [appResults, setAppResults] = useState<Array<{ id: string; handle: string; name: string; suspended: boolean; verified: boolean; creator_id: string }>>([]);
   const [appLoading, setAppLoading] = useState(false);
 
-  // Figurine minting (admin only)
+  // Token minting (admin only)
+  const [collections, setCollections] = useState<Array<{ id: string; name: string }>>([]);
+  const [colName, setColName] = useState("");
+  const [colDesc, setColDesc] = useState("");
+  const [colBusy, setColBusy] = useState(false);
+  const [figCollection, setFigCollection] = useState("");
   const [figName, setFigName] = useState("");
   const [figDesc, setFigDesc] = useState("");
   const [figRarity, setFigRarity] = useState("common");
@@ -37,7 +43,28 @@ export function AdminPanelView() {
   const [figBusy, setFigBusy] = useState(false);
   const figFile = useRef<HTMLInputElement>(null);
 
-  useEffect(() => { fetchBannedUsers(); fetchVerifiedUsers(); }, []);
+  useEffect(() => { fetchBannedUsers(); fetchVerifiedUsers(); loadCollections(); }, []);
+
+  const loadCollections = async () => {
+    const { data } = await supabase.from("token_collections").select("id, name").order("created_at", { ascending: false });
+    setCollections(data || []);
+    if (data?.length && !figCollection) setFigCollection(data[0].id);
+  };
+
+  const createCollection = async () => {
+    if (!user || !colName.trim()) return;
+    setColBusy(true);
+    const { data, error } = await supabase.from("token_collections")
+      .insert({ name: colName.trim(), description: colDesc.trim() || null, created_by: user.id })
+      .select("id, name").single();
+    setColBusy(false);
+    if (error) { toast({ title: t("error"), description: error.message, variant: "destructive" }); return; }
+    toast({ title: t("createCollection"), description: data.name });
+    setColName(""); setColDesc("");
+    setCollections(prev => [data, ...prev]);
+    setFigCollection(data.id);
+  };
+
 
   const searchMiniApps = async () => {
     setAppLoading(true);
@@ -65,7 +92,7 @@ export function AdminPanelView() {
   };
 
   const mintFigurine = async () => {
-    if (!user || !figName.trim()) return;
+    if (!user || !figName.trim() || !figCollection) return;
     setFigBusy(true);
     const { error } = await supabase.from("figurines").insert({
       name: figName.trim(),
@@ -75,12 +102,14 @@ export function AdminPanelView() {
       supply: parseInt(figSupply) || 1,
       price: parseFloat(figPrice) || 0,
       created_by: user.id,
-    });
+      collection_id: figCollection,
+    } as any);
     setFigBusy(false);
     if (error) { toast({ title: t("error"), description: error.message, variant: "destructive" }); return; }
-    toast({ title: t("mintFigurine"), description: figName });
+    toast({ title: t("mintToken"), description: figName });
     setFigName(""); setFigDesc(""); setFigImage("");
   };
+
 
   const toggleSuspend = async (id: string, suspended: boolean) => {
     const { error } = await supabase.from("mini_apps").update({ suspended: !suspended }).eq("id", id);
@@ -224,33 +253,62 @@ export function AdminPanelView() {
         )}
       </GlassCard>
 
+      {/* Step 1 — create a collection */}
       <GlassCard className="p-4 space-y-3">
-        <h3 className="font-semibold flex items-center gap-2"><Gem className="w-5 h-5 text-primary" /> {t("mintFigurine")}</h3>
-        <FlameInput placeholder="Name" value={figName} onChange={e => setFigName(e.target.value)} />
-        <FlameInput placeholder="Description" value={figDesc} onChange={e => setFigDesc(e.target.value)} />
-        <div className="grid grid-cols-3 gap-2">
-          <select value={figRarity} onChange={e => setFigRarity(e.target.value)}
-            className="px-3 py-2 rounded-lg bg-input border border-border text-sm">
-            {["common", "rare", "epic", "legendary"].map(r => <option key={r} value={r}>{r}</option>)}
-          </select>
-          <FlameInput placeholder="Supply" type="number" value={figSupply} onChange={e => setFigSupply(e.target.value)} />
-          <FlameInput placeholder="Price (FLM)" type="number" value={figPrice} onChange={e => setFigPrice(e.target.value)} />
-        </div>
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-lg bg-primary/15 border border-primary/30 overflow-hidden flex items-center justify-center shrink-0">
-            {figImage ? <img src={figImage} alt="" className="w-full h-full object-cover" /> : <Gem className="w-5 h-5 text-primary" />}
-          </div>
-          <button onClick={() => figFile.current?.click()} disabled={figBusy}
-            className="p-2 rounded-lg bg-primary/20 hover:bg-primary/30 text-primary">
-            {figBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImagePlus className="w-4 h-4" />}
-          </button>
-          <input ref={figFile} type="file" accept="image/*" className="hidden"
-            onChange={e => { uploadFigImage(e.target.files?.[0]); e.currentTarget.value = ""; }} />
-        </div>
-        <FlameButton onClick={mintFigurine} disabled={figBusy || !figName.trim()} className="w-full">
-          <Gem className="w-4 h-4 mr-2" />{t("mintFigurine")}
+        <h3 className="font-semibold flex items-center gap-2"><Layers className="w-5 h-5 text-primary" /> {t("tokenCollections")}</h3>
+        <FlameInput placeholder={t("collectionName")} value={colName} onChange={e => setColName(e.target.value)} />
+        <FlameInput placeholder="Description" value={colDesc} onChange={e => setColDesc(e.target.value)} />
+        <FlameButton onClick={createCollection} disabled={colBusy || !colName.trim()} className="w-full">
+          <Plus className="w-4 h-4 mr-2" />{t("createCollection")}
         </FlameButton>
+        {collections.length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {collections.map(c => (
+              <span key={c.id} className="px-2 py-1 rounded-md bg-muted/40 text-[11px] text-muted-foreground">{c.name}</span>
+            ))}
+          </div>
+        )}
       </GlassCard>
+
+      {/* Step 2 — upload tokens into a collection */}
+      <GlassCard className="p-4 space-y-3">
+        <h3 className="font-semibold flex items-center gap-2"><Coins className="w-5 h-5 text-primary" /> {t("mintToken")}</h3>
+        {collections.length === 0 ? (
+          <p className="text-sm text-muted-foreground">{t("createCollection")} →</p>
+        ) : (
+          <>
+            <select value={figCollection} onChange={e => setFigCollection(e.target.value)}
+              className="w-full px-3 py-2 rounded-lg bg-input border border-border text-sm">
+              {collections.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+            <FlameInput placeholder="Token name" value={figName} onChange={e => setFigName(e.target.value)} />
+            <FlameInput placeholder="Description" value={figDesc} onChange={e => setFigDesc(e.target.value)} />
+            <div className="grid grid-cols-3 gap-2">
+              <select value={figRarity} onChange={e => setFigRarity(e.target.value)}
+                className="px-3 py-2 rounded-lg bg-input border border-border text-sm">
+                {["common", "rare", "epic", "legendary"].map(r => <option key={r} value={r}>{r}</option>)}
+              </select>
+              <FlameInput placeholder="Supply" type="number" value={figSupply} onChange={e => setFigSupply(e.target.value)} />
+              <FlameInput placeholder="Price (FLM)" type="number" value={figPrice} onChange={e => setFigPrice(e.target.value)} />
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-lg bg-primary/15 border border-primary/30 overflow-hidden flex items-center justify-center shrink-0">
+                <img src={figImage || flameLogo} alt="" className="w-full h-full object-cover" />
+              </div>
+              <button onClick={() => figFile.current?.click()} disabled={figBusy}
+                className="p-2 rounded-lg bg-primary/20 hover:bg-primary/30 text-primary">
+                {figBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImagePlus className="w-4 h-4" />}
+              </button>
+              <input ref={figFile} type="file" accept="image/*" className="hidden"
+                onChange={e => { uploadFigImage(e.target.files?.[0]); e.currentTarget.value = ""; }} />
+            </div>
+            <FlameButton onClick={mintFigurine} disabled={figBusy || !figName.trim()} className="w-full">
+              <Coins className="w-4 h-4 mr-2" />{t("mintToken")}
+            </FlameButton>
+          </>
+        )}
+      </GlassCard>
+
     </div>
 
   );

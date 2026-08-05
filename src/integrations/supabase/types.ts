@@ -473,6 +473,7 @@ export type Database = {
       }
       figurines: {
         Row: {
+          collection_id: string | null
           created_at: string
           created_by: string
           description: string | null
@@ -485,6 +486,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          collection_id?: string | null
           created_at?: string
           created_by: string
           description?: string | null
@@ -497,6 +499,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          collection_id?: string | null
           created_at?: string
           created_by?: string
           description?: string | null
@@ -508,7 +511,15 @@ export type Database = {
           supply?: number
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "figurines_collection_id_fkey"
+            columns: ["collection_id"]
+            isOneToOne: false
+            referencedRelation: "token_collections"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       flame_moments: {
         Row: {
@@ -873,6 +884,36 @@ export type Database = {
           media_type?: string
           media_url?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      token_collections: {
+        Row: {
+          created_at: string
+          created_by: string
+          description: string | null
+          id: string
+          image_url: string | null
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          name?: string
+          updated_at?: string
         }
         Relationships: []
       }

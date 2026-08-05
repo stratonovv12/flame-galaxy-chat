@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -28,6 +29,7 @@ export function AccountSwitcher() {
   const { user } = useAuth();
   const { t } = useLanguage();
   const [accounts, setAccounts] = useState<StoredAccount[]>(readStore());
+  const navigate = useNavigate();
 
   // Persist the currently active session so it can be restored later.
   useEffect(() => {
@@ -72,10 +74,10 @@ export function AccountSwitcher() {
     writeStore(next); setAccounts(next);
   };
 
-  const addAccount = async () => {
-    await supabase.auth.signOut();
-    window.location.href = "/auth";
-  };
+  // Telegram-style: never sign the user out. The current session is already
+  // persisted above, so signing into another account simply adds it to the list
+  // and both remain switchable.
+  const addAccount = () => navigate("/auth?add=1");
 
   return (
     <div className="space-y-2">
