@@ -11,6 +11,8 @@ export interface RichDoc {
   bg?: string;
   color?: string;
   font?: string;
+  /** Slide transition used by the presentation player. */
+  transition?: "slide" | "fade" | "zoom";
 }
 
 export function encodeRich(doc: RichDoc) {

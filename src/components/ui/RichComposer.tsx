@@ -21,9 +21,16 @@ const BG_PRESETS = [
 const COLOR_PRESETS = ["", "#ffffff", "#a87cff", "#ff8a4c", "#7ee0c0", "#ffd166"];
 const FONTS = [
   { label: "Default", value: "" },
-  { label: "Serif", value: "Georgia, serif" },
+  { label: "Serif", value: "Georgia, 'Times New Roman', serif" },
   { label: "Mono", value: "ui-monospace, SFMono-Regular, monospace" },
+  { label: "Rounded", value: "'Trebuchet MS', 'Segoe UI', sans-serif" },
+  { label: "Condensed", value: "'Arial Narrow', Impact, sans-serif" },
 ];
+const TRANSITIONS = [
+  { label: "Slide", value: "slide" },
+  { label: "Fade", value: "fade" },
+  { label: "Zoom", value: "zoom" },
+] as const;
 
 interface Props {
   open: boolean;
@@ -40,6 +47,7 @@ export function RichComposer({ open, onOpenChange, initial, onSubmit, submitLabe
   const [bg, setBg] = useState(initial?.bg || "");
   const [color, setColor] = useState(initial?.color || "");
   const [font, setFont] = useState(initial?.font || "");
+  const [transition, setTransition] = useState<"slide" | "fade" | "zoom">(initial?.transition || "slide");
   const [mode, setMode] = useState<"edit" | "preview">("edit");
   const [uploading, setUploading] = useState(false);
   const [presenting, setPresenting] = useState(false);
@@ -67,7 +75,7 @@ export function RichComposer({ open, onOpenChange, initial, onSubmit, submitLabe
 
   const submit = () => {
     if (!md.trim()) return;
-    onSubmit({ md: md.trim(), bg: bg || undefined, color: color || undefined, font: font || undefined });
+    onSubmit({ md: md.trim(), bg: bg || undefined, color: color || undefined, font: font || undefined, transition });
     setMd("");
     onOpenChange(false);
   };
@@ -130,7 +138,7 @@ export function RichComposer({ open, onOpenChange, initial, onSubmit, submitLabe
               className="w-full h-full min-h-[45vh] bg-muted/25 border border-border rounded-lg p-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/40 [overflow-wrap:anywhere]"
             />
           ) : (
-            <RichContent doc={{ md: md || "_Nothing to preview yet_", bg, color, font }} />
+            <RichContent doc={{ md: md || "_Nothing to preview yet_", bg, color, font, transition }} />
           )}
         </div>
 
@@ -154,9 +162,20 @@ export function RichComposer({ open, onOpenChange, initial, onSubmit, submitLabe
                 style={{ background: c || "transparent" }}
                 aria-label={c || "default color"} />
             ))}
+            <input type="color" value={color || "#ffffff"} onChange={e => setColor(e.target.value)}
+              className="w-7 h-7 rounded-full bg-transparent border border-border shrink-0 cursor-pointer"
+              aria-label="Custom text color" />
+            <input type="color" value={bg.startsWith("#") ? bg : "#1a1a2e"} onChange={e => setBg(e.target.value)}
+              className="w-7 h-7 rounded-md bg-transparent border border-border shrink-0 cursor-pointer"
+              aria-label="Custom background color" />
             <select value={font} onChange={e => setFont(e.target.value)}
               className="px-2 py-1 rounded-md bg-input border border-border text-[11px] shrink-0">
               {FONTS.map(f => <option key={f.label} value={f.value}>{f.label}</option>)}
+            </select>
+            <select value={transition} onChange={e => setTransition(e.target.value as any)}
+              className="px-2 py-1 rounded-md bg-input border border-border text-[11px] shrink-0"
+              aria-label="Slide transition">
+              {TRANSITIONS.map(tr => <option key={tr.value} value={tr.value}>{tr.label}</option>)}
             </select>
           </div>
           <FlameButton onClick={submit} disabled={!md.trim()} className="w-full">
@@ -164,7 +183,7 @@ export function RichComposer({ open, onOpenChange, initial, onSubmit, submitLabe
           </FlameButton>
         </div>
         <PresentationViewer
-          doc={{ md: md || "# Empty", bg, color, font }}
+          doc={{ md: md || "# Empty", bg, color, font, transition }}
           open={presenting}
           onOpenChange={setPresenting}
         />
