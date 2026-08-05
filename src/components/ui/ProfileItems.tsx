@@ -5,6 +5,8 @@ import { GlassCard } from "@/components/ui/GlassCard";
 import { FlameButton } from "@/components/ui/FlameButton";
 import { RichContent, parseRich } from "@/components/ui/RichContent";
 import { RichComposer } from "@/components/ui/RichComposer";
+import { PostComposer, SimplePost } from "@/components/ui/PostComposer";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { encodeRich } from "@/components/ui/RichContent";
 import { Pin, PinOff, Archive, ArchiveRestore, Trash2, Plus, FileText } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
@@ -33,6 +35,8 @@ export function ProfileItems({ userId, editable }: Props) {
   const [items, setItems] = useState<ProfileItem[]>([]);
   const [showArchived, setShowArchived] = useState(false);
   const [composerOpen, setComposerOpen] = useState(false);
+  const [postOpen, setPostOpen] = useState(false);
+  const { t } = useLanguage();
   const isOwner = editable && user?.id === userId;
 
   useEffect(() => { load(); }, [userId, showArchived]);
@@ -50,6 +54,22 @@ export function ProfileItems({ userId, editable }: Props) {
       user_id: user.id,
       kind: "presentation",
       content: encodeRich({ md, bg, color, font }),
+    });
+    if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+    toast({ title: "Published to your profile" });
+    load();
+  };
+
+  /** Simple post: text plus optional photos/videos. */
+  const publishSimple = async (post: SimplePost) => {
+    if (!user) return;
+    const images = post.media.filter(m => m.type === "image").map(m => `![](${m.url})`).join("\n");
+    const videos = post.media.filter(m => m.type === "video").map(m => m.url);
+    const { error } = await supabase.from("profile_items").insert({
+      user_id: user.id,
+      kind: "post",
+      content: encodeRich({ md: [post.text, images].filter(Boolean).join("\n\n") || " " }),
+      media_url: videos.length ? videos.join(",") : null,
     });
     if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
     toast({ title: "Published to your profile" });
@@ -74,8 +94,8 @@ export function ProfileItems({ userId, editable }: Props) {
     <div className="space-y-3">
       {isOwner && (
         <div className="flex gap-2">
-          <FlameButton onClick={() => setComposerOpen(true)} className="flex-1" size="sm">
-            <Plus className="w-4 h-4 mr-2" />Create Post in Profile
+          <FlameButton onClick={() => setPostOpen(true)} className="flex-1" size="sm">
+            <Plus className="w-4 h-4 mr-2" />{t("createPost")}
           </FlameButton>
           <FlameButton variant="outline" size="sm" onClick={() => setShowArchived(v => !v)}>
             {showArchived ? <ArchiveRestore className="w-4 h-4" /> : <Archive className="w-4 h-4" />}
@@ -94,6 +114,9 @@ export function ProfileItems({ userId, editable }: Props) {
           <GlassCard key={it.id} className="p-3 space-y-2">
             {it.pinned && <p className="text-[11px] text-primary flex items-center gap-1"><Pin className="w-3 h-3" /> Pinned</p>}
             <RichContent doc={doc} compact />
+            {it.media_url?.split(",").filter(Boolean).map(url => (
+              <video key={url} src={url} controls playsInline className="w-full rounded-lg border border-border" />
+            ))}
             {isOwner && (
               <div className="flex items-center justify-end gap-1">
                 <button onClick={() => togglePin(it)} className="p-2 rounded-lg hover:bg-primary/10 text-primary" title={it.pinned ? "Unpin" : "Pin"}>
@@ -111,10 +134,17 @@ export function ProfileItems({ userId, editable }: Props) {
         );
       })}
 
+      <PostComposer
+        open={postOpen}
+        onOpenChange={setPostOpen}
+        onSubmit={publishSimple}
+        onOpenPresentation={() => setComposerOpen(true)}
+      />
+
       <RichComposer
         open={composerOpen}
         onOpenChange={setComposerOpen}
-        title="Create Post in Profile"
+        title={t("buildPresentation")}
         submitLabel="Publish"
         onSubmit={(doc) => publish(doc.md, doc.bg, doc.color, doc.font)}
       />
