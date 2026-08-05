@@ -91,7 +91,7 @@ export function AdminPanelView() {
   };
 
   const mintFigurine = async () => {
-    if (!user || !figName.trim()) return;
+    if (!user || !figName.trim() || !figCollection) return;
     setFigBusy(true);
     const { error } = await supabase.from("figurines").insert({
       name: figName.trim(),
@@ -101,12 +101,14 @@ export function AdminPanelView() {
       supply: parseInt(figSupply) || 1,
       price: parseFloat(figPrice) || 0,
       created_by: user.id,
-    });
+      collection_id: figCollection,
+    } as any);
     setFigBusy(false);
     if (error) { toast({ title: t("error"), description: error.message, variant: "destructive" }); return; }
-    toast({ title: t("mintFigurine"), description: figName });
+    toast({ title: t("mintToken"), description: figName });
     setFigName(""); setFigDesc(""); setFigImage("");
   };
+
 
   const toggleSuspend = async (id: string, suspended: boolean) => {
     const { error } = await supabase.from("mini_apps").update({ suspended: !suspended }).eq("id", id);
