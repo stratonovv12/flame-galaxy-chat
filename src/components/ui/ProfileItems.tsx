@@ -40,6 +40,12 @@ export function ProfileItems({ userId, editable }: Props) {
   const isOwner = editable && user?.id === userId;
 
   useEffect(() => { load(); }, [userId, showArchived]);
+  useEffect(() => {
+    const refresh = () => void load();
+    window.addEventListener("flame-posts-changed", refresh);
+    const channel = supabase.channel(`profile-posts-${userId}-${crypto.randomUUID()}`).on("postgres_changes", { event: "*", schema: "public", table: "profile_items", filter: `user_id=eq.${userId}` }, refresh).subscribe();
+    return () => { window.removeEventListener("flame-posts-changed", refresh); void supabase.removeChannel(channel); };
+  }, [userId, showArchived]);
 
   const load = async () => {
     let q = supabase.from("profile_items").select("*").eq("user_id", userId);

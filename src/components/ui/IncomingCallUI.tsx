@@ -1,51 +1,30 @@
-import { useEffect, useRef } from "react";
-import { Phone, PhoneOff } from "lucide-react";
+import { useEffect } from "react";
+import { Phone, PhoneOff, Video } from "lucide-react";
 import { UserAvatar } from "./UserAvatar";
-
-interface IncomingCallUIProps {
-  callerUsername: string | null;
-  callerAvatarUrl: string | null;
-  onAccept: () => void;
-  onReject: () => void;
-}
-
-export function IncomingCallUI({ callerUsername, callerAvatarUrl, onAccept, onReject }: IncomingCallUIProps) {
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-
+import { Button } from "./button";
+import { useLanguage } from "@/contexts/LanguageContext";
+interface Props { callerUsername: string | null; callerAvatarUrl: string | null; onAccept: () => void; onReject: () => void; video?: boolean; }
+export function IncomingCallUI({ callerUsername, callerAvatarUrl, onAccept, onReject, video }: Props) {
+  const { t } = useLanguage();
   useEffect(() => {
-    // Play ringtone
-    const audio = new Audio("https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3");
-    audio.loop = true;
-    audio.volume = 0.7;
-    audio.play().catch(() => {});
-    audioRef.current = audio;
-    return () => { audio.pause(); audio.src = ""; };
+    const context = new AudioContext();
+    const ring = () => {
+      if (context.state !== "running") return;
+      const oscillator = context.createOscillator(); const gain = context.createGain();
+      oscillator.frequency.value = 440; gain.gain.value = 0.05;
+      oscillator.connect(gain); gain.connect(context.destination);
+      oscillator.start(); oscillator.stop(context.currentTime + 0.4);
+    };
+    ring(); const timer = setInterval(ring, 2000);
+    return () => { clearInterval(timer); void context.close(); };
   }, []);
-
-  return (
-    <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-background/95 backdrop-blur-lg">
-      <div className="flex flex-col items-center gap-6 animate-in fade-in slide-in-from-bottom-4">
-        <div className="animate-pulse">
-          <UserAvatar username={callerUsername} avatarUrl={callerAvatarUrl} size="xl" className="neon-glow" />
-        </div>
-        <h2 className="text-xl font-bold">{callerUsername || "User"}</h2>
-        <p className="text-sm text-muted-foreground animate-pulse">Incoming call...</p>
-      </div>
-
-      <div className="flex items-center gap-12 mt-16">
-        <button
-          onClick={onReject}
-          className="p-5 rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/90 transition-all shadow-[0_0_20px_hsl(var(--destructive)/0.4)]"
-        >
-          <PhoneOff className="w-7 h-7" />
-        </button>
-        <button
-          onClick={onAccept}
-          className="p-5 rounded-full bg-green-500 text-white hover:bg-green-600 transition-all shadow-[0_0_20px_rgba(34,197,94,0.4)] animate-bounce"
-        >
-          <Phone className="w-7 h-7" />
-        </button>
-      </div>
+  return <div role="dialog" aria-modal="true" aria-label={t("incomingCall")} className="fixed inset-0 z-[150] bg-background flex flex-col items-center justify-center gap-5">
+    <UserAvatar username={callerUsername} avatarUrl={callerAvatarUrl} size="xl" />
+    <h2 className="text-xl font-semibold">{callerUsername || t("user")}</h2>
+    <p className="text-muted-foreground">{video ? t("incomingVideoCall") : t("incomingCall")}</p>
+    <div className="flex gap-8 mt-12">
+      <Button size="icon" variant="destructive" className="w-14 h-14 rounded-full" onClick={onReject} aria-label={t("declineCall")}><PhoneOff /></Button>
+      <Button size="icon" className="w-14 h-14 rounded-full bg-success text-primary-foreground hover:bg-success/90" onClick={onAccept} aria-label={t("acceptCall")}>{video ? <Video /> : <Phone />}</Button>
     </div>
-  );
+  </div>;
 }

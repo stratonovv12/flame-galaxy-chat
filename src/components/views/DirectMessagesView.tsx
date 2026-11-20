@@ -12,12 +12,12 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { MessageContextMenu } from "@/components/ui/MessageContextMenu";
 import { ChatListContextMenu } from "@/components/ui/ChatListContextMenu";
 import { UploadingBubble } from "@/components/ui/UploadingBubble";
-import { CallUI } from "@/components/ui/CallUI";
-import { IncomingCallUI } from "@/components/ui/IncomingCallUI";
+import { useCalling } from "@/contexts/CallingContext";
+import { Button } from "@/components/ui/button";
 import { OnlineIndicator } from "@/components/ui/OnlineIndicator";
 import { useMediaUpload } from "@/hooks/useMediaUpload";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
-import { MessageCircle, Send, ArrowLeft, Phone, ShieldBan, ShieldCheck, X, Forward, Ghost, ChevronDown, Pin, PinOff, Flame, Gamepad2, MoreVertical, Maximize2 } from "lucide-react";
+import { MessageCircle, Send, ArrowLeft, Phone, Video, ShieldBan, ShieldCheck, X, Forward, Ghost, ChevronDown, Pin, PinOff, Flame, Gamepad2, MoreVertical, Maximize2 } from "lucide-react";
 import { RichComposer } from "@/components/ui/RichComposer";
 import { TextExpander } from "@/components/ui/TextExpander";
 import { isStickerUrl, isMediaPlaceholder } from "@/lib/uploads";
@@ -92,10 +92,7 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
   const [highlightedMsgId, setHighlightedMsgId] = useState<string | null>(null);
   const { pendingUploads, startUpload, cancelUpload } = useMediaUpload();
 
-  // Call state
-  const [activeCallId, setActiveCallId] = useState<string | null>(null);
-  const [callActive, setCallActive] = useState(false);
-  const [incomingCall, setIncomingCall] = useState<{ id: string; callerId: string; callerUsername: string | null; callerAvatarUrl: string | null } | null>(null);
+  const { startCall: initiateCall } = useCalling();
 
   const partnerPresence = useOnlineStatus(activeChat?.id);
 
@@ -146,39 +143,6 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
     if (user) { fetchConversations(); requestNotificationPermission(); }
   }, [user]);
   useEffect(() => { if (selectedUserId && user) openChatWithUser(selectedUserId); }, [selectedUserId, user]);
-
-  // Listen for incoming calls
-  useEffect(() => {
-    if (!user) return;
-    const channel = supabase
-      .channel("calls-incoming")
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "calls", filter: `receiver_id=eq.${user.id}` }, async (payload) => {
-        const call = payload.new as any;
-        if (call.status !== "ringing") return;
-        const { data: profile } = await supabase.from("profiles").select("username, avatar_url").eq("user_id", call.caller_id).maybeSingle();
-        setIncomingCall({
-          id: call.id,
-          callerId: call.caller_id,
-          callerUsername: profile?.username || null,
-          callerAvatarUrl: profile?.avatar_url || null,
-        });
-      })
-      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "calls" }, (payload) => {
-        const call = payload.new as any;
-        if (call.status === "ended" || call.status === "missed" || call.status === "rejected") {
-          if (incomingCall?.id === call.id) setIncomingCall(null);
-          if (activeCallId === call.id) {
-            setActiveCallId(null);
-            setCallActive(false);
-          }
-        }
-        if (call.status === "active" && activeCallId === call.id) {
-          setCallActive(true);
-        }
-      })
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, [user, incomingCall, activeCallId]);
 
   useEffect(() => {
     if (!user) return;
@@ -275,65 +239,9 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
     if (activeChat && user) { checkBlockStatus(activeChat.id); fetchHiddenMessages(); }
   }, [activeChat, user]);
 
-  const startCall = async () => {
-    if (!user || !activeChat) return;
-    const { data, error } = await supabase.from("calls").insert({
-      caller_id: user.id,
-      receiver_id: activeChat.id,
-      status: "ringing",
-    }).select().single();
-    if (error) {
-      toast({ title: t("error"), description: t("callFailed"), variant: "destructive" });
-      return;
-    }
-    setActiveCallId(data.id);
-    // Auto-miss after 30s
-    setTimeout(async () => {
-      const { data: callData } = await supabase.from("calls").select("status").eq("id", data.id).maybeSingle();
-      if (callData?.status === "ringing") {
-        await supabase.from("calls").update({ status: "missed", ended_at: new Date().toISOString() }).eq("id", data.id);
-        setActiveCallId(null);
-        // Insert missed call message
-        await supabase.from("direct_messages").insert({
-          sender_id: user.id, receiver_id: activeChat.id,
-          content: `📞 ${t("missedCall")}`,
-        });
-      }
-    }, 30000);
-  };
-
-  const acceptCall = async () => {
-    if (!incomingCall) return;
-    await supabase.from("calls").update({
-      status: "active", started_at: new Date().toISOString()
-    }).eq("id", incomingCall.id);
-    setActiveCallId(incomingCall.id);
-    setCallActive(true);
-    // Set activeChat to caller
-    setActiveChat({
-      id: incomingCall.callerId,
-      username: incomingCall.callerUsername,
-      avatarUrl: incomingCall.callerAvatarUrl,
-    });
-    setIncomingCall(null);
-  };
-
-  const rejectCall = async () => {
-    if (!incomingCall) return;
-    await supabase.from("calls").update({
-      status: "rejected", ended_at: new Date().toISOString()
-    }).eq("id", incomingCall.id);
-    setIncomingCall(null);
-  };
-
-  const endCall = async () => {
-    if (activeCallId) {
-      await supabase.from("calls").update({
-        status: "ended", ended_at: new Date().toISOString()
-      }).eq("id", activeCallId);
-    }
-    setActiveCallId(null);
-    setCallActive(false);
+  const startCall = (video = false) => {
+    if (!activeChat || isBlocked || blockedByThem) return;
+    void initiateCall({ id: activeChat.id, username: activeChat.username, avatarUrl: activeChat.avatarUrl }, video);
   };
 
   const checkBlockStatus = async (partnerId: string) => {
@@ -617,26 +525,6 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
     return <img src={url} alt="" className="max-h-48 rounded-lg object-cover mb-2 cursor-pointer" onClick={() => window.open(url, "_blank")} />;
   };
 
-  // Incoming call overlay
-  if (incomingCall) {
-    return <IncomingCallUI
-      callerUsername={incomingCall.callerUsername}
-      callerAvatarUrl={incomingCall.callerAvatarUrl}
-      onAccept={acceptCall}
-      onReject={rejectCall}
-    />;
-  }
-
-  // Active call (outgoing ringing or connected)
-  if (activeCallId && activeChat) {
-    return <CallUI
-      partnerUsername={activeChat.username}
-      partnerAvatarUrl={activeChat.avatarUrl}
-      onEnd={endCall}
-      isActive={callActive}
-    />;
-  }
-
   // Forward dialog
   if (forwardMsg) {
     return (
@@ -678,7 +566,7 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
       : "";
 
     return (
-      <div className={`relative flex flex-col h-full transition-colors duration-300 ${ghostShell}`}>
+      <div className={`relative flex flex-col h-full min-h-0 transition-colors duration-300 ${ghostShell}`}>
         <GlassCard className={`rounded-none border-x-0 border-t-0 p-3 shrink-0 ${ghostMode ? "bg-zinc-950/95 border-zinc-700/60 shadow-[0_0_18px_rgba(180,180,200,0.18)]" : "bg-background/85"}`}>
           <div className="flex items-center gap-2">
             <button onClick={closeChat} className="p-2 hover:bg-muted/50 rounded-lg transition-colors touch-target shrink-0">
@@ -699,9 +587,10 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
               )}
             </button>
             <div className="flex items-center gap-0.5 shrink-0">
-              <button onClick={startCall} className="p-2 hover:bg-muted/50 rounded-lg transition-colors touch-target" title={t("call" as any)}>
+              <button onClick={() => startCall(false)} className="p-2 hover:bg-muted/50 rounded-lg transition-colors touch-target" title={t("call" as any)}>
                 <Phone className={`w-5 h-5 ${ghostMode ? "text-zinc-300" : "text-primary"}`} />
               </button>
+              <Button variant="ghost" size="icon" onClick={() => startCall(true)} aria-label={t("videoCall")} title={t("videoCall")}><Video className="w-5 h-5 text-primary" /></Button>
               <button onClick={toggleBlock} className="p-2 hover:bg-muted/50 rounded-lg transition-colors touch-target">
                 {isBlocked ? <ShieldCheck className="w-5 h-5 text-destructive" /> : <ShieldBan className="w-5 h-5 text-muted-foreground" />}
               </button>
@@ -755,7 +644,7 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
           </div>
         )}
 
-        <div ref={messagesContainerRef} onScroll={handleScroll} className={`flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar relative ${ghostMode ? "bg-zinc-900" : ""}`}>
+        <div ref={messagesContainerRef} onScroll={handleScroll} className={`flex-1 min-h-0 overflow-y-auto p-3 space-y-3 custom-scrollbar relative ${ghostMode ? "bg-zinc-900" : ""}`}>
           {loading ? (
             <div className="text-center py-12">
               <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
@@ -811,7 +700,7 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
                         )}
                         {msg.reply_to_id && (
                           <button
-                            onClick={(e) => { e.stopPropagation(); scrollToMessage(msg.reply_to_id!); }}
+                            onClick={(e) => { e.stopPropagation(); if (msg.reply_to_id) scrollToMessage(msg.reply_to_id); }}
                             className={`block w-full text-left mb-2 pl-2 border-l-2 text-xs hover:bg-muted/20 rounded-r transition-colors ${ghostMode ? "border-zinc-400/60 text-zinc-400" : "border-primary/50 text-muted-foreground"}`}>
                             {getReplyPreview(msg.reply_to_id) || t("message")}
                           </button>
@@ -910,8 +799,8 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
         )}
 
 
-        <div className="p-3 glass-card rounded-none border-x-0 border-b-0 ipad-input">
-          <div className="flex items-end gap-2">
+        <div className="compact-composer p-2 bg-background border-t border-border ipad-input">
+          <div className="flex items-end gap-1">
             <DMAttachmentsButton
               onSendFile={sendFile}
               onSendPoll={sendPoll}
@@ -920,14 +809,14 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
             />
             <MediaUpload onUpload={setMediaUrl} />
             <VoiceRecorder onRecorded={handleVoiceRecorded} />
-            <div className="flex-1 relative">
+            <div className="flex-1 min-w-0 relative">
               <textarea
                 rows={1}
                 placeholder={t("writeMessage")}
                 value={newMessage}
                 onChange={e => { setNewMessage(e.target.value); broadcastTyping(); }}
                 onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
-                className="w-full max-h-40 min-h-[44px] overflow-y-auto resize-none px-4 py-3 pr-10 rounded-lg bg-input border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm [overflow-wrap:anywhere]"
+                className="w-full max-h-40 min-h-[44px] overflow-y-auto resize-none px-2 py-2.5 pr-8 rounded-lg bg-input border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm [overflow-wrap:anywhere]"
               />
               <button
                 onClick={() => setTextExpandOpen(true)}

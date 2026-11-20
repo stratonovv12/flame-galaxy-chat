@@ -10,6 +10,7 @@ import { FlameInput } from "@/components/ui/FlameInput";
 import { toast } from "@/hooks/use-toast";
 import { uploadToMedia } from "@/lib/uploads";
 import flameLogo from "@/assets/flame-logo.png";
+import { PostsModeration } from "./PostsModeration";
 
 
 interface UserProfile { user_id: string; username: string | null; avatar_url: string | null; }
@@ -172,6 +173,7 @@ export function AdminPanelView() {
   return (
     <div className="p-4 space-y-6 max-w-2xl mx-auto">
       <h2 className="text-xl font-bold flex items-center gap-2"><Shield className="w-6 h-6 text-primary" /> {t("adminPanelTitle")}</h2>
+      <PostsModeration />
 
       <GlassCard className="p-4">
         <h3 className="font-semibold mb-3">{t("searchUsers")}</h3>

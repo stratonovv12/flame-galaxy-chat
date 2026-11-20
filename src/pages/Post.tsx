@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import { useParams, Navigate, useNavigate } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { GlassCard } from "@/components/ui/GlassCard";
@@ -47,19 +47,20 @@ const Post = () => {
 
   useEffect(() => { fetchPost(); }, [fetchPost]);
 
+  useEffect(() => {
+    if (!id) return;
+    const channel = supabase.channel(`shared-post-${id}-${crypto.randomUUID()}`).on("postgres_changes", { event: "*", schema: "public", table: "feed_posts", filter: `id=eq.${id}` }, () => void fetchPost()).subscribe();
+    return () => { void supabase.removeChannel(channel); };
+  }, [id, fetchPost]);
+
   if (loading || fetching) {
-    return <div className="min-h-screen cosmic-bg flex items-center justify-center">
+    return <div className="h-full flex items-center justify-center">
       <div className="w-10 h-10 border-2 border-primary border-t-transparent rounded-full animate-spin" />
     </div>;
   }
 
-  if (!user) {
-    sessionStorage.setItem("flame_post_redirect", `/p/${id}`);
-    return <Navigate to="/auth" replace />;
-  }
-
   if (!post) {
-    return <div className="min-h-screen cosmic-bg flex items-center justify-center p-4">
+    return <div className="h-full flex items-center justify-center p-4">
       <GlassCard className="p-8 text-center max-w-md">
         <Flame className="w-12 h-12 text-primary/50 mx-auto mb-3" />
         <h2 className="text-lg font-bold mb-2">{(t as any)("postNotFound") || "Post not found"}</h2>
@@ -69,14 +70,14 @@ const Post = () => {
   }
 
   return (
-    <div className="min-h-screen cosmic-bg p-4">
+    <div className="p-4">
       <button onClick={() => navigate("/")} className="flex items-center gap-2 mb-4 text-sm text-muted-foreground hover:text-foreground">
         <ArrowLeft className="w-4 h-4" /> {(t as any)("backToFeed") || "Back to feed"}
       </button>
       <div className="max-w-2xl mx-auto">
         <FeedPostCard
           post={post}
-          onAuthorClick={() => navigate("/")}
+          onAuthorClick={() => navigate(`/users/${post.author_id}`)}
           onChanged={fetchPost}
           onOpenComments={() => setShowComments(true)}
         />

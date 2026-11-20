@@ -49,6 +49,12 @@ export function UserProfileView({ userId, onBack, onStartChat }: UserProfileView
   const isOwnProfile = user?.id === userId;
 
   useEffect(() => { fetchAll(); fetchUserMoments(userId).then(setMomentsGroup); }, [userId]);
+  useEffect(() => {
+    const refresh = () => void fetchPosts();
+    window.addEventListener("flame-posts-changed", refresh);
+    const channel = supabase.channel(`user-feed-${userId}-${crypto.randomUUID()}`).on("postgres_changes", { event: "*", schema: "public", table: "feed_posts", filter: `author_id=eq.${userId}` }, refresh).subscribe();
+    return () => { window.removeEventListener("flame-posts-changed", refresh); void supabase.removeChannel(channel); };
+  }, [userId, profile]);
 
   const fetchAll = async () => {
     setLoading(true);

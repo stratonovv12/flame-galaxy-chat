@@ -139,30 +139,71 @@ export type Database = {
         }
         Relationships: []
       }
+      call_ice_candidates: {
+        Row: {
+          call_id: string
+          candidate: Json
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          call_id: string
+          candidate: Json
+          created_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          call_id?: string
+          candidate?: Json
+          created_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "call_ice_candidates_call_id_fkey"
+            columns: ["call_id"]
+            isOneToOne: false
+            referencedRelation: "calls"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       calls: {
         Row: {
+          answer: Json | null
+          call_type: string
           caller_id: string
           created_at: string
           ended_at: string | null
           id: string
+          offer: Json | null
           receiver_id: string
           started_at: string | null
           status: string
         }
         Insert: {
+          answer?: Json | null
+          call_type?: string
           caller_id: string
           created_at?: string
           ended_at?: string | null
           id?: string
+          offer?: Json | null
           receiver_id: string
           started_at?: string | null
           status?: string
         }
         Update: {
+          answer?: Json | null
+          call_type?: string
           caller_id?: string
           created_at?: string
           ended_at?: string | null
           id?: string
+          offer?: Json | null
           receiver_id?: string
           started_at?: string | null
           status?: string

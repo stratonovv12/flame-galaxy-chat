@@ -23,11 +23,12 @@ import flameLogo from "@/assets/flame-logo.png";
 
 interface ProfileViewProps {
   onNavigate?: (tab: string) => void;
+  settingsInitiallyOpen?: boolean;
 }
 
 type SettingsTab = "account" | "appearance" | "privacy" | "general";
 
-export function ProfileView({ onNavigate }: ProfileViewProps) {
+export function ProfileView({ onNavigate, settingsInitiallyOpen = false }: ProfileViewProps) {
   const { user, signOut, isAdmin } = useAuth();
   const { t, lang, setLang } = useLanguage();
   const [displayName, setDisplayName] = useState("");
@@ -40,7 +41,7 @@ export function ProfileView({ onNavigate }: ProfileViewProps) {
   const [showAdmin, setShowAdmin] = useState(false);
   const [followerCount, setFollowerCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
-  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(settingsInitiallyOpen);
   const [settingsTab, setSettingsTab] = useState<SettingsTab>("account");
   const [volume, setVolumeState] = useState(() => getVolume());
   const [workshopOpen, setWorkshopOpen] = useState(false);

@@ -6,12 +6,14 @@ import { GlassCard } from "@/components/ui/GlassCard";
 import { FlameButton } from "@/components/ui/FlameButton";
 import { FlameInput } from "@/components/ui/FlameInput";
 import { Progress } from "@/components/ui/progress";
-import { Sparkles, Send, Flame, User, Trash2, Plus, Image, MessageSquare, Menu, X, Gamepad2, Brain } from "lucide-react";
+import { Sparkles, Send, Flame, User, Trash2, Plus, Image, MessageSquare, Menu, X, Gamepad2, Brain, Maximize2 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 
 import { toast } from "@/hooks/use-toast";
 import ReactMarkdown from "react-markdown";
 import { MiniGames } from "@/components/ui/MiniGames";
+import { TextExpander } from "@/components/ui/TextExpander";
+import { Button } from "@/components/ui/button";
 import { CodeBlock } from "@/components/ui/CodeBlock";
 
 const mdComponents = {
@@ -46,6 +48,7 @@ export function AIView() {
   const { t, lang } = useLanguage();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
+  const [expandOpen, setExpandOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isImageGen, setIsImageGen] = useState(false);
   const [imageProgress, setImageProgress] = useState(0);
@@ -183,18 +186,19 @@ export function AIView() {
     }
   };
 
-  const sendMessage = async () => {
-    if ((!input.trim() && !attachedImage) || isLoading) return;
+  const sendMessage = async (override?: string) => {
+    const prompt = override ?? input;
+    if ((!prompt.trim() && !attachedImage) || isLoading) return;
 
     let topic = activeTopic;
     if (!topic && user) {
       const { data } = await supabase
-        .from("ai_topics").insert({ user_id: user.id, title: input.trim().slice(0, 50) || t("newChat") }).select().single();
+        .from("ai_topics").insert({ user_id: user.id, title: prompt.trim().slice(0, 50) || t("newChat") }).select().single();
       if (data) { topic = data; justCreatedTopicRef.current = data.id; setTopics(prev => [data, ...prev]); setActiveTopic(data); }
     }
     if (!topic) return;
 
-    const userContent = input.trim() || (attachedImage ? t("attachedImage") : "");
+    const userContent = prompt.trim() || (attachedImage ? t("attachedImage") : "");
     const tempUserId = Date.now().toString();
     const userMessage: Message = { id: tempUserId, role: "user", content: userContent, imageUrl: attachedImage || undefined };
 
@@ -209,7 +213,7 @@ export function AIView() {
 
     if (messages.length === 0 && userContent.length > 2) {
       await supabase.from("ai_topics").update({ title: userContent.slice(0, 60) }).eq("id", topic.id);
-      setTopics(prev => prev.map(t => t.id === topic!.id ? { ...t, title: userContent.slice(0, 60) } : t));
+      setTopics(prev => prev.map(t => t.id === topic.id ? { ...t, title: userContent.slice(0, 60) } : t));
     }
 
     const isPhotoEdit = !!currentImage && /(photoshop|enhance|улучш|отфотош|фотошоп|background|фон|filter|фильтр|стил|style|remove|убери|цвет|color)/i.test(userContent);
@@ -375,13 +379,13 @@ export function AIView() {
 
       {/* Main */}
       <div className="flex flex-col flex-1 min-w-0 max-w-full overflow-x-hidden">
-        <GlassCard className="rounded-none border-x-0 border-t-0 p-4">
+        <GlassCard className="rounded-none border-x-0 border-t-0 p-3 shrink-0">
           <div className="flex items-center gap-3">
             <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-2 hover:bg-muted/50 rounded-lg transition-colors touch-target">
               <Menu className="w-5 h-5" />
             </button>
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center neon-glow-sm">
-              <Sparkles className="w-5 h-5 text-primary-foreground" />
+              <Flame className="w-5 h-5 text-primary-foreground" />
             </div>
             <div className="flex-1 min-w-0">
               <h2 className="font-bold text-lg">FLAME AI</h2>
@@ -397,7 +401,7 @@ export function AIView() {
           </div>
         </GlassCard>
 
-        <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
+        <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-4 custom-scrollbar">
           {isLoadingHistory ? (
             <div className="text-center py-12">
               <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
@@ -406,7 +410,7 @@ export function AIView() {
           ) : messages.length === 0 && !isLoading ? (
             <div className="text-center py-12">
               <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center neon-glow animate-float">
-                <Sparkles className="w-10 h-10 text-primary-foreground" />
+                <Flame className="w-10 h-10 text-primary-foreground" />
               </div>
               <h3 className="text-xl font-bold mb-2 text-glow">{t("helloFlame")}</h3>
               <p className="text-muted-foreground max-w-sm mx-auto mb-4">
@@ -482,36 +486,20 @@ export function AIView() {
           </div>
         )}
 
-        <div className="p-4 glass-card rounded-none border-x-0 border-b-0 ipad-input">
+        <div className="compact-composer p-2 bg-background border-t border-border ipad-input">
           <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageAttach} className="hidden" />
-          <div className="flex gap-2 items-end">
-            <button onClick={() => fileInputRef.current?.click()} className="p-2 hover:bg-muted/50 rounded-lg transition-colors text-muted-foreground hover:text-foreground touch-target" title={t("ai")}>
-              <Image className="w-5 h-5" />
-            </button>
-            <button
-              onClick={() => {
-                const prefix = t("generateImagePrefix");
-                if (!input.toLowerCase().startsWith("generate") && !input.toLowerCase().startsWith("сгенер")) setInput(prefix + input);
-                setTimeout(() => sendMessage(), 0);
-              }}
-              disabled={isLoading || !input.trim()}
-              title={t("generateImage")}
-              className="p-2 rounded-lg bg-gradient-to-br from-primary/30 to-accent/30 hover:from-primary/50 hover:to-accent/50 border border-primary/40 text-primary disabled:opacity-40 transition-all touch-target shadow-[0_0_10px_rgba(127,90,240,0.3)]">
-              <Sparkles className="w-5 h-5" />
-            </button>
-            <FlameInput
-              placeholder={t("askOrDraw")}
-              value={input}
-              onChange={e => setInput(e.target.value)}
-              onKeyDown={e => e.key === "Enter" && !e.shiftKey && sendMessage()}
-              disabled={isLoading}
-              className="flex-1"
-            />
-            <FlameButton onClick={sendMessage} disabled={isLoading || (!input.trim() && !attachedImage)}>
-              {isLoading ? <div className="w-5 h-5 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" /> : <Send className="w-5 h-5" />}
-            </FlameButton>
+          <div className="flex gap-1 items-end">
+            <Button variant="ghost" size="icon" onClick={() => fileInputRef.current?.click()} aria-label={t("attachedImage")}><Image /></Button>
+            <div className="flex-1 min-w-0 relative">
+              <textarea rows={1} aria-label={t("askOrDraw")} placeholder={t("askOrDraw")} value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void sendMessage(); } }} disabled={isLoading} className="w-full block min-h-11 max-h-40 resize-none overflow-y-auto px-3 py-3 pr-10 text-sm bg-input border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/40" />
+              <Button variant="ghost" size="icon" className="absolute right-0 bottom-0" onClick={() => setExpandOpen(true)} aria-label={t("expandText")}><Maximize2 /></Button>
+            </div>
+            <Button size="icon" onClick={() => void sendMessage()} disabled={isLoading || (!input.trim() && !attachedImage)} aria-label={t("send")}>
+              {isLoading ? <div className="w-4 h-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" /> : <Send />}
+            </Button>
           </div>
         </div>
+        <TextExpander open={expandOpen} onOpenChange={setExpandOpen} value={input} onChange={setInput} onSend={text => void sendMessage(text)} />
       </div>
 
       {sidebarOpen && <div className="absolute inset-0 z-20 bg-background/50" onClick={() => setSidebarOpen(false)} />}

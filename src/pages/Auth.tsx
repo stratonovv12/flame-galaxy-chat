@@ -8,6 +8,7 @@ import { GlassCard } from "@/components/ui/GlassCard";
 import { Flame, Mail, Lock, Eye, EyeOff, Globe, ArrowLeft, User, AtSign, Check, X as XIcon, Loader2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { safeReturnPath } from "@/lib/navigation";
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -98,7 +99,7 @@ const Auth = () => {
             toast({ title: t("error"), description: error.message, variant: "destructive" });
           }
         } else {
-          const redirect = sessionStorage.getItem("flame_post_redirect");
+          const redirect = safeReturnPath(new URLSearchParams(window.location.search).get("returnTo") || sessionStorage.getItem("flame_post_redirect"));
           sessionStorage.removeItem("flame_post_redirect");
           navigate(redirect || "/");
         }
@@ -121,7 +122,7 @@ const Auth = () => {
             setIsLogin(true);
           } else {
             toast({ title: t("registerSuccess") });
-            const redirect = sessionStorage.getItem("flame_post_redirect");
+            const redirect = safeReturnPath(new URLSearchParams(window.location.search).get("returnTo") || sessionStorage.getItem("flame_post_redirect"));
             sessionStorage.removeItem("flame_post_redirect");
             navigate(redirect || "/");
           }

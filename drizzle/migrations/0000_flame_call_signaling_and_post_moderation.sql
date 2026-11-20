@@ -1,0 +1,13 @@
+ALTER TABLE public.calls ADD COLUMN IF NOT EXISTS call_type text NOT NULL DEFAULT 'audio', ADD COLUMN IF NOT EXISTS offer jsonb, ADD COLUMN IF NOT EXISTS answer jsonb;
+CREATE TABLE public.call_ice_candidates (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), call_id uuid NOT NULL REFERENCES public.calls(id) ON DELETE CASCADE, user_id uuid NOT NULL, candidate jsonb NOT NULL, created_at timestamptz NOT NULL DEFAULT now());
+GRANT SELECT, INSERT ON public.call_ice_candidates TO authenticated;
+GRANT ALL ON public.call_ice_candidates TO service_role;
+ALTER TABLE public.call_ice_candidates ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Participants read call candidates" ON public.call_ice_candidates FOR SELECT TO authenticated USING (EXISTS (SELECT 1 FROM public.calls c WHERE c.id=call_id AND auth.uid() IN (c.caller_id,c.receiver_id)));
+CREATE POLICY "Participants send call candidates" ON public.call_ice_candidates FOR INSERT TO authenticated WITH CHECK (user_id=auth.uid() AND EXISTS (SELECT 1 FROM public.calls c WHERE c.id=call_id AND auth.uid() IN (c.caller_id,c.receiver_id) AND c.status IN ('ringing','active')));
+CREATE INDEX ON public.call_ice_candidates(call_id,created_at);
+CREATE POLICY "Admins delete any feed post" ON public.feed_posts FOR DELETE TO authenticated USING (public.has_role(auth.uid(),'admin'));
+CREATE POLICY "Admins read profile posts" ON public.profile_items FOR SELECT TO authenticated USING (public.has_role(auth.uid(),'admin'));
+CREATE POLICY "Admins delete profile posts" ON public.profile_items FOR DELETE TO authenticated USING (public.has_role(auth.uid(),'admin'));
+GRANT DELETE ON public.feed_posts, public.profile_items TO authenticated;
+DO $$ DECLARE t text; BEGIN FOREACH t IN ARRAY ARRAY['call_ice_candidates','feed_posts','profile_items','user_follows','deleted_conversations','user_presence','profiles','figurines','figurine_items','marketplace_listings','escrow_orders','wallets'] LOOP IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname='supabase_realtime' AND schemaname='public' AND tablename=t) THEN EXECUTE format('ALTER PUBLICATION supabase_realtime ADD TABLE public.%I',t); END IF; END LOOP; END $$;

@@ -12,6 +12,7 @@ import { FlameMoments } from "@/components/ui/FlameMoments";
 import { formatDistanceToNow } from "date-fns";
 import { ru, enUS } from "date-fns/locale";
 import { toast } from "@/hooks/use-toast";
+import { postPath } from "@/lib/navigation";
 
 export interface FeedPost {
   id: string;
@@ -62,10 +63,12 @@ export function FeedView({ onViewProfile }: FeedViewProps) {
   useEffect(() => { fetchPosts(); }, [filter, userFilter, user]);
 
   useEffect(() => {
-    const channel = supabase.channel("feed-realtime")
+    const refresh = () => void fetchPosts();
+    window.addEventListener("flame-posts-changed", refresh);
+    const channel = supabase.channel(`feed-realtime-${crypto.randomUUID()}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "feed_posts" }, () => fetchPosts())
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    return () => { window.removeEventListener("flame-posts-changed", refresh); supabase.removeChannel(channel); };
   }, [filter, userFilter]);
 
   const fetchPosts = async () => {
@@ -408,7 +411,7 @@ export function FeedPostCard({ post, onAuthorClick, onChanged, onOpenComments }:
         </button>
         <button
           onClick={async () => {
-            const link = `${window.location.origin}/p/${post.id}`;
+            const link = `${window.location.origin}${postPath(post.id)}`;
             try {
               if (navigator.share) {
                 await navigator.share({ title: t("flame" as any) || "Flame", text: post.content || "", url: link });

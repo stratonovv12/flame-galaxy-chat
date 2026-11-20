@@ -1,75 +1,67 @@
-import { useState, useEffect } from "react";
-import { Home, MessageCircle, Sparkles } from "lucide-react";
+import { useEffect, useRef } from "react";
+import { Home, MessageCircle, Flame, Store, Code2, User, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { Button } from "@/components/ui/button";
+import { useDockContacts } from "@/hooks/useDockContacts";
+import { APP_TABS, type AppTab } from "@/lib/navigation";
 
-export type BottomTab = "feed" | "messages" | "ai";
+export type BottomTab = AppTab;
 
 interface BottomNavProps {
-  activeTab: BottomTab;
+  activeTab: BottomTab | null;
   onTabChange: (tab: BottomTab) => void;
+  onContactClick: (userId: string) => void;
 }
 
-export function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
-  const { user } = useAuth();
+export function BottomNav({ activeTab, onTabChange, onContactClick }: BottomNavProps) {
   const { t } = useLanguage();
-  const [unreadCount, setUnreadCount] = useState(0);
-
-  const tabs: { id: BottomTab; label: string; icon: typeof Home }[] = [
-    { id: "feed", label: t("feed"), icon: Home },
-    { id: "messages", label: t("chats"), icon: MessageCircle },
-    { id: "ai", label: "AI", icon: Sparkles },
-  ];
-
+  const { contacts, unread } = useDockContacts();
+  const track = useRef<HTMLDivElement>(null);
+  const icons = { feed: Home, messages: MessageCircle, ai: Flame, marketplace: Store, workshop: Code2, profile: User, settings: Settings };
+  const labels = { feed: t("feed"), messages: t("chats"), ai: "AI", marketplace: t("marketplace"), workshop: t("workshop"), profile: t("profile"), settings: t("settings") };
   useEffect(() => {
-    if (!user) return;
-    fetchUnread();
-    const channel = supabase.channel("unread-badge")
-      .on("postgres_changes", { event: "*", schema: "public", table: "direct_messages" }, () => fetchUnread())
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, [user]);
-
-  useEffect(() => {
-    if (activeTab === "messages" && user) {
-      const tm = setTimeout(fetchUnread, 1000);
-      return () => clearTimeout(tm);
+    const el = track.current?.querySelector<HTMLElement>(`[data-tab="${activeTab}"]`);
+    const container = track.current;
+    if (el && container) {
+      const left = el.offsetLeft;
+      if (left < container.scrollLeft || left + el.offsetWidth > container.scrollLeft + container.clientWidth) {
+        container.scrollTo({ left, behavior: "smooth" });
+      }
     }
-  }, [activeTab, user]);
-
-  const fetchUnread = async () => {
-    if (!user) return;
-    const { data } = await supabase.from("direct_messages").select("sender_id").eq("receiver_id", user.id).is("read_at", null);
-    const uniqueSenders = new Set(data?.map(m => m.sender_id) || []);
-    setUnreadCount(uniqueSenders.size);
-  };
+  }, [activeTab]);
 
   return (
-    <nav className="shrink-0 glass-card rounded-none border-t border-border/50 pb-safe">
-      <div className="flex items-stretch justify-around">
-        {tabs.map(tab => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
-          const showBadge = tab.id === "messages" && unreadCount > 0;
+    <nav className="navigation-dock" aria-label={t("navigation")}>
+      <div ref={track} className="dock-track">
+        {APP_TABS.map(tab => {
+          const Icon = icons[tab];
+          const isActive = activeTab === tab;
           return (
-            <button key={tab.id} onClick={() => onTabChange(tab.id)}
-              className={cn("flex-1 flex flex-col items-center justify-center py-2 px-1 touch-target transition-all duration-200",
+            <Button key={tab} data-tab={tab} variant="ghost" onClick={() => onTabChange(tab)} aria-current={isActive ? "page" : undefined}
+              className={cn("dock-slot h-[64px] rounded-none flex flex-col gap-1 px-1 hover:bg-muted/50",
                 isActive ? "text-primary" : "text-muted-foreground hover:text-foreground")}>
-              <div className={cn("relative p-1.5 rounded-xl transition-all duration-200", isActive && "bg-primary/20")}>
-                <Icon className={cn("w-5 h-5 transition-all", isActive && "text-glow")} />
-                {isActive && <div className="absolute inset-0 bg-primary/20 rounded-xl blur-md -z-10" />}
-                {showBadge && (
-                  <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold px-1">
-                    {unreadCount > 99 ? "99+" : unreadCount}
+              <div className="relative">
+                <Icon className="!w-5 !h-5" />
+                {tab === "messages" && unread > 0 && (
+                  <span className="absolute -top-2 -right-3 min-w-[16px] h-4 flex items-center justify-center rounded-full bg-primary text-primary-foreground text-[9px] px-1">
+                    {unread > 99 ? "99+" : unread}
                   </span>
                 )}
               </div>
-              <span className={cn("text-[10px] mt-0.5 font-medium", isActive && "text-primary")}>{tab.label}</span>
-            </button>
+              <span className="text-[10px] leading-4 truncate max-w-full">{labels[tab]}</span>
+            </Button>
           );
         })}
+        {contacts.map(contact => (
+          <Button key={contact.user_id} variant="ghost" className="dock-slot h-[64px] rounded-none flex flex-col gap-0.5 px-1" onClick={() => onContactClick(contact.user_id)}>
+            <span className="relative w-8 h-8">
+              {contact.avatar_url ? <img src={contact.avatar_url} alt="" className="w-8 h-8 rounded-full object-cover" /> : <span className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-xs">{(contact.display_name || contact.username || "?").charAt(0).toUpperCase()}</span>}
+              {contact.online && <span className="absolute right-0 bottom-0 w-2 h-2 rounded-full bg-success border-2 border-card" />}
+            </span>
+            <span className="text-[10px] leading-4 truncate max-w-full">{(contact.display_name || contact.username || t("user")).split(" ")[0]}</span>
+          </Button>
+        ))}
       </div>
     </nav>
   );
