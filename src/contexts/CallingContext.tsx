@@ -126,6 +126,9 @@ export function CallingProvider({ children }: { children: ReactNode }) {
   const accept = async () => {
     const call = callRef.current;
     if (!call?.offer || !user) return;
+    if (creating.current) return;
+    creating.current = true;
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
     setPhase("connecting");
     try {
       const { data: current } = await supabase.from("calls").select("status").eq("id", call.id).single();
@@ -169,6 +172,8 @@ export function CallingProvider({ children }: { children: ReactNode }) {
       callRef.current = call;
       if (call.caller_id === user.id && call.answer && pcRef.current && !answered.current) {
         answered.current = true; acceptedRef.current = true; setPhase("connecting");
+        if (timeoutRef.current) clearTimeout(timeoutRef.current);
+        timeoutRef.current = setTimeout(() => void finish(), 30_000);
         await pcRef.current.setRemoteDescription(call.answer as unknown as RTCSessionDescriptionInit);
         await flushIce();
       }

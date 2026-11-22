@@ -8,6 +8,20 @@
       "when": 1795189375462,
       "tag": "0000_flame_call_signaling_and_post_moderation",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1795346151981,
+      "tag": "0001_secure_collectible_market_transactions",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1795346309640,
+      "tag": "0002_fix_wallet_identifier_generation",
+      "breakpoints": true
     }
   ]
 }

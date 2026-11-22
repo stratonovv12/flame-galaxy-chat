@@ -1,359 +1,115 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { GlassCard } from "@/components/ui/GlassCard";
-import { FlameButton } from "@/components/ui/FlameButton";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { Button } from "@/components/ui/button";
 import { FlameInput } from "@/components/ui/FlameInput";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Store, Package, ShieldCheck, Gift, Tag, Check, X, Coins, CreditCard, Bitcoin } from "lucide-react";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { ArrowLeft, Coins, Gift, Tag, Package, Check, X, Loader2, Plus } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import { useLanguage } from "@/contexts/LanguageContext";
 import { FlameBadge } from "@/components/ui/FlameBadge";
 import flameLogo from "@/assets/flame-logo.png";
+import { matchesMarketCategory, type MarketCategory } from "@/lib/marketplace";
 
-export interface Figurine {
-  id: string;
-  name: string;
-  description: string | null;
-  image_url: string | null;
-  rarity: string;
-  supply: number;
-  price: number;
+export interface Figurine { id: string; name: string; description: string | null; image_url: string | null; rarity: string; supply: number; price: number; }
+export interface FigurineItem { id: string; figurine_id: string; owner_id: string; serial: number; showcased: boolean; figurines?: Figurine; }
+interface Listing { id: string; item_id: string; seller_id: string; price: number; status: string; figurine_items: { serial: number; figurines: Figurine | null } | null; }
+interface Order { id: string; listing_id: string; buyer_id: string; seller_id: string; amount: number; status: string; }
+interface MarketSelection { figurine: Figurine; listing?: Listing; item?: FigurineItem; }
+
+function CollectibleArt({ figurine, className = "" }: { figurine: Figurine; className?: string }) {
+  const animatedVideo = /\.(mp4|webm|mov)(\?|$)/i.test(figurine.image_url ?? "");
+  return animatedVideo ? <video src={figurine.image_url ?? undefined} autoPlay loop muted playsInline className={`object-contain ${className}`} /> : <img src={figurine.image_url || flameLogo} alt={figurine.name} loading="lazy" className={`object-contain ${className}`} />;
 }
-
-export interface FigurineItem {
-  id: string;
-  figurine_id: string;
-  owner_id: string;
-  serial: number;
-  showcased: boolean;
-  figurines?: Figurine;
-}
-
-interface Listing {
-  id: string;
-  item_id: string;
-  seller_id: string;
-  price: number;
-  status: string;
-}
-
-interface Order {
-  id: string;
-  listing_id: string;
-  buyer_id: string;
-  seller_id: string;
-  amount: number;
-  status: string;
-}
-
-const RARITY_STYLES: Record<string, string> = {
-  common: "text-zinc-300 border-zinc-500/40",
-  rare: "text-sky-300 border-sky-400/40",
-  epic: "text-violet-300 border-violet-400/50",
-  legendary: "text-amber-300 border-amber-400/50",
-};
-
 export function FigurineCard({ fig, serial, children }: { fig?: Figurine; serial?: number; children?: React.ReactNode }) {
   if (!fig) return null;
-  return (
-    <GlassCard className={`p-3 border ${RARITY_STYLES[fig.rarity] || RARITY_STYLES.common}`}>
-      <div className="flex items-center gap-3">
-        <div className="w-12 h-12 rounded-lg bg-primary/15 flex items-center justify-center overflow-hidden shrink-0">
-          <img src={fig.image_url || flameLogo} alt={fig.name} className="w-full h-full object-cover" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="font-semibold text-sm truncate">{fig.name}</p>
-          <p className="text-[11px] text-muted-foreground truncate">
-            {fig.rarity}{serial ? ` · #${serial}` : ""}{fig.description ? ` · ${fig.description}` : ""}
-          </p>
-        </div>
-        {children}
-      </div>
-    </GlassCard>
-  );
+  return <div className="market-item border border-border rounded-lg p-3 flex items-center gap-3"><CollectibleArt figurine={fig} className="w-12 h-12 shrink-0" /><div className="min-w-0 flex-1"><p className="text-sm font-semibold truncate">{fig.name}</p><p className="text-xs text-muted-foreground">{fig.rarity}{serial ? ` · #${serial}` : ""}</p></div>{children}</div>;
 }
-
-/** Public showcase of a user's collectibles (used on profiles). */
 export function FigurineShowcase({ userId }: { userId: string }) {
   const [items, setItems] = useState<FigurineItem[]>([]);
-  useEffect(() => {
-    supabase.from("figurine_items").select("*, figurines(*)").eq("owner_id", userId).eq("showcased", true)
-      .then(({ data }) => setItems((data as any) || []));
-  }, [userId]);
-  if (items.length === 0) return null;
-  return (
-    <div className="space-y-2">
-      <h3 className="text-sm font-semibold flex items-center gap-2"><Coins className="w-4 h-4 text-primary" /> Flame Tokens</h3>
-      {items.map(i => <FigurineCard key={i.id} fig={i.figurines} serial={i.serial} />)}
-    </div>
-  );
-}
-
-/** Official built-in mini-app: collection, P2P marketplace with escrow, and gifting. */
-export function FigurinesView({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
-  const { user } = useAuth();
   const { t } = useLanguage();
-  const [buyOpen, setBuyOpen] = useState(false);
-  const [buyAmount, setBuyAmount] = useState("100");
+  useEffect(() => {
+    const load = async () => { const { data } = await supabase.from("figurine_items").select("*, figurines(*)").eq("owner_id", userId).eq("showcased", true); setItems((data as FigurineItem[]) ?? []); };
+    void load();
+    const channel = supabase.channel(`showcase-${userId}-${crypto.randomUUID()}`).on("postgres_changes", { event: "*", schema: "public", table: "figurine_items" }, () => void load()).subscribe();
+    return () => { void supabase.removeChannel(channel); };
+  }, [userId]);
+  if (!items.length) return null;
+  return <section className="space-y-2"><h3 className="text-sm font-semibold flex gap-2 items-center"><Package className="w-4 h-4 text-primary" />{t("marketInventory")}</h3>{items.map(item => <FigurineCard key={item.id} fig={item.figurines} serial={item.serial} />)}</section>;
+}
+export function FigurinesView({ open, onOpenChange, embedded = false }: { open: boolean; onOpenChange: (open: boolean) => void; embedded?: boolean }) {
+  const { user } = useAuth(); const { t } = useLanguage();
   const [tab, setTab] = useState<"market" | "collection" | "orders">("market");
-  const [figurines, setFigurines] = useState<Figurine[]>([]);
-  const [myItems, setMyItems] = useState<FigurineItem[]>([]);
-  const [listings, setListings] = useState<Listing[]>([]);
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [giftItem, setGiftItem] = useState<FigurineItem | null>(null);
-  const [giftHandle, setGiftHandle] = useState("");
-  const [sellItem, setSellItem] = useState<FigurineItem | null>(null);
-  const [sellPrice, setSellPrice] = useState("");
-  const [busy, setBusy] = useState(false);
-
-  useEffect(() => { if (open) loadAll(); }, [open, user]);
-
-  const loadAll = async () => {
-    const [figs, items, lis, ord] = await Promise.all([
+  const [category, setCategory] = useState<MarketCategory>("all");
+  const [figurines, setFigurines] = useState<Figurine[]>([]); const [items, setItems] = useState<FigurineItem[]>([]);
+  const [listings, setListings] = useState<Listing[]>([]); const [orders, setOrders] = useState<Order[]>([]);
+  const [balance, setBalance] = useState(0); const [loading, setLoading] = useState(true); const [busy, setBusy] = useState(false);
+  const [selected, setSelected] = useState<MarketSelection | null>(null); const [recipient, setRecipient] = useState(""); const [price, setPrice] = useState("");
+  const [depositOpen, setDepositOpen] = useState(false); const [depositAmount, setDepositAmount] = useState("");
+  const load = async () => {
+    if (!user) return;
+    const [catalog, inventory, market, transactions, wallet] = await Promise.all([
       supabase.from("figurines").select("*").order("created_at", { ascending: false }),
-      user ? supabase.from("figurine_items").select("*, figurines(*)").eq("owner_id", user.id) : Promise.resolve({ data: [] } as any),
-      supabase.from("marketplace_listings").select("*").eq("status", "active"),
-      user ? supabase.from("escrow_orders").select("*").order("created_at", { ascending: false }) : Promise.resolve({ data: [] } as any),
+      supabase.from("figurine_items").select("*, figurines(*)").eq("owner_id", user.id),
+      supabase.from("marketplace_listings").select("*, figurine_items(serial, figurines(*))").eq("status", "active"),
+      supabase.from("escrow_orders").select("*").order("created_at", { ascending: false }),
+      supabase.from("wallets").select("balance").eq("user_id", user.id).maybeSingle(),
     ]);
-    setFigurines((figs.data as Figurine[]) || []);
-    setMyItems((items.data as any) || []);
-    setListings((lis.data as Listing[]) || []);
-    setOrders((ord.data as Order[]) || []);
+    const error = catalog.error || inventory.error || market.error || transactions.error || wallet.error;
+    if (error) toast({ title: t("error"), description: error.message, variant: "destructive" });
+    setFigurines(catalog.data ?? []); setItems((inventory.data as FigurineItem[]) ?? []); setListings((market.data as Listing[]) ?? []); setOrders(transactions.data ?? []); setBalance(Number(wallet.data?.balance ?? 0)); setLoading(false);
   };
-
-  const figById = (id: string) => figurines.find(f => f.id === id);
-
-  const listForSale = async () => {
-    if (!user || !sellItem) return;
-    const price = parseFloat(sellPrice);
-    if (!price || price <= 0) { toast({ title: "Error", description: "Enter a valid price", variant: "destructive" }); return; }
+  useEffect(() => {
+    if (!open || !user) return;
+    void load();
+    const channel = supabase.channel(`market-${user.id}-${crypto.randomUUID()}`);
+    for (const table of ["figurines", "figurine_items", "marketplace_listings", "escrow_orders", "wallets"]) channel.on("postgres_changes", { event: "*", schema: "public", table }, () => void load());
+    channel.subscribe(); return () => { void supabase.removeChannel(channel); };
+  }, [open, user?.id]);
+  const action = async (kind: string, id: string, target?: string, amount?: number) => {
+    if (busy) return;
     setBusy(true);
-    const { error } = await supabase.from("marketplace_listings").insert({ item_id: sellItem.id, seller_id: user.id, price });
+    const { error } = await supabase.rpc("market_action", { _action: kind, _id: id, _recipient: target, _price: amount });
     setBusy(false);
-    if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
-    toast({ title: "Listed on the marketplace" });
-    setSellItem(null); setSellPrice("");
-    loadAll();
+    if (error) { toast({ title: t("error"), description: error.message, variant: "destructive" }); return; }
+    toast({ title: kind === "gift" ? t("marketGiftSent") : kind === "list" ? t("marketListed") : t("settingsUpdated") });
+    setSelected(null); setRecipient(""); setPrice(""); void load();
   };
-
-  /** Escrow: buyer funds are held until delivery is confirmed. */
-  const buyWithEscrow = async (listing: Listing) => {
-    if (!user) return;
-    if (listing.seller_id === user.id) { toast({ title: "This is your own listing" }); return; }
+  const requestDeposit = async () => {
+    const amount = Number(depositAmount);
+    if (!user || !Number.isFinite(amount) || amount <= 0) return;
     setBusy(true);
-    const { data: wallet } = await supabase.from("wallets").select("balance").eq("user_id", user.id).maybeSingle();
-    const balance = Number(wallet?.balance ?? 0);
-    if (balance < Number(listing.price)) {
-      setBusy(false);
-      toast({ title: "Insufficient balance", description: "Top up your wallet to buy this item", variant: "destructive" });
-      return;
-    }
-    const { error: orderErr } = await supabase.from("escrow_orders").insert({
-      listing_id: listing.id, buyer_id: user.id, seller_id: listing.seller_id, amount: listing.price, status: "held",
-    });
-    if (orderErr) { setBusy(false); toast({ title: "Error", description: orderErr.message, variant: "destructive" }); return; }
-    await supabase.from("wallets").update({ balance: balance - Number(listing.price) }).eq("user_id", user.id);
+    const { error } = await supabase.from("deposit_requests").insert({ user_id: user.id, amount, type: "manual", status: "pending" });
     setBusy(false);
-    toast({ title: "Funds held in escrow", description: "Released to the seller once you confirm delivery" });
-    loadAll();
+    if (error) { toast({ title: t("error"), description: error.message, variant: "destructive" }); return; }
+    setDepositOpen(false); toast({ title: t("marketRequestDeposit"), description: t("marketDepositPending") });
   };
-
-  const confirmDelivery = async (order: Order) => {
-    if (!user) return;
-    setBusy(true);
-    const listing = listings.find(l => l.id === order.listing_id);
-    const { data: sellerWallet } = await supabase.from("wallets").select("balance").eq("user_id", order.seller_id).maybeSingle();
-    await supabase.from("wallets").update({ balance: Number(sellerWallet?.balance ?? 0) + Number(order.amount) }).eq("user_id", order.seller_id);
-    await supabase.from("escrow_orders").update({ status: "released" }).eq("id", order.id);
-    if (listing) {
-      await supabase.from("marketplace_listings").update({ status: "sold" }).eq("id", listing.id);
-      await supabase.from("figurine_items").update({ owner_id: order.buyer_id }).eq("id", listing.item_id);
-    }
-    setBusy(false);
-    toast({ title: "Delivery confirmed", description: "Escrow released to the seller" });
-    loadAll();
-  };
-
-  const cancelOrder = async (order: Order) => {
-    if (!user) return;
-    setBusy(true);
-    const { data: wallet } = await supabase.from("wallets").select("balance").eq("user_id", order.buyer_id).maybeSingle();
-    await supabase.from("wallets").update({ balance: Number(wallet?.balance ?? 0) + Number(order.amount) }).eq("user_id", order.buyer_id);
-    await supabase.from("escrow_orders").update({ status: "refunded" }).eq("id", order.id);
-    setBusy(false);
-    toast({ title: "Order cancelled", description: "Escrow refunded to the buyer" });
-    loadAll();
-  };
-
-  const gift = async () => {
-    if (!user || !giftItem) return;
-    const handle = giftHandle.replace(/^@/, "").toLowerCase().trim();
-    if (!handle) return;
-    setBusy(true);
-    const { data: target } = await supabase.from("profiles").select("user_id").eq("username", handle).maybeSingle();
-    if (!target) { setBusy(false); toast({ title: "User not found", description: `No user @${handle}`, variant: "destructive" }); return; }
-    const { error } = await supabase.from("figurine_items").update({ owner_id: target.user_id }).eq("id", giftItem.id);
-    setBusy(false);
-    if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
-    toast({ title: "Gift sent", description: `Token transferred to @${handle}` });
-    setGiftItem(null); setGiftHandle("");
-    loadAll();
-  };
-
-  /** Buy Flame Tokens with crypto or card; balance is credited on confirmation. */
-  const purchaseTokens = async (method: "crypto" | "card") => {
-    if (!user) return;
-    const amount = parseFloat(buyAmount);
-    if (!amount || amount <= 0) { toast({ title: "Error", description: "Enter a valid amount", variant: "destructive" }); return; }
-    setBusy(true);
-    const { error } = await supabase.from("deposit_requests").insert({
-      user_id: user.id, amount, type: method, status: "pending",
-    });
-    if (error) { setBusy(false); toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
-    const { data: wallet } = await supabase.from("wallets").select("balance").eq("user_id", user.id).maybeSingle();
-    if (wallet) await supabase.from("wallets").update({ balance: Number(wallet.balance ?? 0) + amount }).eq("user_id", user.id);
-    else await supabase.from("wallets").insert({ user_id: user.id, balance: amount });
-    setBusy(false);
-    setBuyOpen(false);
-    toast({ title: t("buyTokens"), description: `+${amount} FLM · ${method === "card" ? t("payWithCard") : t("payWithCrypto")}` });
-  };
-
-  const toggleShowcase = async (item: FigurineItem) => {
-    await supabase.from("figurine_items").update({ showcased: !item.showcased }).eq("id", item.id);
-    loadAll();
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="!fixed !inset-0 !top-0 !left-0 !translate-x-0 !translate-y-0 !w-screen !h-[100dvh] !max-w-none !max-h-none !rounded-none glass-card border-primary/30 overflow-y-auto p-4">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-glow">
-            <img src={flameLogo} alt="" className="w-6 h-6 rounded-md" />
-            {t("flameMarketplace")}
-            <FlameBadge size={15} />
-          </DialogTitle>
-        </DialogHeader>
-
-        <div className="grid grid-cols-3 gap-1 p-1 rounded-lg bg-muted/30 border border-border">
-          {([["market", t("tokens"), Store], ["collection", t("myCollection"), Package], ["orders", "Escrow", ShieldCheck]] as const).map(([k, label, Icon]) => (
-            <button key={k} onClick={() => setTab(k)}
-              className={`flex flex-col items-center gap-0.5 py-2 rounded-md text-[11px] font-semibold transition-colors ${tab === k ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted/50"}`}>
-              <Icon className="w-4 h-4" />{label}
-            </button>
-          ))}
-        </div>
-
-        {tab === "market" && (
-          <div className="space-y-2">
-            <FlameButton className="w-full" onClick={() => setBuyOpen(true)}>
-              <Coins className="w-4 h-4 mr-2" />{t("buyTokens")}
-            </FlameButton>
-            {listings.length === 0 ? (
-              <p className="text-center text-sm text-muted-foreground py-8">No tokens listed yet.</p>
-            ) : listings.map(l => {
-              const item = myItems.find(i => i.id === l.item_id);
-              const fig = item?.figurines || figurines.find(f => myItems.some(i => i.id === l.item_id && i.figurine_id === f.id));
-              return (
-                <GlassCard key={l.id} className="p-3 flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-primary/15 overflow-hidden flex items-center justify-center">
-                    <img src={fig?.image_url || flameLogo} alt="" className="w-full h-full object-cover" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-sm truncate">{fig?.name || "Flame Token"}</p>
-                    <p className="text-[11px] text-muted-foreground flex items-center gap-1"><Tag className="w-3 h-3" />{l.price} FLM</p>
-                  </div>
-                  <FlameButton size="sm" disabled={busy} onClick={() => buyWithEscrow(l)}>Buy (escrow)</FlameButton>
-                </GlassCard>
-              );
-            })}
-            <p className="text-[11px] text-muted-foreground text-center pt-2">
-              Every purchase is protected: funds stay in escrow until the buyer confirms delivery.
-            </p>
-          </div>
-        )}
-
-        {tab === "collection" && (
-          <div className="space-y-2">
-            {myItems.length === 0 ? (
-              <p className="text-center text-sm text-muted-foreground py-8">You don't own any tokens yet.</p>
-            ) : myItems.map(i => (
-              <FigurineCard key={i.id} fig={i.figurines} serial={i.serial}>
-                <div className="flex items-center gap-1 shrink-0">
-                  <button onClick={() => toggleShowcase(i)} className={`p-2 rounded-lg ${i.showcased ? "text-primary bg-primary/10" : "text-muted-foreground hover:bg-muted/50"}`} title="Show on profile">
-                    <Package className="w-4 h-4" />
-                  </button>
-                  <button onClick={() => setSellItem(i)} className="p-2 rounded-lg hover:bg-muted/50 text-muted-foreground" title="Sell"><Tag className="w-4 h-4" /></button>
-                  <button onClick={() => setGiftItem(i)} className="p-2 rounded-lg hover:bg-primary/10 text-primary" title="Gift"><Gift className="w-4 h-4" /></button>
-                </div>
-              </FigurineCard>
-            ))}
-          </div>
-        )}
-
-        {tab === "orders" && (
-          <div className="space-y-2">
-            {orders.length === 0 ? (
-              <p className="text-center text-sm text-muted-foreground py-8">No escrow orders.</p>
-            ) : orders.map(o => (
-              <GlassCard key={o.id} className="p-3 flex items-center gap-3">
-                <ShieldCheck className={`w-5 h-5 ${o.status === "held" ? "text-amber-300" : o.status === "released" ? "text-emerald-400" : "text-muted-foreground"}`} />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold">{o.amount} FLM · {o.status}</p>
-                  <p className="text-[11px] text-muted-foreground">{o.buyer_id === user?.id ? "You are the buyer" : "You are the seller"}</p>
-                </div>
-                {o.status === "held" && o.buyer_id === user?.id && (
-                  <div className="flex gap-1">
-                    <button onClick={() => confirmDelivery(o)} disabled={busy} className="p-2 rounded-lg bg-emerald-500/15 text-emerald-400" title="Confirm delivery"><Check className="w-4 h-4" /></button>
-                    <button onClick={() => cancelOrder(o)} disabled={busy} className="p-2 rounded-lg bg-destructive/15 text-destructive" title="Cancel & refund"><X className="w-4 h-4" /></button>
-                  </div>
-                )}
-              </GlassCard>
-            ))}
-          </div>
-        )}
-
-        {/* Sell dialog */}
-        <Dialog open={!!sellItem} onOpenChange={o => !o && setSellItem(null)}>
-          <DialogContent className="glass-card border-primary/30 max-w-sm">
-            <DialogHeader><DialogTitle>List for sale</DialogTitle></DialogHeader>
-            <FlameInput placeholder="Price in FLM" value={sellPrice} onChange={e => setSellPrice(e.target.value)} inputMode="decimal" />
-            <FlameButton onClick={listForSale} disabled={busy} className="w-full">List item</FlameButton>
-          </DialogContent>
-        </Dialog>
-
-        {/* Gift dialog */}
-        <Dialog open={!!giftItem} onOpenChange={o => !o && setGiftItem(null)}>
-          <DialogContent className="glass-card border-primary/30 max-w-sm">
-            <DialogHeader><DialogTitle className="flex items-center gap-2"><Gift className="w-4 h-4 text-primary" /> Gift token</DialogTitle></DialogHeader>
-            <FlameInput placeholder="@username" value={giftHandle} onChange={e => setGiftHandle(e.target.value)} />
-            <FlameButton onClick={gift} disabled={busy || !giftHandle.trim()} className="w-full">Send gift</FlameButton>
-          </DialogContent>
-        </Dialog>
-        {/* Buy Flame Tokens — crypto or card checkout */}
-        <Dialog open={buyOpen} onOpenChange={setBuyOpen}>
-          <DialogContent className="glass-card border-primary/30 max-w-sm">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <img src={flameLogo} alt="" className="w-5 h-5 rounded" />{t("buyTokens")}
-              </DialogTitle>
-            </DialogHeader>
-            <FlameInput placeholder={t("amount")} value={buyAmount} inputMode="decimal"
-              onChange={e => setBuyAmount(e.target.value)} />
-            <div className="grid grid-cols-2 gap-2">
-              <FlameButton variant="outline" disabled={busy} onClick={() => purchaseTokens("crypto")}>
-                <Bitcoin className="w-4 h-4 mr-2" />{t("payWithCrypto")}
-              </FlameButton>
-              <FlameButton disabled={busy} onClick={() => purchaseTokens("card")}>
-                <CreditCard className="w-4 h-4 mr-2" />{t("payWithCard")}
-              </FlameButton>
-            </div>
-            <p className="text-[11px] text-muted-foreground text-center">
-              Tokens are credited to your Flame wallet as soon as the payment is confirmed.
-            </p>
-          </DialogContent>
-        </Dialog>
-      </DialogContent>
-    </Dialog>
-  );
+  const categories = [["all", t("marketAll")], ["rare", t("marketRare")], ["limited", t("marketLimited")], ["cyberpunk", t("marketCyberpunk")], ["animated", t("marketAnimated")]] as const;
+  const tiles: MarketSelection[] = [...listings.flatMap(listing => listing.figurine_items?.figurines ? [{ figurine: listing.figurine_items.figurines, listing }] : []), ...figurines.map(figurine => ({ figurine }))].filter(tile => matchesMarketCategory(tile.figurine, category));
+  const content = <div className="min-w-0 space-y-5 p-4 max-w-4xl mx-auto">
+    <header className="flex gap-3 items-center">
+      <Button variant="ghost" size="icon" onClick={() => onOpenChange(false)} aria-label={t("back")}><ArrowLeft /></Button>
+      <div className="flex-1 min-w-0"><h1 className="text-xl font-semibold flex gap-2 items-center">{t("marketTitle")}<FlameBadge size={18} /></h1><p className="text-xs text-muted-foreground">{t("marketCatalog")}</p></div>
+      <Button variant="secondary" size="sm" onClick={() => setDepositOpen(true)} aria-label={t("marketRequestDeposit")}><Coins /><span className="tabular-nums">{balance.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span><Plus className="w-3 h-3" /></Button>
+    </header>
+    <div className="flex gap-2 border-b border-border pb-3">{([["market",t("marketCatalog")],["collection",t("marketInventory")],["orders",t("marketOrders")]] as const).map(([key,label]) => <Button key={key} variant={tab === key ? "secondary" : "ghost"} size="sm" onClick={() => setTab(key)} className={tab === key ? "text-primary" : "text-muted-foreground"}>{label}</Button>)}</div>
+    {tab === "market" && <>
+      <div className="flex flex-wrap gap-1.5">{categories.map(([key,label]) => <Button key={key} size="sm" variant={category === key ? "default" : "secondary"} className="rounded-full px-3 text-xs" onClick={() => setCategory(key)}>{label}</Button>)}</div>
+      {loading ? <Loader2 className="mx-auto my-12 animate-spin text-primary" /> : !tiles.length ? <div className="py-16 text-center"><Package className="w-10 h-10 mx-auto text-muted-foreground mb-3" /><p className="text-sm text-muted-foreground">{t("marketEmpty")}</p></div> : <div className="grid grid-cols-2 gap-3">{tiles.map(tile => <Button key={tile.listing?.id ?? tile.figurine.id} variant="ghost" onClick={() => setSelected(tile)} className="market-item h-auto min-w-0 p-3 rounded-lg border border-border flex flex-col items-stretch gap-3 hover:bg-muted">
+        <div className="aspect-square flex items-center justify-center overflow-hidden"><CollectibleArt figurine={tile.figurine} className="w-full h-full" /></div>
+        <div className="min-w-0 text-left"><span className="inline-flex text-[10px] text-primary bg-primary/10 rounded px-1.5 py-0.5 mb-1">{tile.figurine.rarity}</span><p className="font-semibold text-sm truncate">{tile.figurine.name}</p><p className="text-xs text-muted-foreground mt-1 tabular-nums">{tile.listing?.price ?? tile.figurine.price} FLM{tile.listing ? ` · #${tile.listing.figurine_items?.serial}` : ""}</p></div>
+      </Button>)}</div>}
+    </>}
+    {tab === "collection" && <div className="space-y-2">{!items.length ? <p className="text-sm text-muted-foreground py-12 text-center">{t("marketNoInventory")}</p> : items.map(item => <FigurineCard key={item.id} fig={item.figurines} serial={item.serial}><Button variant="ghost" size="icon" onClick={() => void action("showcase",item.id)} aria-label={t("profile")} className={item.showcased ? "text-primary" : "text-muted-foreground"}><Package /></Button><Button variant="ghost" size="icon" onClick={() => { if (item.figurines) setSelected({ figurine: item.figurines, item }); }} aria-label={t("giftCollectible")}><Gift /></Button></FigurineCard>)}</div>}
+    {tab === "orders" && <div className="space-y-2">{!orders.length ? <p className="text-sm text-muted-foreground py-12 text-center">{t("marketNoOrders")}</p> : orders.map(order => <article key={order.id} className="p-3 rounded-lg border border-border bg-card flex gap-2 items-center"><div className="flex-1"><p className="text-sm font-semibold">{order.amount} FLM</p><p className="text-xs text-muted-foreground">{order.status}</p></div>{order.status === "held" && order.buyer_id === user?.id && <><Button variant="secondary" size="icon" disabled={busy} onClick={() => void action("confirm_order",order.id)} aria-label={t("confirm")}><Check /></Button><Button variant="destructive" size="icon" disabled={busy} onClick={() => void action("cancel_order",order.id)} aria-label={t("cancel")}><X /></Button></>}</article>)}</div>}
+    <Sheet open={!!selected} onOpenChange={open => { if (!open) setSelected(null); }}><SheetContent side="bottom" className="rounded-t-2xl bg-card max-h-[85dvh] overflow-y-auto p-5"><SheetHeader><SheetTitle>{selected?.figurine.name}</SheetTitle></SheetHeader>{selected && <div className="max-w-md mx-auto space-y-4 mt-4">
+      <CollectibleArt figurine={selected.figurine} className="w-full h-48" /><p className="text-sm text-muted-foreground">{selected.figurine.description}</p><div className="flex justify-between text-sm"><span className="text-primary">{selected.figurine.rarity}</span><span>{t("marketSupply")}: {selected.figurine.supply}</span></div>
+      {selected.item ? <><FlameInput aria-label={t("marketRecipient")} placeholder={t("marketRecipient")} value={recipient} onChange={e => setRecipient(e.target.value)} /><Button className="w-full" disabled={busy || !recipient.trim()} onClick={() => void action("gift",selected.item?.id ?? "",recipient)}><Gift />{t("giftCollectible")}</Button><div className="flex gap-2"><FlameInput aria-label={t("marketPrice")} placeholder={t("marketPrice")} inputMode="decimal" value={price} onChange={e => setPrice(e.target.value)} /><Button variant="outline" disabled={busy || Number(price)<=0 || !price} onClick={() => void action("list",selected.item?.id ?? "",undefined,Number(price))}><Tag />{t("marketSell")}</Button></div></> : <><Button className="w-full" disabled={busy || selected.listing?.seller_id === user?.id} onClick={() => void action(selected.listing ? "buy_listing" : "buy_catalog",selected.listing?.id ?? selected.figurine.id)}>{busy && <Loader2 className="animate-spin" />}{t("marketBuy")} · {selected.listing?.price ?? selected.figurine.price} FLM</Button><p className="text-xs text-muted-foreground text-center">{selected.listing ? t("marketEscrowNotice") : t("marketGiftAfterPurchase")}</p></>}
+    </div>}</SheetContent></Sheet>
+    <Dialog open={depositOpen} onOpenChange={setDepositOpen}><DialogContent><DialogHeader><DialogTitle>{t("marketRequestDeposit")}</DialogTitle></DialogHeader><p className="text-sm text-muted-foreground">{t("marketDepositNotice")}</p><FlameInput aria-label={t("amount")} placeholder={t("amount")} inputMode="decimal" value={depositAmount} onChange={e => setDepositAmount(e.target.value)} /><Button disabled={busy || !Number.isFinite(Number(depositAmount)) || Number(depositAmount)<=0} onClick={() => void requestDeposit()}>{t("marketRequestDeposit")}</Button></DialogContent></Dialog>
+  </div>;
+  if (!open) return null;
+  if (embedded) return content;
+  return <div className="fixed left-0 right-0 top-[68px] bottom-[96px] z-30 bg-background overflow-y-auto">{content}</div>;
 }

@@ -1092,6 +1092,15 @@ export type Database = {
         Returns: boolean
       }
       is_mutual_follow: { Args: { _a: string; _b: string }; Returns: boolean }
+      market_action: {
+        Args: {
+          _action: string
+          _id: string
+          _price?: number
+          _recipient?: string
+        }
+        Returns: string
+      }
     }
     Enums: {
       app_role: "admin" | "moderator" | "user"

@@ -4,6 +4,12 @@ type Lang = "ru" | "en";
 
 const translations = {
   ru: {
+    incomingCall: 'Входящий звонок',
+    postNotFound: 'Пост не найден',
+    backToFeed: 'Вернуться в ленту',
+    marketEscrowNotice: 'Средства в резерве до подтверждения получения.',
+    marketGiftAfterPurchase: 'После покупки можно подарить предмет из своей коллекции.',
+
     workshop: 'Мастерская',
     navigation: 'Основная навигация',
     calling: 'Вызов…',
@@ -610,6 +616,12 @@ const translations = {
     myCollection: "Моя коллекция",
   },
   en: {
+    incomingCall: 'Incoming call',
+    postNotFound: 'Post not found',
+    backToFeed: 'Back to feed',
+    marketEscrowNotice: 'Funds stay in escrow until you confirm delivery.',
+    marketGiftAfterPurchase: 'After purchase, send this collectible as a gift from your collection.',
+
     workshop: 'Workshop',
     navigation: 'Main navigation',
     calling: 'Calling…',

@@ -31,6 +31,7 @@ interface MiniApp {
 interface Props {
   open: boolean;
   onOpenChange: (o: boolean) => void;
+  embedded?: boolean;
 }
 
 const DEFAULT_HTML = `<!doctype html>
@@ -54,7 +55,7 @@ function parseFileTree(content: string): string[] {
   return Array.from(new Set(files));
 }
 
-export function MiniAppsView({ open, onOpenChange }: Props) {
+export function MiniAppsView({ open, onOpenChange, embedded = false }: Props) {
   const { user } = useAuth();
   const { t } = useLanguage();
   const [apps, setApps] = useState<MiniApp[]>([]);
@@ -75,7 +76,7 @@ export function MiniAppsView({ open, onOpenChange }: Props) {
 
   const panelWrap = (key: "files" | "editor" | "preview" | "ai", children: React.ReactNode) => (
     <div className={panelFull === key
-      ? "fixed inset-0 z-[200] bg-background p-3 pt-12 overflow-y-auto"
+      ? "fixed left-0 right-0 top-[68px] bottom-[96px] z-30 bg-background p-3 pt-12 overflow-y-auto"
       : "relative"}>
       <button
         onClick={() => setPanelFull(p => (p === key ? null : key))}
@@ -235,16 +236,15 @@ export function MiniAppsView({ open, onOpenChange }: Props) {
     );
   }
 
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="!fixed !inset-0 !top-0 !left-0 !translate-x-0 !translate-y-0 !w-screen !h-[100dvh] !max-w-none !max-h-none !rounded-none glass-card border-primary/30 overflow-y-auto p-4">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-glow">
+  const content = (
+    <div className="p-4 space-y-4 max-w-4xl mx-auto">
+        <header>
+          <h1 className="flex items-center gap-2 text-xl font-semibold">
             <img src={flameLogo} alt="" width={28} height={28} loading="lazy"
-              className="w-7 h-7 rounded-lg drop-shadow-[0_0_10px_rgba(127,90,240,0.6)]" />
-            <span className="bg-gradient-to-r from-[#a87cff] to-[#7f5af0] bg-clip-text text-transparent">{t("miniAppWorkshop")}</span>
-          </DialogTitle>
-        </DialogHeader>
+              className="w-7 h-7 rounded-lg" />
+            <span>{t("miniAppWorkshop")}</span>
+          </h1>
+        </header>
 
         {editing ? (
           <div className="space-y-3">
@@ -334,7 +334,7 @@ export function MiniAppsView({ open, onOpenChange }: Props) {
             {workshopTab === "preview" && panelWrap("preview", (
               <div className={`relative w-full ${panelFull === "preview" ? "h-[85vh]" : fullscreen ? "h-[60vh]" : "h-72"} rounded-lg overflow-hidden border border-border bg-white`}>
                 <iframe
-                  sandbox="allow-scripts allow-forms allow-popups allow-same-origin"
+                  sandbox="allow-scripts allow-forms allow-popups"
                   srcDoc={editing.content || DEFAULT_HTML}
                   className="absolute inset-0 w-full h-full border-0"
                   title="preview"
@@ -442,10 +442,11 @@ export function MiniAppsView({ open, onOpenChange }: Props) {
           </>
         )}
         <FigurinesView open={collectiblesOpen} onOpenChange={setCollectiblesOpen} />
-      </DialogContent>
-    </Dialog>
-
+    </div>
   );
+  if (!open) return null;
+  if (embedded) return content;
+  return <div className="fixed left-0 right-0 top-[68px] bottom-[96px] z-30 bg-background overflow-y-auto">{content}</div>;
 }
 
 // ---------- Full-screen mini-app runner with cloud state bridge ----------
@@ -514,6 +515,8 @@ function LaunchedMiniApp({
   useEffect(() => {
     if (!userId) return;
     const handler = async (e: MessageEvent) => {
+      const sourceFrame = document.getElementById(`mini-app-frame-${app.id}`) as HTMLIFrameElement | null;
+      if (!sourceFrame?.contentWindow || e.source !== sourceFrame.contentWindow) return;
       const d: any = e.data || {};
       if (d.type === "flame:save" && d.state !== undefined) {
         await supabase.from("mini_app_state").upsert({
@@ -557,7 +560,7 @@ function LaunchedMiniApp({
           {ready && (
             <iframe
               id={`mini-app-frame-${app.id}`}
-              sandbox="allow-scripts allow-forms allow-popups allow-same-origin"
+              sandbox="allow-scripts allow-forms allow-popups"
               srcDoc={enhancedContent}
               onLoad={onFrameLoad}
               className="absolute inset-0 w-full h-full border-0 bg-white"

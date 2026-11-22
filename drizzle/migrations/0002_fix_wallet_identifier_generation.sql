@@ -1,0 +1,1 @@
+CREATE OR REPLACE FUNCTION public.generate_wallet_address() RETURNS text LANGUAGE plpgsql SET search_path=public AS $$ DECLARE address text; BEGIN LOOP address := 'FLM' || replace(gen_random_uuid()::text,'-','') || substr(replace(gen_random_uuid()::text,'-',''),1,6); EXIT WHEN NOT EXISTS(SELECT 1 FROM public.wallets WHERE wallet_address=address); END LOOP; RETURN address; END $$;

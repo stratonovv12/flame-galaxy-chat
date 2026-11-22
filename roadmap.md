@@ -6,3 +6,4 @@
 - [ ] Wider AI/private-chat inputs and full-screen prompt editing.
 - [ ] Real audio/video calling, signaling, connection-driven timer and mute.
 - [ ] Verify signed-in flows, responsive layout, tests and save changes.
+- [ ] Restrictive-network call relay: blocked; user has no relay service. Verify direct connections meanwhile.
