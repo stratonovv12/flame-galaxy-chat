@@ -4,6 +4,7 @@
 
 @layer base {
   :root, .dark {
+    color-scheme: dark;
     --background: 240 17% 5%;
     --foreground: 240 10% 96%;
     --card: 240 12% 8%;
@@ -49,6 +50,35 @@
     --sidebar-border: var(--border);
     --sidebar-ring: var(--ring);
   }
+  .light {
+    color-scheme: light;
+    --background: 240 20% 99%;
+    --foreground: 240 15% 12%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 15% 12%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 15% 12%;
+    --primary: 263 75% 48%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 250 20% 94%;
+    --secondary-foreground: 240 15% 20%;
+    --muted: 240 15% 94%;
+    --muted-foreground: 240 7% 40%;
+    --accent: 263 65% 45%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 72% 44%;
+    --success: 153 65% 30%;
+    --warning: 35 85% 34%;
+    --border: 240 15% 87%;
+    --input: 0 0% 100%;
+    --ring: 263 75% 48%;
+    --glass-bg: 0 0% 100% / 0.96;
+    --glass-border: 240 15% 87%;
+    --dock-bg: 0 0% 100% / 0.94;
+    --dock-border: 240 15% 87%;
+    --market-card: 0 0% 100%;
+    --shadow-dock: 0 6px 24px hsl(240 15% 15% / 0.1);
+  }
 }
 
 @layer base {
@@ -63,8 +93,8 @@
   }
 
   html, body, #root {
-    height: 100dvh;
-    max-height: 100dvh;
+    height: var(--app-height, 100dvh);
+    max-height: var(--app-height, 100dvh);
     width: 100%;
     overflow: hidden;
     overscroll-behavior: none;
@@ -87,14 +117,20 @@
   .cosmic-bg { background: hsl(var(--background)); }
 
   .app-shell {
-    height: 100dvh;
-    max-height: 100dvh;
+    height: var(--app-height, 100dvh);
+    max-height: var(--app-height, 100dvh);
     display: flex;
     flex-direction: column;
     overflow: hidden;
     overscroll-behavior: none;
   }
   .app-main { padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)); }
+  .app-main[data-dock-hidden="true"] { padding-bottom: env(safe-area-inset-bottom, 0px); }
+  .auto-textarea { display: block; min-height: 44px; max-height: 160px; line-height: 22px !important; padding-top: 10px !important; padding-bottom: 10px !important; resize: none; overflow-y: auto; }
+  .conversation-header { padding: 4px 8px !important; }
+  .conversation-header button { flex-shrink: 0; }
+  .conversation-header p, .conversation-header span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .dock-restore { position: fixed; bottom: calc(6px + env(safe-area-inset-bottom, 0px)); left: 50%; transform: translateX(-50%); z-index: 60; width: 48px; height: 24px; border-radius: 14px; border: 1px solid hsl(var(--border)); }
   .navigation-dock {
     position: fixed;
     bottom: calc(16px + env(safe-area-inset-bottom, 0px));
@@ -107,7 +143,13 @@
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
     box-shadow: var(--shadow-dock);
+    transition: transform 220ms ease, opacity 220ms ease, visibility 220ms ease;
+    touch-action: pan-x;
   }
+  .navigation-dock[data-hidden="true"] { transform: translateY(calc(100% + 40px)); opacity: 0; visibility: hidden; pointer-events: none; }
+  .light .animate-glow, .light .animate-ai-pulse { animation: none; }
+  .light [class*="shadow-"], .light [class*="drop-shadow-"] { box-shadow: none; filter: none; }
+  .light .prose-invert { --tw-prose-body: hsl(var(--foreground)); --tw-prose-headings: hsl(var(--foreground)); --tw-prose-links: hsl(var(--primary)); --tw-prose-bold: hsl(var(--foreground)); --tw-prose-code: hsl(var(--foreground)); --tw-prose-bullets: hsl(var(--muted-foreground)); --tw-prose-counters: hsl(var(--muted-foreground)); --tw-prose-quotes: hsl(var(--foreground)); --tw-prose-hr: hsl(var(--border)); --tw-prose-th-borders: hsl(var(--border)); --tw-prose-td-borders: hsl(var(--border)); }
   .dock-track {
     display: flex;
     overflow-x: auto;

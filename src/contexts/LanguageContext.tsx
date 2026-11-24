@@ -4,6 +4,16 @@ type Lang = "ru" | "en";
 
 const translations = {
   ru: {
+    theme: 'Тема',
+    themeDark: 'Оригинальная тёмная',
+    themeLight: 'Светлая',
+    restoreNavigation: 'Показать навигацию',
+    workshopRequest: 'Опишите приложение или изменения…',
+    workshopGenerate: 'Создать / обновить проект',
+    workshopGenerating: 'Создание проекта…',
+    workshopUpdated: 'Проект обновлён',
+    workshopPlan: 'План',
+    workshopError: 'Не удалось обновить проект. Исходный код сохранён.',
     incomingCall: 'Входящий звонок',
     postNotFound: 'Пост не найден',
     backToFeed: 'Вернуться в ленту',
@@ -616,6 +626,16 @@ const translations = {
     myCollection: "Моя коллекция",
   },
   en: {
+    theme: 'Theme',
+    themeDark: 'Original dark',
+    themeLight: 'Light',
+    restoreNavigation: 'Restore navigation',
+    workshopRequest: 'Describe your app or changes…',
+    workshopGenerate: 'Build / update project',
+    workshopGenerating: 'Building project…',
+    workshopUpdated: 'Project updated',
+    workshopPlan: 'Plan',
+    workshopError: 'Could not update the project. Your source is preserved.',
     incomingCall: 'Incoming call',
     postNotFound: 'Post not found',
     backToFeed: 'Back to feed',

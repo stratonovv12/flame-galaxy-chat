@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Search, Flame, User } from "lucide-react";
+import { Search, User } from "lucide-react";
 import { FlameInput } from "@/components/ui/FlameInput";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -27,7 +27,7 @@ export function TopBar({ searchQuery, onSearchChange, onOpenSearch, onOpenProfil
 
   return (
     <header className="shrink-0 z-40 bg-background border-b border-border pt-safe">
-      <div className="flex items-center gap-3 px-4 py-3">
+      <div className="flex items-center gap-2 px-3 py-1.5">
         <img src={flameLogo} alt="FLAME" className="w-8 h-8 rounded-lg shrink-0 object-contain" />
 
         <div className="relative flex-1 min-w-0">
@@ -38,7 +38,7 @@ export function TopBar({ searchQuery, onSearchChange, onOpenSearch, onOpenProfil
             value={searchQuery}
             onChange={e => onSearchChange(e.target.value)}
             onFocus={() => onOpenSearch?.()}
-            className="pl-10 py-2.5 text-sm"
+            className="pl-10 py-2 text-sm"
           />
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         </div>

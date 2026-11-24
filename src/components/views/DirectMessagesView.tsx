@@ -14,6 +14,7 @@ import { ChatListContextMenu } from "@/components/ui/ChatListContextMenu";
 import { UploadingBubble } from "@/components/ui/UploadingBubble";
 import { useCalling } from "@/contexts/CallingContext";
 import { Button } from "@/components/ui/button";
+import { AutoTextarea } from "@/components/ui/AutoTextarea";
 import { OnlineIndicator } from "@/components/ui/OnlineIndicator";
 import { useMediaUpload } from "@/hooks/useMediaUpload";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
@@ -64,9 +65,10 @@ interface DirectMessagesViewProps {
   selectedUserId?: string | null;
   onClearSelectedUser?: () => void;
   onViewProfile?: (userId: string) => void;
+  onOpenChat?: (userId: string) => void;
 }
 
-export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onViewProfile }: DirectMessagesViewProps) {
+export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onViewProfile, onOpenChat }: DirectMessagesViewProps) {
   const { user } = useAuth();
   const { t, lang } = useLanguage();
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -566,45 +568,46 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
       : "";
 
     return (
-      <div className={`relative flex flex-col h-full min-h-0 transition-colors duration-300 ${ghostShell}`}>
-        <GlassCard className={`rounded-none border-x-0 border-t-0 p-3 shrink-0 ${ghostMode ? "bg-zinc-950/95 border-zinc-700/60 shadow-[0_0_18px_rgba(180,180,200,0.18)]" : "bg-background/85"}`}>
+      <div data-active-conversation="true" className={`relative flex flex-col h-full min-h-0 transition-colors duration-300 ${ghostShell}`}>
+        <GlassCard className={`conversation-header rounded-none border-x-0 border-t-0 shrink-0 ${ghostMode ? "bg-zinc-900 border-zinc-700/60" : "bg-background/85"}`}>
           <div className="flex items-center gap-2">
-            <button onClick={closeChat} className="p-2 hover:bg-muted/50 rounded-lg transition-colors touch-target shrink-0">
+            <Button variant="ghost" size="icon" onClick={closeChat} aria-label={t("back")} className="h-9 w-9 shrink-0">
               <ArrowLeft className="w-5 h-5" />
-            </button>
+            </Button>
             <button onClick={() => onViewProfile?.(activeChat.id)} className="shrink-0">
               <UserAvatar username={activeChat.username} avatarUrl={activeChat.avatarUrl} size="sm" showOnline isOnline={partnerPresence.is_online} />
             </button>
             <button onClick={() => onViewProfile?.(activeChat.id)} className="flex-1 min-w-0 text-left">
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1.5 min-w-0">
                 <h2 className="font-semibold text-sm truncate">{activeChat.username || t("user")}</h2>
                 <UserBadge userId={activeChat.id} />
               </div>
               {ghostMode ? (
                 <p className="text-[10px] text-zinc-400 flex items-center gap-1"><Ghost className="w-3 h-3" /> {t("ghostActive")}</p>
               ) : (
-                <OnlineIndicator userId={activeChat.id} showText />
+                <div className="truncate text-[10px] leading-4"><OnlineIndicator userId={activeChat.id} showText /></div>
               )}
             </button>
             <div className="flex items-center gap-0.5 shrink-0">
-              <button onClick={() => startCall(false)} className="p-2 hover:bg-muted/50 rounded-lg transition-colors touch-target" title={t("call" as any)}>
+              <Button variant="ghost" size="icon" onClick={() => startCall(false)} className="h-9 w-9" title={t("call" as any)} aria-label={t("call" as any)}>
                 <Phone className={`w-5 h-5 ${ghostMode ? "text-zinc-300" : "text-primary"}`} />
-              </button>
-              <Button variant="ghost" size="icon" onClick={() => startCall(true)} aria-label={t("videoCall")} title={t("videoCall")}><Video className="w-5 h-5 text-primary" /></Button>
-              <button onClick={toggleBlock} className="p-2 hover:bg-muted/50 rounded-lg transition-colors touch-target">
-                {isBlocked ? <ShieldCheck className="w-5 h-5 text-destructive" /> : <ShieldBan className="w-5 h-5 text-muted-foreground" />}
-              </button>
+              </Button>
+              <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => startCall(true)} aria-label={t("videoCall")} title={t("videoCall")}><Video className="w-5 h-5 text-primary" /></Button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <button
-                    className={`p-2 rounded-lg transition-colors touch-target ${ghostMode ? "hover:bg-zinc-800 text-zinc-200" : "hover:bg-muted/50 text-muted-foreground"}`}
+                  <Button variant="ghost" size="icon"
+                    className="h-9 w-9 text-muted-foreground"
                     title={t("more" as any) || "More"}
                     aria-label="More"
                   >
                     <MoreVertical className="w-5 h-5" />
-                  </button>
+                  </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-52">
+                  <DropdownMenuItem onClick={toggleBlock}>
+                    {isBlocked ? <ShieldCheck className="w-4 h-4 mr-2" /> : <ShieldBan className="w-4 h-4 mr-2" />}
+                    {isBlocked ? t("unblockUser") : t("blockUser")}
+                  </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => setGhostMode(g => !g)}>
                     <Ghost className="w-4 h-4 mr-2" />
                     <span>{t("ghostMode")}{ghostMode ? " ✓" : ""}</span>
@@ -624,7 +627,6 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
               </DropdownMenu>
             </div>
           </div>
-          {ghostMode && <p className="text-[10px] text-zinc-500 mt-1.5 text-center">{t("ghostHint")}</p>}
         </GlassCard>
 
         {/* Pinned messages bar (max 2) */}
@@ -810,13 +812,14 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
             <MediaUpload onUpload={setMediaUrl} />
             <VoiceRecorder onRecorded={handleVoiceRecorded} />
             <div className="flex-1 min-w-0 relative">
-              <textarea
+              <AutoTextarea
                 rows={1}
                 placeholder={t("writeMessage")}
                 value={newMessage}
                 onChange={e => { setNewMessage(e.target.value); broadcastTyping(); }}
                 onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
-                className="w-full max-h-40 min-h-[44px] overflow-y-auto resize-none px-2 py-2.5 pr-8 rounded-lg bg-input border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm [overflow-wrap:anywhere]"
+                aria-label={t("writeMessage")}
+                className="w-full px-3 pr-10 rounded-lg bg-input border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm [overflow-wrap:anywhere]"
               />
               <button
                 onClick={() => setTextExpandOpen(true)}
@@ -879,7 +882,7 @@ export function DirectMessagesView({ selectedUserId, onClearSelectedUser, onView
               onDeleted={() => { setConversations(prev => prev.filter(c => c.partnerId !== conv.partnerId)); fetchConversations(); }}>
               <GlassCard
                 className={`p-4 cursor-pointer hover:border-primary/50 transition-colors ${conv.unreadCount > 0 ? "border-primary/50" : ""}`}
-                onClick={() => openChatWithUser(conv.partnerId)}>
+                onClick={() => onOpenChat ? onOpenChat(conv.partnerId) : openChatWithUser(conv.partnerId)}>
                 <div className="flex items-center gap-3">
                   <button onClick={e => { e.stopPropagation(); onViewProfile?.(conv.partnerId); }} className="shrink-0">
                     <UserAvatar username={conv.partnerUsername} avatarUrl={conv.partnerAvatarUrl} size="lg" />

@@ -1,23 +1,35 @@
 import { useEffect, useRef } from "react";
-import { Home, MessageCircle, Flame, Store, Code2, User, Settings } from "lucide-react";
+import { Home, MessageCircle, Flame, Store, Code2, User, Settings, ChevronUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Button } from "@/components/ui/button";
 import { useDockContacts } from "@/hooks/useDockContacts";
 import { APP_TABS, type AppTab } from "@/lib/navigation";
+import { dockGesture } from "@/lib/dock";
 
 export type BottomTab = AppTab;
 
 interface BottomNavProps {
+  blocked: boolean;
+  collapsed: boolean;
+  onCollapsedChange: (collapsed: boolean) => void;
   activeTab: BottomTab | null;
   onTabChange: (tab: BottomTab) => void;
   onContactClick: (userId: string) => void;
 }
 
-export function BottomNav({ activeTab, onTabChange, onContactClick }: BottomNavProps) {
+export function BottomNav({ blocked, collapsed, onCollapsedChange, activeTab, onTabChange, onContactClick }: BottomNavProps) {
   const { t } = useLanguage();
   const { contacts, unread } = useDockContacts();
   const track = useRef<HTMLDivElement>(null);
+  const gesture = useRef<{ x: number; y: number } | null>(null);
+  const touchEnd = (e: React.TouchEvent) => {
+    const touch = e.changedTouches[0];
+    if (!gesture.current || !touch) return;
+    const action = dockGesture(gesture.current, { x: touch.clientX, y: touch.clientY });
+    if (action) onCollapsedChange(action === "hide");
+    gesture.current = null;
+  };
   const icons = { feed: Home, messages: MessageCircle, ai: Flame, marketplace: Store, workshop: Code2, profile: User, settings: Settings };
   const labels = { feed: t("feed"), messages: t("chats"), ai: "AI", marketplace: t("marketplace"), workshop: t("workshop"), profile: t("profile"), settings: t("settings") };
   useEffect(() => {
@@ -32,7 +44,9 @@ export function BottomNav({ activeTab, onTabChange, onContactClick }: BottomNavP
   }, [activeTab]);
 
   return (
-    <nav className="navigation-dock" aria-label={t("navigation")}>
+    <>
+    {!blocked && collapsed && <Button variant="secondary" size="icon" className="dock-restore" aria-label={t("restoreNavigation")} onClick={() => onCollapsedChange(false)} onTouchStart={e => { const touch = e.touches[0]; if (touch) gesture.current = { x: touch.clientX, y: touch.clientY }; }} onTouchEnd={touchEnd}><ChevronUp className="w-4 h-4" /></Button>}
+    <nav className="navigation-dock" data-hidden={blocked || collapsed} aria-hidden={blocked || collapsed} inert={blocked || collapsed ? "" : undefined} aria-label={t("navigation")} onTouchStart={e => { const touch = e.touches[0]; if (touch) gesture.current = { x: touch.clientX, y: touch.clientY }; }} onTouchEnd={touchEnd}>
       <div ref={track} className="dock-track">
         {APP_TABS.map(tab => {
           const Icon = icons[tab];
@@ -64,5 +78,6 @@ export function BottomNav({ activeTab, onTabChange, onContactClick }: BottomNavP
         ))}
       </div>
     </nav>
+    </>
   );
 }

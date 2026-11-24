@@ -29,7 +29,7 @@ export function AppView({ view }: { view: string }) {
   }, [username]);
   const onProfile = (userId: string) => navigate(`/users/${userId}`);
   if (view === "feed") return <FeedView onViewProfile={onProfile} />;
-  if (view === "chats") return <div className="h-full min-h-0"><DirectMessagesView selectedUserId={id} onClearSelectedUser={() => navigate("/chats")} onViewProfile={onProfile} /></div>;
+  if (view === "chats") return <div className="h-full min-h-0"><DirectMessagesView selectedUserId={id} onOpenChat={userId => navigate(`/chats/${userId}`)} onClearSelectedUser={() => navigate("/chats")} onViewProfile={onProfile} /></div>;
   if (view === "ai") return <div className="h-full min-h-0"><AIView /></div>;
   if (view === "search") return <SearchView searchQuery={search} onSearchChange={setSearch} onStartChat={userId => navigate(`/chats/${userId}`)} onViewProfile={onProfile} />;
   if (view === "marketplace") return <FigurinesView open onOpenChange={open => { if (!open) navigate("/"); }} embedded />;

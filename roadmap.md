@@ -1,4 +1,9 @@
 # FLAME upgrade
+- [ ] Compact conversation headers, readable auto-sizing inputs and gesture/overlay-aware dock.
+- [ ] Persistent original-dark and clean-light themes across the application.
+- [ ] Consistent official FLAME logo and structured multi-file Workshop AI workflow.
+- [ ] Manifest-only home-screen support with padded, versioned FLAME icons.
+- [ ] Validate this request with focused tests and signed-in desktop/mobile checks.
 - [ ] Floating three-slot navigation dock with real contacts; locked app shell.
 - [ ] Administrator post moderation with permanent deletion and live refresh.
 - [ ] Full-screen collectible marketplace, categories, details, buying and gifting.

@@ -15,6 +15,8 @@ import { MiniGames } from "@/components/ui/MiniGames";
 import { TextExpander } from "@/components/ui/TextExpander";
 import { Button } from "@/components/ui/button";
 import { CodeBlock } from "@/components/ui/CodeBlock";
+import { AutoTextarea } from "@/components/ui/AutoTextarea";
+import flameLogo from "@/assets/flame-logo.png";
 
 const mdComponents = {
   code({ inline, className, children, ...props }: any) {
@@ -313,7 +315,7 @@ export function AIView() {
   const ThinkingIndicator = () => (
     <div className="flex gap-3 justify-start">
       <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center shrink-0 animate-ai-pulse">
-        <Flame className="w-4 h-4 text-primary-foreground" />
+        <img src={flameLogo} alt="FLAME AI" className="w-8 h-8 rounded-lg object-cover" />
       </div>
       <GlassCard className="p-3 max-w-[80%]">
         {isImageGen ? (
@@ -379,13 +381,13 @@ export function AIView() {
 
       {/* Main */}
       <div className="flex flex-col flex-1 min-w-0 max-w-full overflow-x-hidden">
-        <GlassCard className="rounded-none border-x-0 border-t-0 p-3 shrink-0">
+        <GlassCard className="conversation-header rounded-none border-x-0 border-t-0 shrink-0">
           <div className="flex items-center gap-3">
             <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-2 hover:bg-muted/50 rounded-lg transition-colors touch-target">
               <Menu className="w-5 h-5" />
             </button>
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center neon-glow-sm">
-              <Flame className="w-5 h-5 text-primary-foreground" />
+            <div className="w-8 h-8 rounded-lg shrink-0 overflow-hidden">
+              <img src={flameLogo} alt="FLAME AI" className="w-full h-full object-cover" />
             </div>
             <div className="flex-1 min-w-0">
               <h2 className="font-bold text-lg">FLAME AI</h2>
@@ -410,7 +412,7 @@ export function AIView() {
           ) : messages.length === 0 && !isLoading ? (
             <div className="text-center py-12">
               <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center neon-glow animate-float">
-                <Flame className="w-10 h-10 text-primary-foreground" />
+                <img src={flameLogo} alt="FLAME AI" className="w-full h-full rounded-xl object-cover" />
               </div>
               <h3 className="text-xl font-bold mb-2 text-glow">{t("helloFlame")}</h3>
               <p className="text-muted-foreground max-w-sm mx-auto mb-4">
@@ -433,7 +435,7 @@ export function AIView() {
                   <div key={message.id} className={`flex gap-3 ${message.role === "user" ? "justify-end" : "justify-start"}`}>
                     {message.role === "assistant" && (
                       <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center shrink-0">
-                        <Flame className="w-4 h-4 text-primary-foreground" />
+                        <img src={flameLogo} alt="FLAME AI" className="w-full h-full rounded-lg object-cover" />
                       </div>
                     )}
                     <GlassCard className={`max-w-[80%] min-w-0 p-3 break-words [overflow-wrap:anywhere] ${message.role === "user" ? "bg-primary/20 border-primary/30" : ""}`}>
@@ -491,7 +493,7 @@ export function AIView() {
           <div className="flex gap-1 items-end">
             <Button variant="ghost" size="icon" onClick={() => fileInputRef.current?.click()} aria-label={t("attachedImage")}><Image /></Button>
             <div className="flex-1 min-w-0 relative">
-              <textarea rows={1} aria-label={t("askOrDraw")} placeholder={t("askOrDraw")} value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void sendMessage(); } }} disabled={isLoading} className="w-full block min-h-11 max-h-40 resize-none overflow-y-auto px-3 py-3 pr-10 text-sm bg-input border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/40" />
+              <AutoTextarea aria-label={t("askOrDraw")} placeholder={t("askOrDraw")} value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void sendMessage(); } }} disabled={isLoading} className="w-full px-3 pr-10 text-sm text-foreground placeholder:text-muted-foreground bg-input border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/40" />
               <Button variant="ghost" size="icon" className="absolute right-0 bottom-0" onClick={() => setExpandOpen(true)} aria-label={t("expandText")}><Maximize2 /></Button>
             </div>
             <Button size="icon" onClick={() => void sendMessage()} disabled={isLoading || (!input.trim() && !attachedImage)} aria-label={t("send")}>
