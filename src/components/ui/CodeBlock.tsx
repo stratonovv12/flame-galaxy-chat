@@ -1,7 +1,10 @@
 import { useState, memo } from "react";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
-import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
+import { oneDark, oneLight } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { Copy, Check } from "lucide-react";
+import { useTheme } from "next-themes";
+import { Button } from "@/components/ui/button";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface CodeBlockProps {
   code: string;
@@ -23,6 +26,8 @@ function normalizeLang(lang?: string): string {
 
 function CodeBlockImpl({ code, language, inline }: CodeBlockProps) {
   const [copied, setCopied] = useState(false);
+  const { theme } = useTheme();
+  const { lang: appLang } = useLanguage();
   const clean = code.replace(/\n$/, "");
 
   if (inline) {
@@ -47,25 +52,25 @@ function CodeBlockImpl({ code, language, inline }: CodeBlockProps) {
   };
 
   return (
-    <div className="relative my-3 rounded-lg overflow-hidden border border-border/60 bg-[#0b0b12] w-full max-w-full">
-      <div className="flex items-center justify-between px-3 py-1.5 bg-black/40 border-b border-border/40">
+    <div className="relative my-3 rounded-lg overflow-hidden border border-border bg-card w-full max-w-full">
+      <div className="flex items-center justify-between px-3 py-1.5 bg-muted/40 border-b border-border">
         <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-mono">
           {isShell ? "terminal" : lang}
         </span>
-        <button
+        <Button variant="ghost" size="sm"
           type="button"
           onClick={copy}
-          aria-label="Copy code"
+          aria-label={appLang === "ru" ? "Копировать код" : "Copy code"}
           className="flex items-center gap-1 px-2 py-1 rounded-md bg-muted/40 hover:bg-primary/30 border border-border/40 text-[11px] text-foreground/90 transition-colors"
         >
           {copied ? <Check className="w-3 h-3 text-primary" /> : <Copy className="w-3 h-3" />}
-          <span className="font-medium">{copied ? "Copied!" : "Copy"}</span>
-        </button>
+          <span className="font-medium">{copied ? (appLang === "ru" ? "Скопировано" : "Copied!") : (appLang === "ru" ? "Копировать" : "Copy")}</span>
+        </Button>
       </div>
-      <div className="overflow-x-auto max-h-[60vh] overflow-y-auto">
+      <div className="overflow-x-hidden max-h-[60vh] overflow-y-auto">
         <SyntaxHighlighter
           language={lang}
-          style={oneDark}
+          style={theme === "light" ? oneLight : oneDark}
           PreTag="div"
           wrapLongLines
           customStyle={{

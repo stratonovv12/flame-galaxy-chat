@@ -33,19 +33,8 @@ function getInitials(name?: string | null): string {
   return name.slice(0, 2).toUpperCase();
 }
 
-function getColorFromName(name?: string | null): string {
-  if (!name) return "hsl(var(--primary))";
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) {
-    hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  const hue = Math.abs(hash % 360);
-  return `hsl(${hue}, 70%, 50%)`;
-}
-
 export function UserAvatar({ username, avatarUrl, size = "md", className, showOnline, isOnline }: UserAvatarProps) {
   const initials = getInitials(username);
-  const bgColor = getColorFromName(username);
 
   return (
     <div className="relative inline-block shrink-0">
@@ -54,15 +43,14 @@ export function UserAvatar({ username, avatarUrl, size = "md", className, showOn
           <AvatarImage src={avatarUrl} alt={username || "Аватар"} />
         )}
         <AvatarFallback
-          style={{ backgroundColor: bgColor }}
-          className="text-white font-semibold"
+          className="bg-muted text-foreground font-semibold"
         >
           {initials}
         </AvatarFallback>
       </Avatar>
       {showOnline && isOnline && (
         <div className={cn(
-          "absolute bottom-0 right-0 rounded-full bg-green-500 border-background",
+          "absolute bottom-0 right-0 rounded-full bg-success border-background",
           dotSizes[size]
         )} />
       )}

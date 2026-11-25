@@ -92,7 +92,8 @@ export function MomentsStoryViewer({
 
   return (
     <div
-      className="fixed inset-0 z-[100] bg-black flex items-center justify-center animate-fade-in select-none"
+      data-dock-obstruction="true"
+      className="fixed inset-0 z-[100] media-stage flex items-center justify-center animate-fade-in select-none"
       onTouchStart={(e) => { touchStartX.current = e.touches[0].clientX; }}
       onTouchEnd={(e) => {
         if (touchStartX.current === null) return;

@@ -9,6 +9,7 @@ import { Flame, Mail, Lock, Eye, EyeOff, Globe, ArrowLeft, User, AtSign, Check, 
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { safeReturnPath } from "@/lib/navigation";
+import flameLogoAsset from "@/assets/flame-mark.png.asset.json";
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -194,7 +195,7 @@ const Auth = () => {
         <GlassCard className="w-full max-w-md p-8 relative z-10">
           <div className="flex flex-col items-center mb-8">
             <div className="w-16 h-16 rounded-2xl bg-primary flex items-center justify-center neon-glow mb-4">
-              <Flame className="w-8 h-8 text-primary-foreground" />
+              <img src={flameLogoAsset.url} alt="FLAME AI CHAT" className="w-full h-full rounded-xl object-cover" />
             </div>
             <h1 className="text-2xl font-bold">{t("setNewPassword")}</h1>
           </div>
@@ -219,7 +220,7 @@ const Auth = () => {
         <GlassCard className="w-full max-w-md p-8 relative z-10">
           <div className="flex flex-col items-center mb-8">
             <div className="w-16 h-16 rounded-2xl bg-primary flex items-center justify-center neon-glow mb-4">
-              <Flame className="w-8 h-8 text-primary-foreground" />
+              <img src={flameLogoAsset.url} alt="FLAME AI CHAT" className="w-full h-full rounded-xl object-cover" />
             </div>
             <h1 className="text-2xl font-bold">{t("resetPassword")}</h1>
             <p className="text-muted-foreground mt-2 text-center">{t("resetPasswordDesc")}</p>
@@ -245,10 +246,6 @@ const Auth = () => {
 
   return (
     <div className="min-h-screen cosmic-bg flex items-center justify-center p-4">
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-primary/10 rounded-full blur-3xl animate-pulse-slow" />
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-accent/10 rounded-full blur-3xl animate-pulse-slow" />
-      </div>
 
       {/* Language toggle */}
       <button
@@ -262,7 +259,7 @@ const Auth = () => {
       <GlassCard className="w-full max-w-md p-8 relative z-10">
         <div className="flex flex-col items-center mb-8">
           <div className="w-16 h-16 rounded-2xl bg-primary flex items-center justify-center neon-glow mb-4">
-            <Flame className="w-8 h-8 text-primary-foreground" />
+            <img src={flameLogoAsset.url} alt="FLAME AI CHAT" className="w-full h-full rounded-xl object-cover" />
           </div>
           <h1 className="text-3xl font-bold text-glow">FLAME</h1>
           <p className="text-muted-foreground mt-2">{isLogin ? t("welcome") : t("createAccount")}</p>

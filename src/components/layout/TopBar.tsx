@@ -5,7 +5,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Button } from "@/components/ui/button";
-import flameLogo from "@/assets/flame-logo.png";
+import flameLogoAsset from "@/assets/flame-mark.png.asset.json";
+const flameLogo = flameLogoAsset.url;
 
 interface TopBarProps {
   searchQuery: string;

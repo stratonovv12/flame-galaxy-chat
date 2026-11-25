@@ -1,6 +1,7 @@
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { formatDistanceToNow } from "date-fns";
-import { ru } from "date-fns/locale";
+import { ru, enUS } from "date-fns/locale";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface OnlineIndicatorProps {
   userId: string;
@@ -10,11 +11,12 @@ interface OnlineIndicatorProps {
 
 export function OnlineIndicator({ userId, showText = false, className }: OnlineIndicatorProps) {
   const { is_online, last_seen } = useOnlineStatus(userId);
+  const { lang } = useLanguage();
 
   if (showText) {
     return (
-      <span className={`text-xs ${is_online ? "text-green-400" : "text-muted-foreground"} ${className || ""}`}>
-        {is_online ? "В сети" : last_seen ? `был(а) ${formatDistanceToNow(new Date(last_seen), { addSuffix: true, locale: ru })}` : ""}
+      <span className={`block min-w-0 truncate text-xs ${is_online ? "text-success" : "text-muted-foreground"} ${className || ""}`}>
+        {is_online ? (lang === "ru" ? "В сети" : "Online") : last_seen ? `${lang === "ru" ? "был(а)" : "Last seen"} ${formatDistanceToNow(new Date(last_seen), { addSuffix: true, locale: lang === "ru" ? ru : enUS })}` : ""}
       </span>
     );
   }
@@ -22,6 +24,6 @@ export function OnlineIndicator({ userId, showText = false, className }: OnlineI
   if (!is_online) return null;
 
   return (
-    <div className={`w-3 h-3 rounded-full bg-green-500 border-2 border-background ${className || ""}`} />
+    <div className={`w-3 h-3 rounded-full bg-success border-2 border-background ${className || ""}`} />
   );
 }

@@ -465,7 +465,7 @@ export function CommentsModal({ post, onClose, onViewProfile }: { post: FeedPost
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/70 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onClose}>
+    <div data-dock-obstruction="true" className="fixed inset-0 z-50 overlay-surface flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onClose}>
       <div className="bg-card w-full sm:max-w-lg sm:rounded-xl rounded-t-xl border border-border max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between p-4 border-b border-border">
           <h3 className="font-semibold">{t("comments")}</h3>

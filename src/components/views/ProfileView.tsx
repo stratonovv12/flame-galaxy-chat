@@ -19,7 +19,8 @@ import { ProfileItems } from "@/components/ui/ProfileItems";
 import { FigurineShowcase } from "@/components/views/FigurinesView";
 import { PhoneSettings } from "@/components/ui/PhoneSettings";
 import { AccountSwitcher } from "@/components/ui/AccountSwitcher";
-import flameLogo from "@/assets/flame-logo.png";
+import flameLogoAsset from "@/assets/flame-mark.png.asset.json";
+const flameLogo = flameLogoAsset.url;
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
 

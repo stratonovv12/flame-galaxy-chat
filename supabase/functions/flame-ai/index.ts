@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { WORKSHOP_PROMPT } from "./workshop-prompt.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -8,7 +9,7 @@ const corsHeaders = {
 };
 
 const VALID_ROLES = new Set(["user", "assistant", "system"]);
-const VALID_MODES = new Set(["chat", "image_gen"]);
+const VALID_MODES = new Set(["chat", "image_gen", "workshop"]);
 const MAX_CONTENT_LENGTH = 200000; // large enough for full multi-file mini-app source in a single message
 const MAX_MESSAGES = 100;
 const MAX_IMAGES = 10;
@@ -215,11 +216,12 @@ Rules:
           : `\n\nLong-term memory about the user (use naturally, don't recite it as a list unless asked):\n- ${memoryFacts.join("\n- ")}`)
       : "";
 
-    const systemMessage = { role: "system", content: systemPrompt + memoryBlock };
+    const systemMessage = { role: "system", content: mode === "workshop" ? WORKSHOP_PROMPT + `\nSelected app language: ${userLang}.` : systemPrompt + memoryBlock };
 
     const finalMessages: Array<{ role: string; content: unknown }> = [systemMessage];
 
     for (const msg of validatedMessages) {
+      if (mode === "workshop" && msg.role === "system") continue;
       if (msg.role === "user" && validatedImages.length > 0 && msg === validatedMessages[validatedMessages.length - 1]) {
         const content: Array<{ type: string; text?: string; image_url?: { url: string } }> = [{ type: "text", text: msg.content }];
         for (const img of validatedImages) {
@@ -241,6 +243,7 @@ Rules:
         model: validatedImages.length > 0 ? "google/gemini-2.5-flash" : "google/gemini-3-flash-preview",
         messages: finalMessages,
         stream: true,
+        ...(mode === "workshop" ? { max_tokens: 24000 } : {}),
       }),
     });
 

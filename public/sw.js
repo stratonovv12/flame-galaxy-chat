@@ -12,8 +12,8 @@ self.addEventListener("push", (event) => {
   event.waitUntil(
     self.registration.showNotification(data.title, {
       body: data.body,
-      icon: "/favicon.ico",
-      badge: "/favicon.ico",
+      icon: "/icons/flame-192.png?v=5",
+      badge: "/favicon.png?v=5",
       tag: data.tag,
       data: { url: data.url },
       renotify: true,

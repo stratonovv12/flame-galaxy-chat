@@ -16,7 +16,8 @@ import { TextExpander } from "@/components/ui/TextExpander";
 import { Button } from "@/components/ui/button";
 import { CodeBlock } from "@/components/ui/CodeBlock";
 import { AutoTextarea } from "@/components/ui/AutoTextarea";
-import flameLogo from "@/assets/flame-logo.png";
+import flameLogoAsset from "@/assets/flame-mark.png.asset.json";
+const flameLogo = flameLogoAsset.url;
 
 const mdComponents = {
   code({ inline, className, children, ...props }: any) {

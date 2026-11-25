@@ -5,6 +5,8 @@ type Lang = "ru" | "en";
 const translations = {
   ru: {
     theme: 'Тема',
+    blockUser: 'Заблокировать пользователя',
+    unblockUser: 'Разблокировать пользователя',
     themeDark: 'Оригинальная тёмная',
     themeLight: 'Светлая',
     restoreNavigation: 'Показать навигацию',
@@ -627,6 +629,8 @@ const translations = {
   },
   en: {
     theme: 'Theme',
+    blockUser: 'Block user',
+    unblockUser: 'Unblock user',
     themeDark: 'Original dark',
     themeLight: 'Light',
     restoreNavigation: 'Restore navigation',

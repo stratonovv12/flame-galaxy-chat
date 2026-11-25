@@ -9,7 +9,8 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { ArrowLeft, Coins, Gift, Tag, Package, Check, X, Loader2, Plus } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { FlameBadge } from "@/components/ui/FlameBadge";
-import flameLogo from "@/assets/flame-logo.png";
+import flameLogoAsset from "@/assets/flame-mark.png.asset.json";
+const flameLogo = flameLogoAsset.url;
 import { matchesMarketCategory, type MarketCategory } from "@/lib/marketplace";
 
 export interface Figurine { id: string; name: string; description: string | null; image_url: string | null; rarity: string; supply: number; price: number; }
@@ -111,5 +112,5 @@ export function FigurinesView({ open, onOpenChange, embedded = false }: { open: 
   </div>;
   if (!open) return null;
   if (embedded) return content;
-  return <div className="fixed left-0 right-0 top-[68px] bottom-[96px] z-30 bg-background overflow-y-auto">{content}</div>;
+  return <div data-dock-obstruction="true" className="fixed inset-0 z-[80] bg-background overflow-y-auto">{content}</div>;
 }

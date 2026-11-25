@@ -10,8 +10,11 @@ import { Boxes, Plus, Play, Pencil, Trash2, ArrowLeft, Globe, Hash, Sparkles, Ey
 import { toast } from "@/hooks/use-toast";
 import { FigurinesView } from "@/components/views/FigurinesView";
 import { uploadToMedia } from "@/lib/uploads";
-import flameLogo from "@/assets/flame-logo.png";
+import flameLogoAsset from "@/assets/flame-mark.png.asset.json";
+const flameLogo = flameLogoAsset.url;
 import { FlameBadge } from "@/components/ui/FlameBadge";
+import { readProject, editProjectFile, validateProject, projectPreview } from "@/lib/workshop-project";
+import { Button } from "@/components/ui/button";
 
 
 interface MiniApp {
@@ -46,18 +49,9 @@ button{background:#7f5af0;color:#fff;border:0;padding:12px 20px;border-radius:8p
   <script>let c=0;</script>
 </body></html>`;
 
-function parseFileTree(content: string): string[] {
-  const files: string[] = [];
-  const re = /<!--\s*FILE:\s*(.+?)\s*-->/gi;
-  let m;
-  while ((m = re.exec(content)) !== null) files.push(m[1].trim());
-  if (files.length === 0) return ["index.html"];
-  return Array.from(new Set(files));
-}
-
 export function MiniAppsView({ open, onOpenChange, embedded = false }: Props) {
   const { user } = useAuth();
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const [apps, setApps] = useState<MiniApp[]>([]);
   const [tab, setTab] = useState<"all" | "mine">("all");
   const [editing, setEditing] = useState<Partial<MiniApp> | null>(null);
@@ -71,19 +65,26 @@ export function MiniAppsView({ open, onOpenChange, embedded = false }: Props) {
   const [collectiblesOpen, setCollectiblesOpen] = useState(false);
   const [iconUploading, setIconUploading] = useState(false);
   const iconInput = useRef<HTMLInputElement>(null);
+  const aiAbort = useRef<AbortController | null>(null);
+  const currentProject = readProject(editing?.content || DEFAULT_HTML);
+  const preview = projectPreview(editing?.content || DEFAULT_HTML);
+  const selectedFile = activeFile in currentProject.files ? activeFile : "index.html";
+  useEffect(() => () => aiAbort.current?.abort(), []);
   // Per-tab full screen: the currently expanded workshop panel (null = normal layout)
   const [panelFull, setPanelFull] = useState<null | "files" | "editor" | "preview" | "ai">(null);
 
   const panelWrap = (key: "files" | "editor" | "preview" | "ai", children: React.ReactNode) => (
     <div className={panelFull === key
-      ? "fixed left-0 right-0 top-[68px] bottom-[96px] z-30 bg-background p-3 pt-12 overflow-y-auto"
+      ? "fixed inset-0 z-[80] bg-background p-3 pt-12 overflow-y-auto"
       : "relative"}>
-      <button
+      {panelFull === key && <span data-dock-obstruction="true" />}
+      <Button variant="secondary" size="icon"
         onClick={() => setPanelFull(p => (p === key ? null : key))}
-        className="absolute top-2 right-2 z-10 p-1.5 rounded-md bg-black/60 text-white hover:bg-black/80"
+        className="absolute top-2 right-2 z-10"
+        aria-label={panelFull === key ? t("exitFullScreen") : t("fullScreen")}
         title={panelFull === key ? t("exitFullScreen") : t("fullScreen")}>
         {panelFull === key ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
-      </button>
+      </Button>
       {children}
     </div>
   );
@@ -104,6 +105,9 @@ export function MiniAppsView({ open, onOpenChange, embedded = false }: Props) {
   const runAI = async () => {
     if (!aiPrompt.trim() || !editing) return;
     setAiBusy(true);
+    const controller = new AbortController();
+    aiAbort.current = controller;
+    const timeout = setTimeout(() => controller.abort(), 180000);
     try {
       const currentCode = editing.content || DEFAULT_HTML;
       const { data: { session } } = await supabase.auth.getSession();
@@ -111,15 +115,17 @@ export function MiniAppsView({ open, onOpenChange, embedded = false }: Props) {
       const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/flame-ai`;
       const res = await fetch(url, {
         method: "POST",
+        signal: controller.signal,
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${session.access_token}`,
           apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
         },
         body: JSON.stringify({
+          mode: "workshop",
+          lang,
           messages: [
-            { role: "system", content: "You output ONLY a complete standalone single-file HTML document (HTML+CSS+JS inline). No markdown fences, no commentary. Just raw HTML starting with <!doctype html> or <html." },
-            { role: "user", content: `Current code:\n\n${currentCode}\n\nUpdate request: ${aiPrompt}\n\nReturn ONLY the full updated HTML document.` },
+            { role: "user", content: `Current complete project snapshot:\n${JSON.stringify(readProject(currentCode))}\n\nUpdate request: ${aiPrompt}\nReturn a complete modular project, preserving existing features. Plan first, then implement and self-review.` },
           ],
         }),
       });
@@ -132,7 +138,7 @@ export function MiniAppsView({ open, onOpenChange, embedded = false }: Props) {
         const { done, value } = await reader.read();
         if (done) break;
         buffer += decoder.decode(value, { stream: true });
-        const parts = buffer.split("\n\n");
+        const parts = buffer.split("\n");
         buffer = parts.pop() || "";
         for (const p of parts) {
           const line = p.trim();
@@ -146,16 +152,26 @@ export function MiniAppsView({ open, onOpenChange, embedded = false }: Props) {
           } catch { /* ignore */ }
         }
       }
-      let out = full.trim().replace(/^```(?:html)?\s*/i, "").replace(/```\s*$/i, "").trim();
-      if (!out || !/</.test(out)) throw new Error("Empty AI response");
-      setEditing({ ...editing, content: out });
+      const lastLine = buffer.trim();
+      if (lastLine.startsWith("data:") && lastLine.slice(5).trim() !== "[DONE]") {
+        const chunk = JSON.parse(lastLine.slice(5).trim());
+        full += chunk.choices?.[0]?.delta?.content || "";
+      }
+      const out = full.trim().replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/i, "").trim();
+      const project = validateProject(JSON.parse(out));
+      const checked = projectPreview(JSON.stringify(project));
+      if (checked.error) throw new Error(checked.error);
+      setEditing({ ...editing, content: JSON.stringify(project) });
+      setActiveFile("index.html");
       setAiPrompt("");
       setWorkshopTab("preview");
-      toast({ title: "Code updated by Flame AI" });
+      toast({ title: t("workshopUpdated") });
     } catch (e: any) {
-      toast({ title: t("error"), description: e.message || "AI failed", variant: "destructive" });
+      toast({ title: t("workshopError"), description: e.message, variant: "destructive" });
     } finally {
       setAiBusy(false);
+      clearTimeout(timeout);
+      aiAbort.current = null;
     }
   };
 
@@ -306,7 +322,7 @@ export function MiniAppsView({ open, onOpenChange, embedded = false }: Props) {
 
             {workshopTab === "files" && panelWrap("files", (
               <div className={`rounded-lg border border-border bg-muted/20 p-3 space-y-1 ${panelFull === "files" ? "min-h-[80vh]" : "min-h-[200px]"}`}>
-                {parseFileTree(editing.content || DEFAULT_HTML).map(f => (
+                {Object.keys(currentProject.files).map(f => (
                   <button
                     key={f}
                     onClick={() => { setActiveFile(f); setWorkshopTab("editor"); }}
@@ -315,16 +331,15 @@ export function MiniAppsView({ open, onOpenChange, embedded = false }: Props) {
                     <span className="truncate">{f}</span>
                   </button>
                 ))}
-                <p className="text-[10px] text-muted-foreground pt-2 px-1">
-                  Multi-file: wrap sections with <code>&lt;!-- FILE: path --&gt;</code> and <code>&lt;!-- ENDFILE --&gt;</code>.
-                </p>
               </div>
             ))}
 
             {workshopTab === "editor" && panelWrap("editor", (
               <textarea
-                value={editing.content || DEFAULT_HTML}
-                onChange={e => setEditing({ ...editing, content: e.target.value })}
+                aria-label={selectedFile}
+                value={currentProject.files[selectedFile]}
+                disabled={aiBusy}
+                onChange={e => setEditing({ ...editing, content: JSON.stringify(editProjectFile(currentProject, selectedFile, e.target.value)) })}
                 spellCheck={false}
                 className={`w-full ${panelFull === "editor" ? "h-[85vh]" : fullscreen ? "h-[60vh]" : "h-64"} bg-muted/30 border border-border rounded-lg p-3 font-mono text-xs text-foreground [overflow-wrap:anywhere]`}
                 placeholder={t("appCode")}
@@ -332,14 +347,14 @@ export function MiniAppsView({ open, onOpenChange, embedded = false }: Props) {
             ))}
 
             {workshopTab === "preview" && panelWrap("preview", (
-              <div className={`relative w-full ${panelFull === "preview" ? "h-[85vh]" : fullscreen ? "h-[60vh]" : "h-72"} rounded-lg overflow-hidden border border-border bg-white`}>
-                <iframe
+              <div className={`relative w-full ${panelFull === "preview" ? "h-[85vh]" : fullscreen ? "h-[60vh]" : "h-72"} rounded-lg overflow-hidden border border-border bg-card`}>
+                {preview.error ? <p role="alert" className="p-4 text-destructive text-sm">{preview.error}</p> : <iframe
                   sandbox="allow-scripts allow-forms allow-popups"
-                  srcDoc={editing.content || DEFAULT_HTML}
+                  srcDoc={preview.html}
                   className="absolute inset-0 w-full h-full border-0"
                   title="preview"
-                />
-                <div className="pointer-events-none absolute bottom-2 right-2 flex items-center gap-1 rounded-full bg-black/70 backdrop-blur-md px-2.5 py-1 text-[10px] font-semibold text-white border border-primary/40 select-none">
+                />}
+                <div className="pointer-events-none absolute bottom-2 right-2 flex items-center gap-1 rounded-full bg-background/90 backdrop-blur-md px-2.5 py-1 text-[10px] font-semibold text-foreground border border-border select-none">
                   <Flame className="w-3 h-3 text-primary" /> Powered by Flame
                 </div>
               </div>
@@ -348,20 +363,20 @@ export function MiniAppsView({ open, onOpenChange, embedded = false }: Props) {
             {workshopTab === "ai" && panelWrap("ai", (
               <div className={`rounded-lg border border-primary/30 bg-primary/5 p-3 space-y-2 ${panelFull === "ai" ? "min-h-[80vh]" : ""}`}>
                 <div className="flex items-center gap-2 text-xs font-semibold text-primary">
-                  <Sparkles className="w-4 h-4" /> Flame AI Assistant
+                  <img src={flameLogo} alt="" className="w-6 h-6 rounded" /> FLAME AI
                 </div>
                 <textarea
                   value={aiPrompt}
                   onChange={e => setAiPrompt(e.target.value)}
-                  placeholder="e.g. Add a dark mode toggle and a reset button"
-                  className={`w-full ${panelFull === "ai" ? "h-[60vh]" : "h-24"} bg-background/60 border border-border rounded-md p-2 text-xs resize-none [overflow-wrap:anywhere]`}
+                  disabled={aiBusy}
+                  aria-label={t("workshopRequest")}
+                  placeholder={t("workshopRequest")}
+                  className={`w-full ${panelFull === "ai" ? "h-[60vh]" : "h-32"} bg-background border border-border rounded-md p-3 text-sm leading-6 text-foreground placeholder:text-muted-foreground resize-none [overflow-wrap:anywhere]`}
                 />
                 <FlameButton onClick={runAI} disabled={aiBusy || !aiPrompt.trim()} size="sm" className="w-full">
-                  {aiBusy ? "Generating..." : "Generate / Update Code"}
+                  {aiBusy ? t("workshopGenerating") : t("workshopGenerate")}
                 </FlameButton>
-                <p className="text-[10px] text-muted-foreground">
-                  Unlimited iterative editing — the AI keeps the full current source as context on every prompt.
-                </p>
+                {currentProject.plan.length > 0 && <div className="text-sm space-y-2"><h4 className="font-semibold">{t("workshopPlan")}</h4><ol className="list-decimal pl-5 space-y-1">{currentProject.plan.map((step, index) => <li key={index}>{step}</li>)}</ol></div>}
               </div>
             ))}
 
@@ -446,7 +461,7 @@ export function MiniAppsView({ open, onOpenChange, embedded = false }: Props) {
   );
   if (!open) return null;
   if (embedded) return content;
-  return <div className="fixed left-0 right-0 top-[68px] bottom-[96px] z-30 bg-background overflow-y-auto">{content}</div>;
+  return <div data-dock-obstruction="true" className="fixed inset-0 z-[80] bg-background overflow-y-auto">{content}</div>;
 }
 
 // ---------- Full-screen mini-app runner with cloud state bridge ----------
@@ -487,7 +502,8 @@ function LaunchedMiniApp({
   }, [userId, app.id]);
 
   // Inject a tiny bridge into the mini-app so plain window.flame.save/load works too
-  const enhancedContent = `${app.content}
+  const compiled = projectPreview(app.content);
+  const enhancedContent = `${compiled.html}
 <script>(function(){
   if (window.flame) return;
   var pending = {};
@@ -557,17 +573,18 @@ function LaunchedMiniApp({
           <div className="w-16" />
         </DialogHeader>
         <div className="relative flex-1 w-full">
-          {ready && (
+          {compiled.error && <p role="alert" className="p-4 text-destructive">{compiled.error}</p>}
+          {ready && !compiled.error && (
             <iframe
               id={`mini-app-frame-${app.id}`}
               sandbox="allow-scripts allow-forms allow-popups"
               srcDoc={enhancedContent}
               onLoad={onFrameLoad}
-              className="absolute inset-0 w-full h-full border-0 bg-white"
+              className="absolute inset-0 w-full h-full border-0 bg-card"
               title={app.name}
             />
           )}
-          <div className="pointer-events-none absolute bottom-3 right-3 z-10 flex items-center gap-1.5 rounded-full bg-black/70 backdrop-blur-md px-3 py-1.5 text-[11px] font-semibold text-white shadow-lg border border-primary/40 select-none">
+          <div className="pointer-events-none absolute bottom-3 right-3 z-10 flex items-center gap-1.5 rounded-full bg-background/90 backdrop-blur-md px-3 py-1.5 text-[11px] font-semibold text-foreground border border-border select-none">
             <Flame className="w-3.5 h-3.5 text-primary" />
             Powered by Flame
           </div>

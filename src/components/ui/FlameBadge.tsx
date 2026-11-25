@@ -1,4 +1,5 @@
-import flameLogo from "@/assets/flame-logo.png";
+import flameLogoAsset from "@/assets/flame-mark.png.asset.json";
+const flameLogo = flameLogoAsset.url;
 import { BadgeCheck } from "lucide-react";
 
 interface Props {

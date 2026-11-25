@@ -49,6 +49,12 @@
     --sidebar-accent-foreground: var(--foreground);
     --sidebar-border: var(--border);
     --sidebar-ring: var(--ring);
+    --overlay: 240 15% 3%;
+    --media-background: 240 15% 3%;
+    --media-foreground: 0 0% 100%;
+    --verified: 210 85% 60%;
+    --game-accent: 25 95% 60%;
+    --game-opponent: 0 85% 67%;
   }
   .light {
     color-scheme: light;
@@ -78,6 +84,10 @@
     --dock-border: 240 15% 87%;
     --market-card: 0 0% 100%;
     --shadow-dock: 0 6px 24px hsl(240 15% 15% / 0.1);
+    --overlay: 240 15% 20%;
+    --verified: 210 85% 40%;
+    --game-accent: 25 90% 36%;
+    --game-opponent: 0 75% 42%;
   }
 }
 
@@ -150,6 +160,15 @@
   .light .animate-glow, .light .animate-ai-pulse { animation: none; }
   .light [class*="shadow-"], .light [class*="drop-shadow-"] { box-shadow: none; filter: none; }
   .light .prose-invert { --tw-prose-body: hsl(var(--foreground)); --tw-prose-headings: hsl(var(--foreground)); --tw-prose-links: hsl(var(--primary)); --tw-prose-bold: hsl(var(--foreground)); --tw-prose-code: hsl(var(--foreground)); --tw-prose-bullets: hsl(var(--muted-foreground)); --tw-prose-counters: hsl(var(--muted-foreground)); --tw-prose-quotes: hsl(var(--foreground)); --tw-prose-hr: hsl(var(--border)); --tw-prose-th-borders: hsl(var(--border)); --tw-prose-td-borders: hsl(var(--border)); }
+  .light [class*="text-primary/"], .light [class*="text-primary\\/"] { color: hsl(var(--primary)); }
+  .light [class*="text-muted-foreground/"] { color: hsl(var(--muted-foreground)); }
+  .light [class*="text-blue-"], .light [class*="text-cyan-"] { color: hsl(var(--verified)); }
+  .light [class*="text-green-"], .light [class*="text-emerald-"] { color: hsl(var(--success)); }
+  .light [class*="text-orange-"], .light [class*="text-yellow-"] { color: hsl(var(--game-accent)); }
+  .light [class*="text-red-"] { color: hsl(var(--game-opponent)); }
+  .overlay-surface { background: hsl(var(--overlay) / 0.65); }
+  .media-stage { background: hsl(var(--media-background)); color: hsl(var(--media-foreground)); }
+  .media-stage [class*="text-white"] { color: hsl(var(--media-foreground)); }
   .dock-track {
     display: flex;
     overflow-x: auto;

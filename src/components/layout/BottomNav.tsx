@@ -46,13 +46,13 @@ export function BottomNav({ blocked, collapsed, onCollapsedChange, activeTab, on
   return (
     <>
     {!blocked && collapsed && <Button variant="secondary" size="icon" className="dock-restore" aria-label={t("restoreNavigation")} onClick={() => onCollapsedChange(false)} onTouchStart={e => { const touch = e.touches[0]; if (touch) gesture.current = { x: touch.clientX, y: touch.clientY }; }} onTouchEnd={touchEnd}><ChevronUp className="w-4 h-4" /></Button>}
-    <nav className="navigation-dock" data-hidden={blocked || collapsed} aria-hidden={blocked || collapsed} inert={blocked || collapsed ? "" : undefined} aria-label={t("navigation")} onTouchStart={e => { const touch = e.touches[0]; if (touch) gesture.current = { x: touch.clientX, y: touch.clientY }; }} onTouchEnd={touchEnd}>
+    <nav className="navigation-dock" data-hidden={blocked || collapsed} aria-hidden={blocked || collapsed} aria-label={t("navigation")} onTouchStart={e => { const touch = e.touches[0]; if (touch) gesture.current = { x: touch.clientX, y: touch.clientY }; }} onTouchEnd={touchEnd}>
       <div ref={track} className="dock-track">
         {APP_TABS.map(tab => {
           const Icon = icons[tab];
           const isActive = activeTab === tab;
           return (
-            <Button key={tab} data-tab={tab} variant="ghost" onClick={() => onTabChange(tab)} aria-current={isActive ? "page" : undefined}
+            <Button key={tab} disabled={blocked || collapsed} data-tab={tab} variant="ghost" onClick={() => onTabChange(tab)} aria-current={isActive ? "page" : undefined}
               className={cn("dock-slot h-[64px] rounded-none flex flex-col gap-1 px-1 hover:bg-muted/50",
                 isActive ? "text-primary" : "text-muted-foreground hover:text-foreground")}>
               <div className="relative">
@@ -68,7 +68,7 @@ export function BottomNav({ blocked, collapsed, onCollapsedChange, activeTab, on
           );
         })}
         {contacts.map(contact => (
-          <Button key={contact.user_id} variant="ghost" className="dock-slot h-[64px] rounded-none flex flex-col gap-0.5 px-1" onClick={() => onContactClick(contact.user_id)}>
+          <Button key={contact.user_id} disabled={blocked || collapsed} variant="ghost" className="dock-slot h-[64px] rounded-none flex flex-col gap-0.5 px-1" onClick={() => onContactClick(contact.user_id)}>
             <span className="relative w-8 h-8">
               {contact.avatar_url ? <img src={contact.avatar_url} alt="" className="w-8 h-8 rounded-full object-cover" /> : <span className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-xs">{(contact.display_name || contact.username || "?").charAt(0).toUpperCase()}</span>}
               {contact.online && <span className="absolute right-0 bottom-0 w-2 h-2 rounded-full bg-success border-2 border-card" />}

@@ -9,7 +9,8 @@ import { Shield, BadgeCheck, Ban, UserX, Search, Boxes, Trash2, Play, Pause, Gem
 import { FlameInput } from "@/components/ui/FlameInput";
 import { toast } from "@/hooks/use-toast";
 import { uploadToMedia } from "@/lib/uploads";
-import flameLogo from "@/assets/flame-logo.png";
+import flameLogoAsset from "@/assets/flame-mark.png.asset.json";
+const flameLogo = flameLogoAsset.url;
 import { PostsModeration } from "./PostsModeration";
 
 
